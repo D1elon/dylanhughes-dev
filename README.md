@@ -1,19 +1,23 @@
 # dylanhughes.dev
 
-Personal site — hand-built static HTML/CSS/JS. No framework, no build step.
+Personal site for Dylan Hughes, creative technologist in Richmond, VA. Hand-built static HTML, CSS and JavaScript. No framework, no build step.
 
 ## Structure
 
 ```
-index.html                     home: hero, ledger, work cards, how I work, résumé, contact
-work/                          case studies — zelda-retheme, stall-brawl, tip-top-pinball
+index.html                     home: opening, story, work, the other two jobs, résumé, contact
+work/                          case studies: zelda-retheme, stall-brawl, tip-top-pinball
 css/style.css                  all styling; design tokens at the top of the file
-js/main.js                     hero light field, scroll reveals
-assets/img/                    imagery
-assets/resume-print.html       print stylesheet source for the PDF
+js/main.js                     sticky nav, scroll progress, staged opening, scroll reveals
+assets/img/                    case study imagery
+assets/favicon.svg             favicon
+assets/resume-print.html       source for the résumé PDF
 assets/dylan-hughes-resume.pdf downloadable résumé
 CNAME                          dylanhughes.dev
+robots.txt, sitemap.xml        search engine hints
 ```
+
+Placeholders marked `.slot` in the HTML are waiting on photos and video. Each one says what to shoot and at what ratio.
 
 ## Local preview
 
@@ -25,12 +29,8 @@ Then open http://localhost:5173.
 
 ## Regenerating the résumé PDF
 
-Edit `assets/resume-print.html`, then print it to PDF from Chrome
-(Letter, margins 0.42in top / 0.4in bottom / 0.55in sides, background graphics on)
-and save over `assets/dylan-hughes-resume.pdf`.
+Edit `assets/resume-print.html`, then print it to PDF from Chrome (Letter, margins 0.42in top and bottom, 0.55in sides, background graphics on) and save over `assets/dylan-hughes-resume.pdf`. It should stay on one page.
 
 ## Deploying
 
-Push to GitHub, then enable Pages on the `main` branch in repo settings.
-The `CNAME` file handles the custom domain. In Porkbun DNS, point the apex at
-GitHub's four A records (185.199.108–111.153) and `www` at `<user>.github.io`.
+GitHub Pages serves the `main` branch from the repository root. The `CNAME` file sets the custom domain. In Porkbun DNS, point the apex at GitHub's four A records (185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153) and `www` at `d1elon.github.io` as a CNAME.
