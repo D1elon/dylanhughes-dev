@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stall Brawl, an original P3 pinball game · Dylan Hughes, creative technologist</title>
+<meta name="description" content="Stall Brawl is an original two to sixteen player elimination game for the Multimorphic P3 pinball platform, written in C# and Unity with its own voice, effects and music. By Dylan Hughes, creative technologist.">
+<meta name="theme-color" content="#0c0f15">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<nav class="nav" aria-label="Site">
+  <div class="nav-in">
+    <a class="mark" href="../" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
+    <div class="nav-links">
+      <a href="../#work">Work</a>
+      <a href="../#story">About</a>
+      <a href="../#resume">Résumé</a>
+      <a href="../#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<header class="cs-open">
+  <div class="wrap">
+    <a class="back" href="../#work">← All work</a>
+    <p class="chapter">Original game <b>·</b> software on hardware</p>
+    <h1>An original game for a pinball machine, now in beta on the hardware.</h1>
+    <p class="big">The Multimorphic P3 is a pinball machine with a screen for a playfield and mechanical modules that bolt on top. I wrote a new game for it: a party elimination game for two to sixteen players, with the rules, the hardware integration, a two-display interface and its own voice, effects and music. The first playtest on the machine was August 19, 2026.</p>
+    <div class="facts">
+      <div><div class="k">Platform</div><div class="v">Multimorphic P3, SDK 0.9</div></div>
+      <div><div class="k">Built with</div><div class="v">C#, Unity, the P3 SDK</div></div>
+      <div><div class="k">Hardware modules</div><div class="v">Final Resistance (playtested), Portal (written, not yet on the machine)</div></div>
+      <div><div class="k">Where it stands</div><div class="v">Beta 0.3.0.0, playtested on the machine</div></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">What <b>went into it</b></p>
+      <h2>Eight modes, two screens, and the audio.</h2>
+      <div class="numbers">
+        <div><div class="n">8</div><div class="l">game modes written</div></div>
+        <div><div class="n">2</div><div class="l">displays, playfield and backbox</div></div>
+        <div><div class="n">25</div><div class="l">voice lines</div></div>
+        <div><div class="n">9</div><div class="l">sound effects</div></div>
+        <div><div class="n">4</div><div class="l">music tracks</div></div>
+        <div><div class="n">22</div><div class="l">art pack files</div></div>
+      </div>
+      <p class="quiet">The rules are eight C# modes talking to the machine's hardware: which switch just closed, which ball is where, which coil to fire. The screens are Unity scenes on two displays at once, a 1080 by 1920 portrait panel under the ball and a 1920 by 1080 backbox above it. The audio is 25 voice clips, 9 effects and 4 music tracks, cut and levelled by me and wired into a four-tier priority queue so the important line always wins.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">Three <b>favorite parts</b></p>
+      <h2>And how I did them.</h2>
+    </div>
+    <div class="parts in-view" style="margin-top:2rem">
+
+      <div class="part">
+        <div class="idx">1</div>
+        <div>
+          <h3>A player system the platform didn't have</h3>
+          <p>The P3 is built around four players. Stall Brawl needed a room full of them: a queue of up to sixteen, each with their own strikes, rotating turn by turn until one is left. Every hole and lock on the playfield is a safe stall. Miss and you take a hit. Certain shots turn red and count against you, and more of them go red every lap.</p>
+          <p class="how">I wrote my own player queue on top of the SDK, and the game recognizes a stall by walking the machine's own ball path definitions to find every exit that ends in a hole or a lock. The red shot picker adds more red shots each lap and always leaves two safe ones, so the game gets harder without becoming unwinnable. Strikes are adjustable and there's no cradle clock, because those are the rules I wanted to play.</p>
+        </div>
+      </div>
+
+      <div class="part">
+        <div class="idx">2</div>
+        <div>
+          <h3>A playfield that changes shape every lap</h3>
+          <p>The Portal module has ramps that lift, a trapdoor, a cube that locks balls, a magnet-driven moat, and a second flipper halfway up the field. The game reshapes it each lap: Portals, then Upper Deck, then Lockdown. Different shots open and close, so the safe stalls move under the players.</p>
+          <p class="how">A module mode listens for the lap change, republishes the set of stall targets for the new shape, and drives the mechs to match: the left ramp climbs to the upper deck and wakes the mid-field flipper for a few seconds, the cube rises so landings on the grate lock, the kickback holds and fires. When two players are left, a Final Two override closes everything and opens the turret. Balls held by a mech get delivered back by that mech. This is the one part that hasn't been on the machine yet. The Portal build is written and compiles, and the August playtest ran on the Final Resistance module.</p>
+        </div>
+      </div>
+
+      <div class="part">
+        <div class="idx">3</div>
+        <div>
+          <h3>Producing the audio</h3>
+          <p>Twenty-five voice lines cover the calls the game has to make: secure, hit taken, eliminated, and who's up next. Nine sound effects. Four music tracks for setup, play, the final two, and the win.</p>
+          <p class="how">The voice runs through a four-tier priority queue, so an elimination call can interrupt chatter and not the other way round. Every clip is loop-cut and levelled against the machine's stock effects, which I turned down to sit underneath. Clip lengths get measured at install because the platform gives no completion callback, so the game knows when a line ends before it queues the next one. The voice was generated, not recorded, and the music came out of Suno; the cutting, levelling and wiring are mine.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">The <b>final product</b></p>
+      <h2>What it looks like.</h2>
+    </div>
+    <div class="two in-view" style="margin-top:2rem">
+      <div>
+        <div class="slot video" aria-hidden="true">
+          <div>
+            <div class="what">Video: a full round on the machine</div>
+            <div class="spec">16:9 · 45 to 90 seconds · setup, a stall, a hit, an elimination</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="slot photo" aria-hidden="true">
+          <div>
+            <div class="what">Photo: playfield and backbox screens</div>
+            <div class="spec">3:2 · from the player's position · or the design mockups</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="quiet in-view" style="margin-top:1.6rem">Built with C#, Unity 5.6 and the Multimorphic P3 SDK 0.9, plus Suno and TTS for the audio, a Python log analyser for the machine's logs, and an offline test harness so the rules could be checked with the machine off.</p>
+  </div>
+</section>
+
+<div class="wrap nextprev">
+  <a class="more" href="tip-top-pinball.html">Next: Tip Top Pinball →</a>
+  <a class="more" href="../#work">All work</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>Dylan Hughes, Richmond, VA. <span id="year">2026</span>.</div>
+    <div><a href="https://github.com/d1elon">GitHub</a></div>
+  </div>
+</footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zelda pinball retheme · Dylan Hughes, creative technologist</title>
+<meta name="description" content="Stern's Avengers: Infinity Quest being rethemed as Tears of the Kingdom: a 21,143-file working library sorted into 16 scenes and replaced one asset at a time. By Dylan Hughes, creative technologist.">
+<meta name="theme-color" content="#0c0f15">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<nav class="nav" aria-label="Site">
+  <div class="nav-in">
+    <a class="mark" href="../" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
+    <div class="nav-links">
+      <a href="../#work">Work</a>
+      <a href="../#story">About</a>
+      <a href="../#resume">Résumé</a>
+      <a href="../#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<header class="cs-open">
+  <div class="wrap">
+    <a class="back" href="../#work">← All work</a>
+    <p class="chapter">Pinball retheme <b>·</b> for Donutland</p>
+    <h1>Retheming a pinball machine, one asset at a time.</h1>
+    <p class="big">Stern's <em>Avengers: Infinity Quest</em> runs on their Spike 2 system. I pulled the asset library out with Pinball Browser, sorted it into sixteen scenes, and I'm replacing it scene by scene with <em>The Legend of Zelda: Tears of the Kingdom</em>: the art, the video, the audio, and the six-character system the rules run on.</p>
+    <div class="facts">
+      <div><div class="k">Base machine</div><div class="v">Avengers: Infinity Quest (Stern, 2020)</div></div>
+      <div><div class="k">Platform</div><div class="v">Stern Spike 2</div></div>
+      <div><div class="k">My part</div><div class="v">Extraction, mapping, art, video, audio</div></div>
+      <div><div class="k">Where it stands</div><div class="v">16 scenes mapped. 2 of 6 characters on the machine, 4 ready to upload. More scenes in progress.</div></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">The <b>asset library</b></p>
+      <h2>What's inside the machine.</h2>
+      <div class="numbers">
+        <div><div class="n">21,143</div><div class="l">files managed</div></div>
+        <div><div class="n">16,046</div><div class="l">audio files</div></div>
+        <div><div class="n">1,595</div><div class="l">video clips</div></div>
+        <div><div class="n">1,587</div><div class="l">images</div></div>
+        <div><div class="n">16</div><div class="l">scenes mapped</div></div>
+      </div>
+    </div>
+    <figure class="figure in-view">
+      <img src="../assets/img/retheme.jpg" alt="A grid of forty game assets: original Marvel character art beside the Zelda replacements built to take their place." loading="lazy" width="1254" height="786">
+      <figcaption>Forty of the 21,143. Originals and replacements, straight out of the working folders.</figcaption>
+    </figure>
+    <p class="quiet in-view" style="margin-top:1.8rem">There's no index. Every file has a hex ID, something like <code>Image-124-0x80000002</code>, and nothing tells you it's a trophy room background until you open it. So the first job was sorting: extract everything with Pinball Browser, group it into sixteen scenes named for what's on screen, and keep every original next to its replacement so anything can be put back.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">Three <b>favorite parts</b></p>
+      <h2>And how I did them.</h2>
+    </div>
+    <div class="parts in-view" style="margin-top:2rem">
+
+      <div class="part">
+        <div class="idx">1</div>
+        <div>
+          <h3>Making the library editable at all</h3>
+          <p>Twenty-one thousand files with hex names can't be worked on, so the folder structure came before any art. One folder per scene, named for what happens on screen: Trophy Room, Quest Select, Gem Awarded, Battle Thanos, and twelve more. Inside each, an Old Bitmaps folder, a New Bitmaps folder, and the Photoshop file that produced them.</p>
+          <p class="how">Every replacement keeps the original's ID and dimensions, so when it's written back with Pinball Browser it lands in the right slot. The old files stay next to the new, so any scene can be compared or reverted. None of the art works without this part.</p>
+        </div>
+      </div>
+
+      <div class="part">
+        <div class="idx">2</div>
+        <div>
+          <h3>Turning the Avengers into six characters from Tears of the Kingdom</h3>
+          <p>The game's progression runs on six character hexes. Collect an Avenger, level them up, unlock their power. I mapped each one to a character from Tears of the Kingdom so the rules still make sense: Hulk became Tulin, Captain America became Sidon, Iron Man became Yunobo, Thor became Riju, Black Panther became Mineru, and Black Widow became Zelda.</p>
+          <p class="how">Each character exists in four states, uncollected and then levels one through three, with bronze, silver and gold frames. That's twenty-four hex artworks, each built at the machine's original size so the existing reveal and upgrade animations still work. Mineru and Zelda are on the machine now. The other four are finished and ready to upload.</p>
+          <figure class="figure">
+            <img src="../assets/img/sages.jpg" alt="Six Avengers character hexes above the six Tears of the Kingdom characters drawn to replace them." loading="lazy" width="1270" height="430">
+            <figcaption>Top row, the machine's originals. Bottom row, the replacements at level three, in the machine's frame.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="part">
+        <div class="idx">3</div>
+        <div>
+          <h3>The drop target grid as the Purah Pad</h3>
+          <p>The Game UI scene alone is 156 files: the score bar, the drop target grid, the gem indicators, every state each of them can be in. I'm rebuilding the drop target grid as the Purah Pad, the device Link carries in the game, so the HUD looks like it belongs in Zelda.</p>
+          <p class="how">The grid is now the Pad's display. The Infinity Gems are stones from the game: the Mind Gem is the Lightning Stone, the Space Gem is the Wind Stone. The files go back into the machine as DDS textures, so each one gets converted after it's drawn. Below, one drop target background, before and after.</p>
+          <figure class="figure">
+            <img src="../assets/img/drops-grid.jpg" alt="Before and after: the original Avengers drop target grid background beside the rebuilt Purah Pad version." loading="lazy" width="1310" height="381">
+            <figcaption>The drop target grid background, original and replacement.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="in-view">
+      <p class="chapter">On the <b>machine</b></p>
+      <h2>What's running today.</h2>
+    </div>
+    <div class="two in-view" style="margin-top:2rem">
+      <div>
+        <div class="slot video" aria-hidden="true">
+          <div>
+            <div class="what">Video: the retheme running on the machine</div>
+            <div class="spec">16:9 · 30 to 90 seconds · attract mode, a game start, a character reveal</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="slot photo" aria-hidden="true">
+          <div>
+            <div class="what">Photo: the playfield with the new screen art</div>
+            <div class="spec">3:2 · glass off if you can, lights on</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="quiet in-view" style="margin-top:1.6rem">On the machine today: Mineru and Zelda. The other four characters are ready to upload, and more scenes are in progress. Made with Pinball Browser, Photoshop, Premiere Pro and After Effects, plus DDS conversion for the files the machine reads directly.</p>
+  </div>
+</section>
+
+<div class="wrap nextprev">
+  <a class="more" href="stall-brawl.html">Next: Stall Brawl →</a>
+  <a class="more" href="../#work">All work</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>Dylan Hughes, Richmond, VA. <span id="year">2026</span>.</div>
+    <div><a href="https://github.com/d1elon">GitHub</a></div>
+  </div>
+</footer>
+<script src="../js/main.js"></script>
+</body>
+</html>
