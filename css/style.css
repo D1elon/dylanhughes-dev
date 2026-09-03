@@ -155,6 +155,10 @@ body.menu-open { overflow: hidden; }
 
 /* Portrait with stickers */
 .portrait-wrap { position: relative; max-width: 24rem; justify-self: end; width: 100%; }
+.portrait { border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-2); }
+.portrait img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; display: block; }
+.portrait-wrap.hit .portrait { border-color: var(--amber); transition: border-color .05s; }
+.portrait { transition: border-color .5s; }
 .sticker { position: absolute; z-index: 2; padding: .5rem .85rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .88rem; font-weight: 500; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.45); transform: rotate(var(--r)); transition: transform .35s var(--spring), background .25s; }
 .sticker em { font-size: 1.15em; }
 .sticker:hover { transform: rotate(0) translateY(-3px); background: var(--amber); }
