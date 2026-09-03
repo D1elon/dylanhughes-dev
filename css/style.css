@@ -326,6 +326,18 @@ body.menu-open { overflow: hidden; }
 .thumbs figure:hover img { transform: scale(1.04); }
 .thumbs figcaption { font-size: .8rem; line-height: 1.4; color: var(--ink-3); padding: .55rem .7rem; border-top: 1px solid var(--line); }
 
+/* Wide thumbnails (screenshots) */
+.item .thumbs.wide { grid-template-columns: repeat(auto-fit, minmax(0, 380px)); }
+.thumbs.wide img { aspect-ratio: 16 / 9; object-position: top; }
+
+/* Two photos in one feature slot */
+.feature-media.pair { aspect-ratio: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line); }
+.feature-media.pair img { aspect-ratio: 1; height: auto; }
+
+/* Before and after */
+.compare .figure img { aspect-ratio: 16 / 10; object-fit: cover; object-position: top; }
+.compare figcaption b { color: var(--ink); font-weight: 600; }
+
 /* Two photos side by side, squared off */
 .gallery .figure img { aspect-ratio: 1; object-fit: cover; }
 
