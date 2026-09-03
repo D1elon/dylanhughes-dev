@@ -8,7 +8,7 @@ Personal site for Dylan Hughes, creative technologist in Richmond, VA. Hand-buil
 index.html                     home, told in five chapters: story, work, the other two jobs, résumé, contact
 work/                          case studies: zelda-retheme, stall-brawl, tip-top-pinball
 css/style.css                  all styling; design tokens at the top of the file
-js/main.js                     the ball on the rail, intro, tickers, count-up, menu, reveals
+js/main.js                     the ball in the opening, the ball on the rail, tickers, numbers, menu, reveals
 assets/img/                    case study imagery
 assets/favicon.svg             favicon
 assets/resume-print.html       source for the résumé PDF
@@ -18,6 +18,8 @@ robots.txt, sitemap.xml        search engine hints
 ```
 
 Placeholders marked `.slot` in the HTML are waiting on photos and video. Each one says what to shoot and at what ratio.
+
+The opening has a small physics loop: a chrome ball drops in, bounces off the headline, the button and the portrait, and the cursor kicks it. The Konami code adds five more. Everything motion-related switches off under `prefers-reduced-motion`.
 
 ## Local preview
 

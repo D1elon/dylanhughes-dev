@@ -39,12 +39,12 @@
     <a class="mark" href="#contact" data-for="contact" aria-label="Chapter 5, say hi"><span>05</span></a>
     <div class="ball-wrap" aria-hidden="true"><div class="ball"><div class="spin"></div></div></div>
   </div>
-  <a class="pdf" href="assets/dylan-hughes-resume.pdf" aria-label="Download the résumé as a PDF">PDF</a>
+  <a class="pdf" href="assets/dylan-hughes-resume.pdf" aria-label="Download the résumé as a PDF" data-magnet>PDF</a>
 </div>
 
 <nav class="nav" aria-label="Site">
   <div class="nav-in">
-    <a class="mark" href="/" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
+    <a class="brand" href="/" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
     <div class="nav-links">
       <a href="#work">Work</a>
       <a href="#story">About</a>
@@ -73,7 +73,7 @@
       <h1 class="stage split">I like knowing how <em>things work.</em></h1>
       <p class="big stage">It turns out that's most of the job. I write software for pinball machines, make the art and sound that runs on them, build websites for people who need one, and fix whatever is in the way.</p>
       <div class="cta stage">
-        <a class="btn solid" href="#work">See what I've built</a>
+        <a class="btn solid" href="#work" data-magnet>See what I've built</a>
         <a class="more" href="#resume">Or read the résumé</a>
       </div>
     </div>
@@ -89,6 +89,8 @@
       <span class="sticker s3" style="--j:2">fixes the <em>printer</em></span>
     </div>
   </div>
+  <div class="pf-ball" aria-hidden="true"><div class="spin"></div></div>
+  <div class="pf-score" aria-hidden="true"><b>0</b> bumps</div>
   <div class="ticker" aria-hidden="true" style="--dur:52s">
     <div class="ticker-in">
       <span>Writes the <em>code</em></span>
@@ -125,7 +127,7 @@
   <div class="wrap">
     <span class="num">01</span>
     <span class="label">Where it started</span>
-    <h2>I've always taken <em>things apart.</em></h2>
+    <h2 class="split">I've always taken <em>things apart.</em></h2>
   </div>
 </div>
 <section class="section story" aria-labelledby="story-h">
@@ -186,7 +188,7 @@
   <div class="wrap">
     <span class="num">02</span>
     <span class="label">What I've built</span>
-    <h2>Three in detail, <em>then the rest.</em></h2>
+    <h2 class="split">Three in detail, <em>then the rest.</em></h2>
   </div>
 </div>
 <section class="section" aria-label="Work">
@@ -199,9 +201,9 @@
         </div>
       </div>
       <div class="feature-grid">
-        <div class="feature-media natural" data-px="-.03">
+        <a class="feature-media natural" data-px="-.03" data-cursor="open" href="work/zelda-retheme.html" aria-label="Zelda retheme case study">
           <img src="assets/img/sages.jpg" alt="Six Avengers character hexes above the six Tears of the Kingdom characters drawn to replace them." loading="lazy" width="1270" height="430">
-        </div>
+        </a>
         <div>
           <h3>Turning Stern's Avengers machine into <em>Tears of the Kingdom,</em> one file at a time</h3>
           <p class="quiet">The working folder for this is 21,143 files, most of them audio. I pull the originals out with Pinball Browser, sort them into scenes, and replace them with new art, video and sound. Two of the six characters are on the machine so far, and the other four are ready to upload.</p>
@@ -217,7 +219,7 @@
         </div>
       </div>
       <div class="feature-grid">
-        <div class="feature-media" data-px="-.03">
+        <div class="feature-media" data-px="-.03" data-cursor="soon">
           <div class="slot video" aria-hidden="true">
             <div>
               <div class="what">Video: Stall Brawl on the machine</div>
@@ -240,9 +242,9 @@
         </div>
       </div>
       <div class="feature-grid">
-        <div class="feature-media" data-px="-.03">
+        <a class="feature-media" data-px="-.03" data-cursor="open" href="work/tip-top-pinball.html" aria-label="Tip Top Pinball case study">
           <img src="assets/img/tiptop.jpg" alt="The Tip Top Pinball homepage: dark hero, headline, request service button, and a red band of common faults." loading="lazy" width="1200" height="800">
-        </div>
+        </a>
         <div>
           <h3>A repair shop that wanted <em>more local customers</em></h3>
           <p class="quiet">Dan repairs pinball machines around Richmond. He had a Google Sites page and wanted more local customers. I redesigned the site, wrote the copy around Henrico, Chesterfield and Ashland, set up his Google Business Profile, and put it on his own domain. It's live and I maintain it monthly.</p>
@@ -271,7 +273,7 @@
   <div class="wrap">
     <span class="num">03</span>
     <span class="label">The other two jobs</span>
-    <h2>The work that doesn't fit <em>on a project list.</em></h2>
+    <h2 class="split">The work that doesn't fit <em>on a project list.</em></h2>
   </div>
 </div>
 <section class="section" aria-label="The other two jobs">
@@ -281,7 +283,7 @@
         <p class="pull">The short version: I'm his second brain.</p>
         <h3>Running someone's day to day</h3>
         <p class="quiet">Since 2023 I've run the day-to-day for a business owner with several companies. The calendar, travel, purchasing and vendors are the visible part. The bigger part is noticing what's slowing him down and getting rid of it: a workflow that needed rebuilding, or an AI tool set up so it saves him time instead of adding a step.</p>
-        <div class="slot photo" aria-hidden="true">
+        <div class="slot photo" aria-hidden="true" data-px="-.03">
           <div>
             <div class="what">Photo: at work</div>
             <div class="spec">3:2 · desk, laptop, notebook · optional</div>
@@ -293,7 +295,7 @@
         <h3>House calls</h3>
         <p class="quiet">I also make house calls for tech help. Someone gets a fake virus pop-up and doesn't know if it's real. A printer stops and nobody they know can say why. I come over, fix it, and explain what happened in plain words so it's less scary next time.</p>
         <p class="quiet">I'm good at this and I like it. The look on someone's face when the thing they've been dreading turns out to be a quick fix is a good reason to drive across town.</p>
-        <div class="slot photo" aria-hidden="true">
+        <div class="slot photo" aria-hidden="true" data-px="-.03">
           <div>
             <div class="what">Photo: on a house call</div>
             <div class="spec">3:2 · with a client if they're willing · otherwise a kitchen table and a laptop</div>
@@ -309,7 +311,7 @@
   <div class="wrap">
     <span class="num">04</span>
     <span class="label">Where I've worked</span>
-    <h2>The <em>résumé,</em> in order.</h2>
+    <h2 class="split">The <em>résumé,</em> in order.</h2>
   </div>
 </div>
 <section class="section" aria-label="Résumé">
@@ -390,7 +392,10 @@
 
 <footer>
   <div class="wrap foot">
-    <div>Dylan Hughes, Richmond, VA. <span id="year">2026</span>. Hand-built, no framework.</div>
+    <div>
+      <div>Dylan Hughes, Richmond, VA. <span id="year">2026</span>.</div>
+      <div class="colophon">Built by hand, no framework. Set in Archivo, Instrument Serif and IBM Plex. The Konami code works.</div>
+    </div>
     <div><a href="https://github.com/d1elon">GitHub</a></div>
   </div>
 </footer>
