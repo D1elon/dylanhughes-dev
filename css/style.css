@@ -319,6 +319,16 @@ body.menu-open { overflow: hidden; }
 .item .s.live::before { background: #56d68f; box-shadow: 0 0 8px rgba(86,214,143,.6); }
 .item .s.wip::before { background: var(--amber); }
 
+/* Thumbnails under a list row */
+.item .thumbs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 1rem; margin-top: .8rem; }
+.thumbs figure { border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-2); }
+.thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; transition: transform 1s var(--ease); }
+.thumbs figure:hover img { transform: scale(1.04); }
+.thumbs figcaption { font-size: .8rem; line-height: 1.4; color: var(--ink-3); padding: .55rem .7rem; border-top: 1px solid var(--line); }
+
+/* Two photos side by side, squared off */
+.gallery .figure img { aspect-ratio: 1; object-fit: cover; }
+
 /* Two jobs */
 #how .two { align-items: stretch; margin-top: .5rem; }
 #how .two > div { display: flex; flex-direction: column; }
