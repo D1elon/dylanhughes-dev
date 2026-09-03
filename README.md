@@ -5,10 +5,10 @@ Personal site for Dylan Hughes, creative technologist in Richmond, VA. Hand-buil
 ## Structure
 
 ```
-index.html                     home: opening, story, work, the other two jobs, résumé, contact
+index.html                     home, told in five chapters: story, work, the other two jobs, résumé, contact
 work/                          case studies: zelda-retheme, stall-brawl, tip-top-pinball
 css/style.css                  all styling; design tokens at the top of the file
-js/main.js                     sticky nav, scroll progress, staged opening, scroll reveals
+js/main.js                     the ball on the rail, intro, tickers, count-up, menu, reveals
 assets/img/                    case study imagery
 assets/favicon.svg             favicon
 assets/resume-print.html       source for the résumé PDF
