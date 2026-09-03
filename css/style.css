@@ -377,6 +377,24 @@ footer { background: var(--bg); }
 @keyframes vt-out { to { opacity: 0; } }
 @keyframes vt-in { from { opacity: 0; } }
 
+/* Character plates board (Zelda case study) */
+.board { border-top: 1px solid var(--line); }
+.board-tools { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding: 1.1rem 0; }
+.board-row { display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; align-items: center; padding: .9rem 0; border-top: 1px solid var(--line); cursor: pointer; }
+.board-row:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.board-name { font-family: var(--display); font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; }
+.board-name span { display: block; font-family: var(--mono); font-weight: 400; font-size: .78rem; letter-spacing: .04em; color: var(--ink-3); margin-top: .2rem; }
+.plates { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; }
+.plates img { width: 100%; height: auto; border-radius: 6px; transition: transform .35s var(--spring), opacity .3s, box-shadow .3s; }
+.plates img.dim { opacity: .35; }
+.plates img.lit { transform: scale(1.06); box-shadow: 0 0 0 2px var(--amber), 0 0 22px rgba(255,176,32,.5); }
+.stones { padding-top: 1.4rem; border-top: 1px solid var(--line); }
+.stones .chapter { margin-bottom: .8rem; }
+.stones ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 1.6rem; flex-wrap: wrap; }
+.stones li { display: flex; flex-direction: column; align-items: center; gap: .45rem; font-family: var(--mono); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.stones img { width: 56px; height: 78px; }
+@media (max-width: 720px) { .board-row { grid-template-columns: 1fr; gap: .5rem; } .plates { grid-template-columns: 1fr 1fr; } }
+
 /* Motion: enter once, quickly */
 .js .in-view { opacity: 0; transform: translateY(16px); }
 .js .in-view.on { opacity: 1; transform: none; transition: opacity .6s var(--ease), transform .6s var(--ease); }
@@ -442,6 +460,7 @@ footer { background: var(--bg); }
   .js.intro .open .w > span, .js .stage.on .sticker, .js .band h2 .w > span, .js .band.on h2 .w > span { animation: none; transform: none; }
   .js .toc li, .js .feature.in-view .feature-media, .js .feature.in-view .feature-media img { opacity: 1; transform: none; clip-path: none; transition: none; }
   .odo > span { transition: none; }
+  .plates img { transition: none; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
   .ball-wrap { transition: none; }
   .ticker-in { animation: none; }
