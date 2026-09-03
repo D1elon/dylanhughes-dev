@@ -6,16 +6,32 @@
 <title>Tip Top Pinball website · Dylan Hughes, creative technologist</title>
 <meta name="description" content="A Richmond pinball repair business that wanted more local customers: redesign, copy, local SEO and a Google Business Profile, live at tiptoppinball.com. By Dylan Hughes, creative technologist.">
 <meta name="theme-color" content="#0c0f15">
+<script>
+  (function () {
+    var h = document.documentElement; h.classList.add('js');
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('dh-seen')) h.classList.add('intro');
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=Instrument+Serif:ital@1&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
 <a class="skip" href="#main">Skip to content</a>
-<div class="progress" aria-hidden="true"></div>
+<div class="cursor" aria-hidden="true"></div>
+
+<div class="lane">
+  <div class="track">
+    <div class="ball-wrap" aria-hidden="true"><div class="ball"><div class="spin"></div></div></div>
+  </div>
+  <a class="pdf" href="../assets/dylan-hughes-resume.pdf" aria-label="Download the résumé as a PDF">PDF</a>
+</div>
+
 <nav class="nav" aria-label="Site">
   <div class="nav-in">
     <a class="mark" href="../" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
@@ -25,17 +41,28 @@
       <a href="../#resume">Résumé</a>
       <a href="../#contact">Contact</a>
     </div>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </div>
 </nav>
+<div class="menu" id="menu">
+  <ol>
+    <li><a href="../#story"><span class="num">01</span>Where it started</a></li>
+    <li><a href="../#work"><span class="num">02</span>What I've built</a></li>
+    <li><a href="../#how"><span class="num">03</span>The other two jobs</a></li>
+    <li><a href="../#resume"><span class="num">04</span>Where I've worked</a></li>
+    <li><a href="../#contact"><span class="num">05</span>Say hi</a></li>
+  </ol>
+  <div class="menu-foot">Richmond, Virginia. <a href="mailto:dyl.harrell@gmail.com">dyl.harrell@gmail.com</a> · <a href="../assets/dylan-hughes-resume.pdf">Résumé PDF</a></div>
+</div>
 
 <main id="main">
 <header class="cs-open">
   <div class="wrap">
-    <a class="back" href="../#work">← All work</a>
-    <p class="chapter">Client website <b>·</b> live</p>
-    <h1>A repair shop that wanted more local customers.</h1>
-    <p class="big">Tip Top Pinball repairs pinball and arcade machines around Richmond, puts games on location and sells machines. Dan, who owns it, had a Google Sites page and one request: more local customers. I redesigned the site, rewrote it around Henrico, Chesterfield and Ashland, set up his Google Business Profile, and put it live on his own domain.</p>
-    <div class="facts">
+    <a class="back stage" href="../#work">← All work</a>
+    <p class="chapter stage">Client website <b>·</b> live</p>
+    <h1 class="stage">A repair shop that wanted <em>more local customers.</em></h1>
+    <p class="big stage">Tip Top Pinball repairs pinball and arcade machines around Richmond, puts games on location and sells machines. Dan, who owns it, had a Google Sites page and one request: more local customers. I redesigned the site, rewrote it around Henrico, Chesterfield and Ashland, set up his Google Business Profile, and put it live on his own domain.</p>
+    <div class="facts stage">
       <div><div class="k">Client</div><div class="v">Tip Top Pinball LLC, North Chesterfield, VA</div></div>
       <div><div class="k">Scope</div><div class="v">Redesign, copy, local SEO, Google Business Profile, launch, maintenance</div></div>
       <div><div class="k">Live at</div><div class="v"><a href="https://tiptoppinball.com">tiptoppinball.com</a></div></div>
@@ -57,7 +84,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">What Dan <b>got out of it</b></p>
-      <h2>Three things the old page didn't do.</h2>
+      <h2>Three things the old page <em>didn't do.</em></h2>
     </div>
     <div class="parts in-view" style="margin-top:2rem">
       <div class="part">
@@ -89,7 +116,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">The part I'm <b>proudest of</b></p>
-      <h2>It looks like a real business.</h2>
+      <h2>It looks like <em>a real business.</em></h2>
       <p class="quiet" style="margin-top:1.2rem">For a small repair shop, that's most of what a website has to do. Someone deciding whether to hand over a machine worth a few thousand dollars needs to feel, on the first screen, that this person knows what they're doing. The dark hero, the plain headline and the band of faults in the shop's red and yellow are all there to say one thing: we've seen your problem before. Dan is a friend. When we talked about the scope he said "I'm putting it in your hands, let's do it," and I wanted the result to look like it deserved that.</p>
     </div>
   </div>

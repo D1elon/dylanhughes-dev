@@ -6,16 +6,32 @@
 <title>Zelda pinball retheme · Dylan Hughes, creative technologist</title>
 <meta name="description" content="Stern's Avengers: Infinity Quest being rethemed as Tears of the Kingdom: a 21,143-file working library sorted into 16 scenes and replaced one asset at a time. By Dylan Hughes, creative technologist.">
 <meta name="theme-color" content="#0c0f15">
+<script>
+  (function () {
+    var h = document.documentElement; h.classList.add('js');
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('dh-seen')) h.classList.add('intro');
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=Instrument+Serif:ital@1&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
 <a class="skip" href="#main">Skip to content</a>
-<div class="progress" aria-hidden="true"></div>
+<div class="cursor" aria-hidden="true"></div>
+
+<div class="lane">
+  <div class="track">
+    <div class="ball-wrap" aria-hidden="true"><div class="ball"><div class="spin"></div></div></div>
+  </div>
+  <a class="pdf" href="../assets/dylan-hughes-resume.pdf" aria-label="Download the résumé as a PDF">PDF</a>
+</div>
+
 <nav class="nav" aria-label="Site">
   <div class="nav-in">
     <a class="mark" href="../" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
@@ -25,17 +41,28 @@
       <a href="../#resume">Résumé</a>
       <a href="../#contact">Contact</a>
     </div>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </div>
 </nav>
+<div class="menu" id="menu">
+  <ol>
+    <li><a href="../#story"><span class="num">01</span>Where it started</a></li>
+    <li><a href="../#work"><span class="num">02</span>What I've built</a></li>
+    <li><a href="../#how"><span class="num">03</span>The other two jobs</a></li>
+    <li><a href="../#resume"><span class="num">04</span>Where I've worked</a></li>
+    <li><a href="../#contact"><span class="num">05</span>Say hi</a></li>
+  </ol>
+  <div class="menu-foot">Richmond, Virginia. <a href="mailto:dyl.harrell@gmail.com">dyl.harrell@gmail.com</a> · <a href="../assets/dylan-hughes-resume.pdf">Résumé PDF</a></div>
+</div>
 
 <main id="main">
 <header class="cs-open">
   <div class="wrap">
-    <a class="back" href="../#work">← All work</a>
-    <p class="chapter">Pinball retheme <b>·</b> for Donutland</p>
-    <h1>Retheming a pinball machine, one asset at a time.</h1>
-    <p class="big">Stern's <em>Avengers: Infinity Quest</em> runs on their Spike 2 system. I pulled the asset library out with Pinball Browser, sorted it into sixteen scenes, and I'm replacing it scene by scene with <em>The Legend of Zelda: Tears of the Kingdom</em>: the art, the video, the audio, and the six-character system the rules run on.</p>
-    <div class="facts">
+    <a class="back stage" href="../#work">← All work</a>
+    <p class="chapter stage">Pinball retheme <b>·</b> for Donutland</p>
+    <h1 class="stage">Retheming a pinball machine, <em>one asset at a time.</em></h1>
+    <p class="big stage">Stern's <em>Avengers: Infinity Quest</em> runs on their Spike 2 system. I pulled the asset library out with Pinball Browser, sorted it into sixteen scenes, and I'm replacing it scene by scene with <em>The Legend of Zelda: Tears of the Kingdom</em>: the art, the video, the audio, and the six-character system the rules run on.</p>
+    <div class="facts stage">
       <div><div class="k">Base machine</div><div class="v">Avengers: Infinity Quest (Stern, 2020)</div></div>
       <div><div class="k">Platform</div><div class="v">Stern Spike 2</div></div>
       <div><div class="k">My part</div><div class="v">Extraction, mapping, art, video, audio</div></div>
@@ -69,7 +96,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">Three <b>favorite parts</b></p>
-      <h2>And how I did them.</h2>
+      <h2>And <em>how</em> I did them.</h2>
     </div>
     <div class="parts in-view" style="margin-top:2rem">
 
@@ -116,7 +143,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">On the <b>machine</b></p>
-      <h2>What's running today.</h2>
+      <h2>What's running <em>today.</em></h2>
     </div>
     <div class="two in-view" style="margin-top:2rem">
       <div>

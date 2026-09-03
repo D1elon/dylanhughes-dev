@@ -6,16 +6,32 @@
 <title>Stall Brawl, an original P3 pinball game · Dylan Hughes, creative technologist</title>
 <meta name="description" content="Stall Brawl is an original two to sixteen player elimination game for the Multimorphic P3 pinball platform, written in C# and Unity with its own voice, effects and music. By Dylan Hughes, creative technologist.">
 <meta name="theme-color" content="#0c0f15">
+<script>
+  (function () {
+    var h = document.documentElement; h.classList.add('js');
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('dh-seen')) h.classList.add('intro');
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=Instrument+Serif:ital@1&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
 <a class="skip" href="#main">Skip to content</a>
-<div class="progress" aria-hidden="true"></div>
+<div class="cursor" aria-hidden="true"></div>
+
+<div class="lane">
+  <div class="track">
+    <div class="ball-wrap" aria-hidden="true"><div class="ball"><div class="spin"></div></div></div>
+  </div>
+  <a class="pdf" href="../assets/dylan-hughes-resume.pdf" aria-label="Download the résumé as a PDF">PDF</a>
+</div>
+
 <nav class="nav" aria-label="Site">
   <div class="nav-in">
     <a class="mark" href="../" aria-label="Dylan Hughes, home"><span class="full">Dylan Hughes</span><span class="short" aria-hidden="true">DH</span></a>
@@ -25,17 +41,28 @@
       <a href="../#resume">Résumé</a>
       <a href="../#contact">Contact</a>
     </div>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </div>
 </nav>
+<div class="menu" id="menu">
+  <ol>
+    <li><a href="../#story"><span class="num">01</span>Where it started</a></li>
+    <li><a href="../#work"><span class="num">02</span>What I've built</a></li>
+    <li><a href="../#how"><span class="num">03</span>The other two jobs</a></li>
+    <li><a href="../#resume"><span class="num">04</span>Where I've worked</a></li>
+    <li><a href="../#contact"><span class="num">05</span>Say hi</a></li>
+  </ol>
+  <div class="menu-foot">Richmond, Virginia. <a href="mailto:dyl.harrell@gmail.com">dyl.harrell@gmail.com</a> · <a href="../assets/dylan-hughes-resume.pdf">Résumé PDF</a></div>
+</div>
 
 <main id="main">
 <header class="cs-open">
   <div class="wrap">
-    <a class="back" href="../#work">← All work</a>
-    <p class="chapter">Original game <b>·</b> software on hardware</p>
-    <h1>An original game for a pinball machine, now in beta on the hardware.</h1>
-    <p class="big">The Multimorphic P3 is a pinball machine with a screen for a playfield and mechanical modules that bolt on top. I wrote a new game for it: a party elimination game for two to sixteen players, with the rules, the hardware integration, a two-display interface and its own voice, effects and music. The first playtest on the machine was August 19, 2026.</p>
-    <div class="facts">
+    <a class="back stage" href="../#work">← All work</a>
+    <p class="chapter stage">Original game <b>·</b> software on hardware</p>
+    <h1 class="stage">An original game for a pinball machine, <em>now in beta on the hardware.</em></h1>
+    <p class="big stage">The Multimorphic P3 is a pinball machine with a screen for a playfield and mechanical modules that bolt on top. I wrote a new game for it: a party elimination game for two to sixteen players, with the rules, the hardware integration, a two-display interface and its own voice, effects and music. The first playtest on the machine was August 19, 2026.</p>
+    <div class="facts stage">
       <div><div class="k">Platform</div><div class="v">Multimorphic P3, SDK 0.9</div></div>
       <div><div class="k">Built with</div><div class="v">C#, Unity, the P3 SDK</div></div>
       <div><div class="k">Hardware modules</div><div class="v">Final Resistance (playtested), Portal (written, not yet on the machine)</div></div>
@@ -48,7 +75,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">What <b>went into it</b></p>
-      <h2>Eight modes, two screens, and the audio.</h2>
+      <h2>Eight modes, two screens, <em>and the audio.</em></h2>
       <div class="numbers">
         <div><div class="n">8</div><div class="l">game modes written</div></div>
         <div><div class="n">2</div><div class="l">displays, playfield and backbox</div></div>
@@ -105,7 +132,7 @@
   <div class="wrap">
     <div class="in-view">
       <p class="chapter">The <b>final product</b></p>
-      <h2>What it looks like.</h2>
+      <h2>What it <em>looks like.</em></h2>
     </div>
     <div class="two in-view" style="margin-top:2rem">
       <div>
