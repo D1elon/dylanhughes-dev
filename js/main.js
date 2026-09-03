@@ -371,5 +371,25 @@
     }
   }
 
+  /* Character plates: tap a row and it levels up the way the machine does */
+  var rows = $$('[data-row]');
+  function levelUp(row) {
+    if (row.busy) return; row.busy = true;
+    var imgs = $$('.plates img', row), i = 0, wait = reduced ? 0 : 420;
+    function stepIt() {
+      imgs.forEach(function (im, k) { im.classList.toggle('lit', k === i); im.classList.toggle('dim', k < i); });
+      i++;
+      if (i < imgs.length) setTimeout(stepIt, wait);
+      else setTimeout(function () { imgs.forEach(function (im) { im.classList.remove('lit', 'dim'); }); row.busy = false; }, reduced ? 900 : 1500);
+    }
+    stepIt();
+  }
+  rows.forEach(function (row) {
+    row.addEventListener('click', function () { levelUp(row); });
+    row.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); levelUp(row); } });
+  });
+  var playAll = $('[data-play-all]');
+  if (playAll) playAll.addEventListener('click', function () { rows.forEach(function (row, k) { setTimeout(function () { levelUp(row); }, reduced ? 0 : k * 260); }); });
+
   var y = $('#year'); if (y) y.textContent = new Date().getFullYear();
 })();
