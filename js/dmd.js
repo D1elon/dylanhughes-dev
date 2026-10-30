@@ -3,30 +3,27 @@
 (() => {
   'use strict';
   const COLS = 128, ROWS = 32, N = COLS * ROWS;
-  const G = window.DMD_GLYPHS;
+  const FONTS = window.DMD_FONTS;
 
-  // Bitmaps ------------------------------------------------------------------
-  const decodeRows = (rows, w) => rows.map(hex => {
-    const bits = [...hex].map(c => parseInt(c, 16).toString(2).padStart(4, '0')).join('');
-    return Uint8Array.from(bits.slice(0, w), b => (b === '1' ? 1 : 0));
-  });
-  const bigCache = {};
-  const big = word => bigCache[word] || (bigCache[word] = { w: G.big[word].w, h: G.big[word].rows.length, px: decodeRows(G.big[word].rows, G.big[word].w) });
-  const smallGlyph = {};
-  for (const ch in G.small) smallGlyph[ch] = { w: G.small[ch].w, px: decodeRows(G.small[ch].rows, G.small[ch].w) };
-  const smallCache = {};
-  function small(text) {
-    if (smallCache[text]) return smallCache[text];
-    const glyphs = [...text.toUpperCase()].map(ch => smallGlyph[ch] || smallGlyph[' ']);
-    const w = Math.max(1, glyphs.reduce((sum, g) => sum + g.w, 0) - 1);
-    const px = Array.from({ length: 7 }, () => new Uint8Array(w));
+  // Text ------------------------------------------------------------------------
+  // Composes a string from a hand-drawn font into a bitmap: { w, h, px: rows of 0/1 }.
+  const textCache = {};
+  function text(str, fontName) {
+    const key = fontName + '|' + str;
+    if (textCache[key]) return textCache[key];
+    const font = FONTS[fontName];
+    const glyphs = [...str.toUpperCase()].map(ch => font.glyphs[ch] || font.glyphs[' ']);
+    const w = Math.max(1, glyphs.reduce((sum, g) => sum + g[0].length + font.spacing, 0) - font.spacing);
+    const px = Array.from({ length: font.height }, () => new Uint8Array(w));
     let x = 0;
     for (const g of glyphs) {
-      for (let y = 0; y < 7; y++) for (let i = 0; i < g.w && x + i < w; i++) if (g.px[y][i]) px[y][x + i] = 1;
-      x += g.w;
+      g.forEach((row, y) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') px[y][x + i] = 1; });
+      x += g[0].length + font.spacing;
     }
-    return (smallCache[text] = { w, h: 7, px });
+    return (textCache[key] = { w, h: font.height, px });
   }
+  const big = str => text(str, 'big');
+  const small = str => text(str, 'small');
 
   // Drawing into a buffer -------------------------------------------------------
   const set = (buf, x, y, v) => {
@@ -87,7 +84,7 @@
         if (text) stamp(buf, small(text), center(role), 21, 0.78);
         if (typed > 0 && typed < 21 && Math.floor(t * 8) % 2) {
           const cx = center(role) + small(text).w + 2;
-          for (let y = 22; y < 27; y++) set(buf, cx, y, 0.6);
+          for (let y = 21; y < 28; y++) set(buf, cx, y, 0.6);
         }
       },
     },
@@ -109,9 +106,6 @@
         const clip = { top: 12, bottom: 28 };
         stamp(buf, big(words[step]), center(big(words[step])), 14 - offset, 1, clip);
         if (step + 1 < words.length) stamp(buf, big(words[step + 1]), center(big(words[step + 1])), 14 + pitch - offset, 1, clip);
-        const mark = 1 + Math.floor(t * 4) % 2 * 0.2;
-        set(buf, 3, 19, 0.5 * mark); set(buf, 4, 20, 0.5 * mark); set(buf, 3, 21, 0.5 * mark);
-        set(buf, 124, 19, 0.5 * mark); set(buf, 123, 20, 0.5 * mark); set(buf, 124, 21, 0.5 * mark);
       },
     },
 
@@ -155,7 +149,7 @@
         stamp(buf, small('SCORE'), 4, 2, 0.6);
         stamp(buf, small(String(state.score)), 4, 11, 1);
         stamp(buf, small('BALL 1'), 92, 2, 0.6);
-        if (Math.floor(t * 2.2) % 2 === 0) { stamp(buf, small('PRESS'), 95, 14, 0.9); stamp(buf, small('START'), 95, 22, 0.9); }
+        if (Math.floor(t * 2.2) % 2 === 0) { stamp(buf, small('PRESS'), 95, 13, 0.9); stamp(buf, small('START'), 95, 22, 0.9); }
       },
     },
 
@@ -164,7 +158,7 @@
       duration: 0,
       still: 0,
       reset(state) { state.text = this.text(); },
-      text: () => 'BASED IN RICHMOND, VIRGINIA - LOCAL TIME ' + richmondTime() + ' - WEBSITES, GAME SOFTWARE AND PRINTED PARTS',
+      text: () => 'BASED IN RICHMOND, VIRGINIA  *  LOCAL TIME ' + richmondTime() + '  *  WEBSITES, GAME SOFTWARE AND PRINTED PARTS',
       draw(buf, t, state, reduced) {
         const bmp = small(state.text);
         // Real displays scroll a whole dot per refresh, so the marquee steps instead of gliding.
@@ -189,7 +183,7 @@
         const word = big('TILT');
         if (on) stamp(buf, word, center(word), 4, 1);
         const msg = small('PAGE NOT FOUND');
-        stamp(buf, msg, center(msg), 22, 0.7);
+        stamp(buf, msg, center(msg), 21, 0.7);
       },
     },
   };

@@ -100,7 +100,7 @@
   // The dot-matrix display.
   let dmd = null;
   const canvas = $('[data-dmd]');
-  if (canvas && window.DMD && window.DMD_GLYPHS) {
+  if (canvas && window.DMD && window.DMD_FONTS) {
     const label = $('[data-dmd-label]');
     const count = $('[data-dmd-count]');
     const pause = $('[data-dmd-pause]');

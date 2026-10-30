@@ -10,10 +10,9 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `404.html`: not-found page, served by GitHub Pages for any missing URL
 - `css/site.css`: the whole design system (tokens at the top)
 - `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion
-- `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its baked fonts
+- `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its hand-drawn bitmap fonts
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
-- `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels), Silkscreen (display font source)
-- `tools/bake-dmd-glyphs.mjs`: regenerates `js/dmd-glyphs.js` when the display needs new words
+- `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
 - `assets/`: résumé PDF, favicon, social share image (`og.png`) and photographs
 - `CNAME`, `robots.txt` and `sitemap.xml`: domain and search-engine configuration
 
@@ -46,7 +45,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 ## Display text
 
-The display's large words are baked from Archivo so they look the same in every browser. To add one, add it to `BIG` in `tools/bake-dmd-glyphs.mjs`, serve the site as above and run `node tools/bake-dmd-glyphs.mjs http://127.0.0.1:8765` (needs Playwright). Small text is composed from the baked Silkscreen glyphs at runtime.
+The display uses two bitmap fonts drawn dot by dot in `js/dmd-glyphs.js`, the way pinball displays were lettered: a 5 × 7 face for small text and a 12-dot face with two-dot strokes for headline words. Each glyph is a list of rows where `#` is a lit dot. Any text made of the characters defined there can go straight into a scene in `js/dmd.js`; add a glyph to the font first if a scene needs a new character.
 
 ## Résumé updates
 
