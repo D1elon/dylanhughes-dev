@@ -26,3 +26,7 @@
 
 /* Social links can wrap as the contact list grows. */
 .contact-links{flex-wrap:wrap}
+
+/* Keep labels legible: no on-screen text below 11px. */
+.hero-copy .eyebrow,.hero-portrait .eyebrow,.project-copy>.eyebrow,.contact-top .eyebrow,.education>.eyebrow,.comparison figcaption .eyebrow,.tags li,.image-link,.detail-note,.engineering-facts dt,.workshop figcaption,.case-meta dt,.scroll-link,.role-meta,.date{font-size:11px}
+.hero-foot,.footer-inner,.hero .text-link{font-size:12px}
