@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import {
   PF, BALL_R, FLIPPERS, FLIPPER, SLINGS, APRON, SHOOTER, ARCH, GUIDES, STAR_POSTS, REBOUND, GATE, TOP_LANES, POPS, POP,
-  RAMPS, RAMP, WIRE, DROPS, RETURN_LANES, RUBBER_POSTS,
+  RAMPS, RAMP, WIRE, DROPS, RETURN_LANES, RUBBER_POSTS, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_POSTS, ORBIT_ROLLOVERS, GI_SPOTS_UPPER,
 } from './layout.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MM, pf, extrude, extrudeLocal, place, lathe, tube, tubeLocal, densify, wall, roundedHull, ccw, arcPoints } from './geo.js';
@@ -106,8 +106,10 @@ function buildRails(group, M) {
   ];
   group.add(mesh(wall(band, BAND.t, BAND.h), M.steel));
   guideFeet(group, M, band, 1);
-  const divider = [[SHOOTER.laneLeft - f, SHOOTER.apronTop], [SHOOTER.laneLeft - f, SHOOTER.dividerTop]];
-  group.add(mesh(wall(divider, BAND.t, BAND.h), M.steel));
+  // The shooter lane's divider: a 6 mm bar, stopping short of the arch so the right orbit joins the lane.
+  const t = SHOOTER.laneLeft - SHOOTER.dividerFace;
+  const divider = [[SHOOTER.dividerFace + t / 2, SHOOTER.apronTop], [SHOOTER.dividerFace + t / 2, SHOOTER.dividerTop]];
+  group.add(mesh(wall(divider, t, BAND.h), M.steel));
 }
 
 // Feet bent out of a guide's bottom edge every `spacing` mm on the side the ball can't reach, each held by a screw.
@@ -136,10 +138,20 @@ function buildGuides(group, M, handles) {
   for (const g of GUIDES) group.add(mesh(wall(g, BAND.t, BAND.h), M.steel));
   for (const [x, y] of STAR_POSTS) group.add(starPost(M, x, y));
   for (const [x, y] of RUBBER_POSTS) group.add(starPost(M, x, y));
-  // The rebound rubber: one ring stretched round two star posts across the arch's corner.
-  for (const [x, y] of REBOUND) group.add(starPost(M, x, y, { ring: false }));
-  const band = densify(roundedHull(ccw(REBOUND), 7.13, 10), 4);
-  group.add(mesh(tube(band.map(([x, y]) => [x, y, 13.5]), 2.38, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
+  // A rebound rubber, when the layout has one: one ring stretched round two star posts.
+  if (REBOUND.length) {
+    for (const [x, y] of REBOUND) group.add(starPost(M, x, y, { ring: false }));
+    const band = densify(roundedHull(ccw(REBOUND), 7.13, 10), 4);
+    group.add(mesh(tube(band.map(([x, y]) => [x, y, 13.5]), 2.38, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
+  }
+  // The orbits: formed steel inner guides up each side and round the top corners, and the wedges that close the
+  // space behind each throat's bend. Each inner guide ends at a post with a rubber ring, at its throat's mouth.
+  group.add(mesh(mergeGeometries([...ORBIT_GUIDES, ...ORBIT_WEDGES].map(g => wall(g.line, BAND.t, BAND.h))), M.steel));
+  for (const [x, y] of ORBIT_POSTS) {
+    group.add(post(M, x, y, { height: 27 }));
+    group.add(place(mesh(new THREE.TorusGeometry(7.1 * MM, 2.38 * MM, 10, 28).rotateX(Math.PI / 2).translate(0, 13.5 * MM, 0), M.rubber), x, y));
+  }
+  for (const [i, r] of ORBIT_ROLLOVERS.entries()) handles.rollovers.push(rollover(group, M, r.x, r.y, 'orbit' + i));
   // Return-lane rollovers.
   for (const [i, l] of RETURN_LANES.entries()) handles.rollovers.push(rollover(group, M, l.x, l.y, 'return' + i));
 }
@@ -453,10 +465,10 @@ function buildRamps(group, M, handles) {
     const t = ramp.turn, dir = t.mirror ? -1 : 1;
     const turnPts = [];
     for (let k = 1; k <= 18; k++) {
-      const a = (k / 18) * Math.PI;
+      const a = ((t.from + (t.to - t.from) * (k / 18)) * Math.PI) / 180;
       turnPts.push([t.cx + dir * Math.cos(a) * t.r, t.cy + Math.sin(a) * t.r, t.h0 + (t.h1 - t.h0) * (k / 18)]);
     }
-    const centre = [...ramp.path, ...turnPts];
+    const centre = [...ramp.path, ...turnPts, ...(t.exit ? [t.exit] : [])];
     const curve = new THREE.CatmullRomCurve3(centre.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     let turnStart = 0;
     for (let i = 1; i < ramp.path.length; i++) turnStart += Math.hypot(...ramp.path[i].map((v, k) => v - ramp.path[i - 1][k]));
@@ -559,7 +571,7 @@ function sweepRamp(curve, turnStart, outer) {
 function rampSupports(curve, turnStart, outer, M, rampMat) {
   const L = curve.getLength() / MM, up = new THREE.Vector3(0, 1, 0);
   const turnLen = L - turnStart;
-  const spots = [[230, 1], [230, -1], [turnStart + 30, outer], [turnStart + turnLen * 0.55, outer], [L - 12, outer]];
+  const spots = RAMP.stations({ turnStart, turnLen, length: L }).map(({ s, side }) => [s, side * outer]);
   const posts = [], tabs = [], screws = [];
   for (const [s, side] of spots) {
     const u = Math.min(1, s / L), p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
@@ -568,6 +580,9 @@ function rampSupports(curve, turnStart, outer, M, rampMat) {
     if (floor < 30) continue;
     const off = RAMP.width / 2 + RAMP.side + 6.5;
     const base = p.clone().addScaledVector(sv, off * MM);
+    // Never on, or past, the rail.
+    const bx = base.x / MM + PF.w / 2, by = PF.l / 2 - base.z / MM;
+    if (bx < PF.rail + 4.62 || bx > SHOOTER.laneRight - 4.62 || by > ARCH.top - 4.62) continue;
     const h = floor - RAMP.floor - 1.5;
     posts.push(new THREE.CylinderGeometry(4.62 * MM, 4.62 * MM, h * MM, 6).translate(base.x, (h / 2) * MM, base.z));
     const tab = new THREE.BoxGeometry(18 * MM, 1.5 * MM, (off - RAMP.width / 2 + 5) * MM);
@@ -725,7 +740,7 @@ function buildBalls(group, M, handles) {
 // General illumination: #44-style bulbs (T-3¼ glass in a wedge socket) tucked under the slingshot plastics and beside
 // posts, never in a lane, with a few point lights to carry their glow.
 function buildGI(group, M, handles) {
-  const spots = [[106, 300], [368.35, 300], [112, 332], [362.35, 332], [60, 1015], [110, 1040]];
+  const spots = [[106, 300], [368.35, 300], [112, 332], [362.35, 332], ...GI_SPOTS_UPPER];
   const glass = lathe([[0, 0], [3.2, 0], [4.6, 3], [5.1, 7], [5.1, 12], [4.2, 15.5], [2.4, 17], [0, 17.3]], 16);
   const socket = new THREE.CylinderGeometry(4.2 * MM, 4.6 * MM, 6 * MM, 12).translate(0, 3 * MM, 0);
   for (const [x, y] of spots) {

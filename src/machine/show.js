@@ -509,6 +509,7 @@ export class Show {
           break;
         }
         case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.6 : 0.35) : 0.1; break;
+        case 'orbit': goal = 0.1; break;
         case 'return': goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18; break;
       }
       ins.flash = Math.max(0, ins.flash - dt * 3);

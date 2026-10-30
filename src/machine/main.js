@@ -45,10 +45,10 @@ const ACTIONS = {
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
   hero: { az: 0, el: 2, fit: [0.62, 0.72], side: 'hero', fov: 30 },
-  deadbounce: { at: [104, 868, 64], az: 30, el: 28, fit: [0.21, 0.245], side: 'right', lift: 18 },
-  tiptop: { at: [370, 868, 64], az: -30, el: 28, fit: [0.21, 0.245], side: 'left', lift: 10 },
+  deadbounce: { at: [108, 882, 68], az: 30, el: 28, fit: [0.21, 0.245], side: 'right', lift: 18 },
+  tiptop: { at: [366.35, 882, 68], az: -30, el: 28, fit: [0.21, 0.245], side: 'left', lift: 10 },
   about: { at: [237, 846, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
-  skills: { at: [237, 596, 17], az: 14, el: 19, fit: [0.13, 0.075], side: 'left', lift: 6 },
+  skills: { at: [237, 705, 17], az: 14, el: 19, fit: [0.13, 0.075], side: 'left', lift: 6 },
   experience: { at: [237, 400, 0], az: -12, el: 58, fit: [0.11, 0.15], side: 'right', lift: 12 },
   contact: { at: [248, 140, 26], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
 };
@@ -57,7 +57,7 @@ const STOPS = {
 const PLATES = {
   deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [100, 972], width: 0.13, aspect: 950 / 730, action: 'ramp-deadbounce' },
   tiptop: { url: '/assets/img/tiptop.jpg', at: [374.35, 972], width: 0.13, aspect: 1600 / 1027, action: 'ramp-tiptop' },
-  about: { url: '/assets/img/dylan.jpg', at: [237, 1036], width: 0.07, aspect: 512 / 640, action: 'portrait' },
+  about: { url: '/assets/img/dylan.jpg', at: [237.175, 944], width: 0.07, aspect: 512 / 640, action: 'portrait' },
 };
 
 async function start() {
