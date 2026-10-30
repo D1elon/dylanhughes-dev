@@ -190,7 +190,9 @@
 
   // Renderer ------------------------------------------------------------------------
   class DMD {
-    constructor(canvas, { scenes = ['name', 'build', 'play', 'marquee'], reduced = false, onScene } = {}) {
+    constructor(canvas, { scenes = ['name', 'build', 'play', 'marquee'], reduced = false, onScene, width } = {}) {
+      // A fixed width draws offscreen, for use as a texture; otherwise the canvas follows its CSS size.
+      this.fixedWidth = width || 0;
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
       this.order = scenes;
@@ -209,7 +211,7 @@
       this.visible = true;
       this.resize = this.resize.bind(this);
       this.frame = this.frame.bind(this);
-      new ResizeObserver(this.resize).observe(canvas);
+      if (!this.fixedWidth) new ResizeObserver(this.resize).observe(canvas);
       this.resize();
     }
 
@@ -217,7 +219,7 @@
 
     resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = Math.round(this.canvas.clientWidth * dpr);
+      const w = this.fixedWidth || Math.round(this.canvas.clientWidth * dpr);
       if (!w) return;
       this.pitch = w / COLS;
       this.canvas.width = w;
@@ -350,6 +352,7 @@
         if (level < 1) continue;
         ctx.drawImage(sprites[level - 1], (i % COLS + 0.5) * pitch - off, ((i / COLS | 0) + 0.5) * pitch - off);
       }
+      if (this.onPaint) this.onPaint();
     }
   }
 
