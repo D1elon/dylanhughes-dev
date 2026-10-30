@@ -10,9 +10,9 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `css/style.css` and `js/main.js`: presentation and interactions
 - `assets/dylan-hughes-resume.pdf`: downloadable résumé, copied from Dylan's revised résumé
 - `assets/img/*.webp`: optimized versions of the portrait, workshop, and project images
+- `CNAME`, `robots.txt`, and `sitemap.xml`: domain and search-engine configuration
 
 Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.
-- `CNAME`, `robots.txt`, and `sitemap.xml`: domain and search-engine configuration
 
 ## Local preview
 
