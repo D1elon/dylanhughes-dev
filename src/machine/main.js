@@ -10,6 +10,7 @@ import { Director } from './director.js';
 import { Show } from './show.js';
 import { SurfaceOverlay } from './overlay.js';
 import { Hud } from './hud.js';
+import { Exploded } from './explode.js';
 import { pf } from './geo.js';
 
 const root = document.documentElement;
@@ -18,6 +19,7 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const smooth = t => t * t * (3 - 2 * t);
 const DEG = Math.PI / 180;
 
 const ACTIONS = {
@@ -43,12 +45,12 @@ const ACTIONS = {
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
   hero: { az: 0, el: 2, fit: [0.62, 0.72], side: 'hero', fov: 30 },
-  deadbounce: { at: [104, 868, 64], az: 30, el: 28, fit: [0.24, 0.28], side: 'right', lift: 18 },
-  tiptop: { at: [370, 868, 64], az: -30, el: 28, fit: [0.24, 0.28], side: 'left', lift: 10 },
-  about: { at: [237, 900, 40], az: -6, el: 40, fit: [0.24, 0.27], side: 'right', lift: 10 },
-  skills: { at: [237, 596, 17], az: 14, el: 19, fit: [0.15, 0.085], side: 'left', lift: 6 },
-  experience: { at: [237, 400, 0], az: -12, el: 58, fit: [0.12, 0.17], side: 'right', lift: 12 },
-  contact: { at: [248, 140, 26], az: -8, el: 47, fit: [0.3, 0.19], side: 'left', lift: 8 },
+  deadbounce: { at: [104, 868, 64], az: 30, el: 28, fit: [0.21, 0.245], side: 'right', lift: 18 },
+  tiptop: { at: [370, 868, 64], az: -30, el: 28, fit: [0.21, 0.245], side: 'left', lift: 10 },
+  about: { at: [237, 846, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
+  skills: { at: [237, 596, 17], az: 14, el: 19, fit: [0.13, 0.075], side: 'left', lift: 6 },
+  experience: { at: [237, 400, 0], az: -12, el: 58, fit: [0.11, 0.15], side: 'right', lift: 12 },
+  contact: { at: [248, 140, 26], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
 };
 
 // Plates that rise out of the playfield at a stop, carrying the stop's picture.
@@ -130,6 +132,15 @@ async function start() {
 
   // Callouts from parts to copy.
   const hud = new Hud($('[data-hud]'), stations, W);
+
+  // About ("I've always taken things apart"): the front pop bumper comes apart like a CAD drawing as the section
+  // scrolls by, holds there, then goes back together.
+  const iAbout = names.indexOf('about');
+  const exploded = iAbout >= 0 ? new Exploded(h.pops[2], document.body) : null;
+  const explodeAt = y => {
+    const span = director.holds[iAbout] * 1.6, p = clamp((y - (director.anchors[iAbout] - span / 2)) / span);
+    return p < 0.5 ? smooth(clamp(p / 0.36)) : smooth(clamp((1 - p) / 0.36));
+  };
 
   // Scrolling: Lenis for smooth, inertial scroll, unless motion is reduced.
   let lenis = null;
@@ -271,6 +282,8 @@ async function start() {
   const shadeState = { l: -1, r: -1, b: -1 };
   const shown = placards.map(() => -1);
   const reveal = placards.map(() => 0);
+  const lens = $('[data-lens]');
+  let lensShown = 0;
   function updateCopy(f) {
     placards.forEach((p, i) => {
       let v = clamp(1 - Math.abs(f - i) * 2.4);
@@ -283,6 +296,21 @@ async function start() {
       p.style.transform = `translate3d(0, ${((1 - v) * 22).toFixed(1)}px, 0)`;
       p.classList.toggle('is-here', v > 0.55);
     });
+    // The lens: a soft blur under the copy that's showing most.
+    let best = 0;
+    reveal.forEach((v, i) => { if (i > 0 && v > reveal[best]) best = i; });
+    const lv = best > 0 ? reveal[best] : 0;
+    if (lens && (lv > 0.01 || lensShown > 0.01)) {
+      if (lv > 0.01) {
+        const r = placards[best].getBoundingClientRect();
+        const padX = 90, padY = 80;
+        lens.style.transform = `translate(${(r.left - padX).toFixed(0)}px, ${(r.top - padY).toFixed(0)}px)`;
+        lens.style.width = `${(r.width + padX * 2).toFixed(0)}px`;
+        lens.style.height = `${(r.height + padY * 2).toFixed(0)}px`;
+      }
+      lens.style.opacity = lv.toFixed(3);
+      lensShown = lv;
+    }
     // Shade whichever side carries copy; on tall screens, the bottom.
     const tall = director.view.layout === 'tall';
     const side = s => Math.max(0, ...reveal.map((v, i) => (sides[i] === s ? v : 0)));
@@ -303,6 +331,14 @@ async function start() {
     listState = state;
     skillRows.forEach((li, i) => li.classList.toggle('lit', show.dropGoals[i] > 0.5));
     rungs.forEach((li, i) => li.classList.toggle('lit', station === 'experience' && i <= show.ladder));
+    // The current entry: the target that dropped last while the bank is part-way down, and the rung being lit.
+    const down = show.dropGoals.filter(g => g > 0.5).length;
+    const skill = station === 'skills' && down > 0 && down < skillRows.length ? show.dropGoals.lastIndexOf(1) : -1;
+    const rung = station === 'experience' ? show.ladder : -1;
+    for (const [rows, current] of [[skillRows, skill], [rungs, rung]]) {
+      rows.forEach((li, i) => li.classList.toggle('current', i === current));
+      if (rows[0]) rows[0].parentElement.classList.toggle('has-current', current >= 0);
+    }
   }
 
   // The intro: the machine powers on in the dark and the camera glides in to the backbox.
@@ -358,6 +394,9 @@ async function start() {
     let goal = director.at(reduced ? at : f);
     if (intro.blend < 1) goal = director.blend(director.resolve(establish), goal, intro.blend, 0);
     director.apply(goal, dt, { instant: reduced, damping: 6.5 });
+    // Light and focus close in on the part as the camera settles at its station.
+    const settled = at > 0 ? clamp(1 - Math.abs(f - at) * 2.4) : 0;
+    stage.focusOn(director.current.target, director.current.d, settled * intro.blend);
 
     show.update(dt, { f });
     updateCopy(f);
@@ -371,6 +410,11 @@ async function start() {
 
     if (overlay && overlay.attached) overlay.update(stage.camera, width, height, clamp(1 - f * 2.6) * intro.glass);
     hud.update(stage.camera, width, height, reveal, director.view.layout === 'tall');
+    if (exploded) {
+      const e = explodeAt(y);
+      exploded.update(e, stage.camera, width, height, director.view.layout === 'tall' ? 'tall' : STOPS.about.side);
+      show.exploded = e;
+    }
     const scrolled = y > 40;
     if (scrolled !== root.classList.contains('scrolled')) root.classList.toggle('scrolled', scrolled);
 

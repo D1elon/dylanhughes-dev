@@ -5,6 +5,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { CABINET } from './machine.js';
 
 // Khronos PBR Neutral keeps base colours true (ACES pushes the plasma orange toward yellow), with a one-step dither in
@@ -99,6 +100,9 @@ export function createStage(canvas, quality) {
   lights.rim = new THREE.DirectionalLight(0xbfd0ff, 1.4);
   lights.rim.position.set(-1.2, 1.6, -2.4);
   scene.add(lights.rim);
+  // The focus light: a soft spot that follows the camera to each part, the way a product shot lights its subject.
+  lights.focus = new THREE.SpotLight(0xfff0e0, 0, 0, 0.42, 1, 2);
+  scene.add(lights.focus, lights.focus.target);
 
   // The floor: mid charcoal, so the key's cone and the machine's shadow make the pool of light.
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.85 }));
@@ -106,7 +110,7 @@ export function createStage(canvas, quality) {
   floor.receiveShadow = quality.shadows;
   scene.add(floor);
 
-  let ao = null, bloom = null;
+  let ao = null, bloom = null, dof = null;
   if (quality.effects) {
     ao = new StageAO(scene, camera, 1, 1, undefined,
       { radius: 0.035, distanceExponent: 1.5, thickness: 0.04, distanceFallOff: 1, scale: 1.1, samples: 12 },
@@ -117,7 +121,9 @@ export function createStage(canvas, quality) {
     const vignette = new ShaderPass(VignetteShader);
     vignette.uniforms.offset.value = 0.85;
     vignette.uniforms.darkness.value = 1;
-    renderer.setEffects([ao, bloom, vignette]);
+    // Depth of field: a shallow focus on the part the camera is framing.
+    dof = new BokehPass(scene, camera, { focus: 1, aperture: 0, maxblur: 0.005 });
+    renderer.setEffects([ao, dof, bloom, vignette]);
   }
 
   let width = 1, height = 1;
@@ -141,12 +147,26 @@ export function createStage(canvas, quality) {
     prev = now;
     if (now < settle || ema < 21) return;
     if (ao && ao.enabled) ao.enabled = false;
+    else if (dof && dof.enabled) dof.enabled = false;
     else if (pixelRatio > 1) { pixelRatio = Math.max(1, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(width, height); }
     settle = now + 2500;
     ema = 16.7;
   }
 
-  return { renderer, scene, camera, lights, ao, bloom, envMap, resize, render, govern, floor };
+  // Points the focus light and the depth of field at the camera's subject. `amount` is 0 away from a station, 1 at it.
+  const aim = new THREE.Vector3();
+  function focusOn(target, distance, amount) {
+    aim.copy(camera.position).sub(target).setY(0).normalize();
+    lights.focus.position.copy(target).addScaledVector(aim, 0.28).add(new THREE.Vector3(0, 0.62, 0));
+    lights.focus.target.position.copy(target);
+    lights.focus.intensity = 0.55 * amount;
+    if (dof) {
+      dof.uniforms.focus.value = distance;
+      dof.uniforms.aperture.value = 0.012 * amount;
+    }
+  }
+
+  return { renderer, scene, camera, lights, ao, bloom, dof, envMap, resize, render, govern, focusOn, floor };
 }
 
 // Picks a quality level from the device. Phones and small screens render directly with fewer pixels and no passes.

@@ -371,30 +371,47 @@ function buildPops(group, M, art, anisotropy, handles) {
   const capGeo = lathe([[0, 31.6], [25, 31.6], [29.4, 32], [30, 33], [30, 36.5], [29.3, 37.8], [25.5, 41.6], [21, 43.1], [10, 43.45], [0, 43.5]], 72);
   const decal = new THREE.MeshStandardMaterial({ map: texture(art.popDecal, anisotropy), roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
   const decalGeo = new THREE.CircleGeometry(20.5 * MM, 48).rotateX(-Math.PI / 2).translate(0, 43.56 * MM, 0);
+  const socketGeo = new THREE.BoxGeometry(9 * MM, 6 * MM, 6 * MM).translate(0, 3 * MM, 0);
+  const bulbGeo = lathe([[0, 6], [2.6, 6], [3.4, 7], [5, 10], [5, 18.5], [3.8, 21.5], [0, 22.4]], 20);
   for (const [i, p] of POPS.entries()) {
     const g = new THREE.Group();
-    g.add(mesh(base, M.graphitePlastic));
+    // Each part sits in its own holder, so the exploded view can lift it along the bumper's axis. `lift` is how far
+    // it rises in the fully exploded view, in millimetres; the labels name the parts.
+    const parts = [];
+    const part = (label, lift, ...objects) => {
+      const holder = new THREE.Group();
+      holder.add(...objects);
+      holder.userData = { label, lift };
+      g.add(holder);
+      parts.push(holder);
+      return holder;
+    };
+    part('Base', 0, mesh(base, M.graphitePlastic));
     const skirtMesh = mesh(skirt, M.whitePlastic);
-    g.add(skirtMesh);
+    part('Skirt', 26, skirtMesh);
+    const bulbMat = M.bulb.clone();
+    handles.bulbs.push(bulbMat);
+    part('Lamp · #555', 56, mesh(socketGeo, M.darkSteel, { cast: false }), mesh(bulbGeo, bulbMat, { cast: false }));
     const bodyMat = M.popBody.clone();
     const bodyMesh = mesh(body, bodyMat);
-    g.add(bodyMesh);
+    part('Body', 86, bodyMesh);
     const ring = new THREE.Group();
     ring.add(mesh(ringGeo, M.chrome));
     for (const s of [-1, 1]) ring.add(mesh(rodGeo, M.chrome).translateX(s * 19.5 * MM));
     ring.position.y = POP.ringRest * MM;
-    g.add(ring);
+    part('Ring & rods', 128, ring);
     const capMat = M.popCap.clone();
     const cap = mesh(capGeo, capMat, { receive: false });
-    g.add(cap);
-    g.add(mesh(decalGeo, decal, { cast: false }));
+    part('Cap · Ø60', 172, cap);
+    part('Decal', 206, mesh(decalGeo, decal, { cast: false }));
     // Two cap screws through the decal.
-    for (const s of [-1, 1]) g.add(mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.9 * MM, 16).translate(s * 17.46 * MM, 43.75 * MM, 0), M.chrome, { cast: false }));
+    const screws = [-1, 1].map(s => mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.9 * MM, 16).translate(s * 17.46 * MM, 43.75 * MM, 0), M.chrome, { cast: false }));
+    part('Cap screws ×2', 232, ...screws);
     place(g, p.x, p.y);
     group.add(g);
-    for (const child of g.children) child.userData.action = 'pop-' + i;
+    g.traverse(o => { o.userData.action = 'pop-' + i; });
     handles.interactive.push(cap, bodyMesh, skirtMesh);
-    handles.pops.push({ group: g, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y });
+    handles.pops.push({ group: g, parts, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y });
   }
 }
 
