@@ -6,10 +6,12 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 
 - `index.html`: introduction, selected work, experience, skills, education, about, and contact
 - `work/tip-top-pinball.html`: the finished client website case study
-- `work/zelda-retheme.html` and `work/stall-brawl.html`: redirects from retired case-study URLs to Work
+- `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
 - `css/style.css` and `js/main.js`: presentation and interactions
 - `assets/dylan-hughes-resume.pdf`: downloadable résumé, copied from Dylan's revised résumé
 - `assets/img/*.webp`: optimized versions of the portrait, workshop, and project images
+
+Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.
 - `CNAME`, `robots.txt`, and `sitemap.xml`: domain and search-engine configuration
 
 ## Local preview
