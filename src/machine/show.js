@@ -1,210 +1,120 @@
-// Everything that moves: flippers, pops, slings, drop targets, inserts, the plunger and the ball's scripted runs.
+// Everything that moves. The ball is simulated (physics.js): it rolls, bounces and is kicked by the parts it meets,
+// and the flippers are coils in the same simulation. An autopilot plays the machine for each section of the page:
+// ramp shots for the case studies, a soft plunge into the top lanes for the pop bumpers, the ball held on a flipper
+// elsewhere. This file animates the parts in step with the simulation and lights the inserts.
 import * as THREE from 'three';
-import { BALL_R, FLIPPER, FLIPPERS, POPS, POP, TOP_LANES, PF, SHOOTER, ARCH, DROPS, WIRE, RETURN_LANES } from './layout.js';
+import { BALL_R, FLIPPERS, FLIPPER, POP, SHOOTER, DROPS, PF } from './layout.js';
+import * as layout from './layout.js';
 import { MM, pf } from './geo.js';
+import { Physics } from './physics.js';
+import { buildColliders, KICKS } from './colliders.js';
 
 const DEG = Math.PI / 180;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-const smooth = t => t * t * (3 - 2 * t);
-
-// Flipper coil: a constant torque swings the bat through its 52° stroke in 28 ms. Over the last 6° the hold winding
-// takes over at 0.375 of the torque; the return spring gives 0.055 of it, bringing the bat home in about 0.11 s.
-// Both stops are hard: the end-of-stroke stop throws the bat back at a fifth of its speed, the rest stop at a tenth.
-const STROKE = 52, ALPHA = (2 * STROKE) / 0.028 ** 2;
 
 // Shooter: 44.45 mm of pull; released, the spring drives the tip home in about 16 ms and it overtravels 5 mm into
 // its buffer before settling.
 const PULL = 44.45, SPRING_W = 99;
+// Launch speeds: a soft plunge drops into a top lane; a full one rounds the orbit.
+const PLUNGE = { soft: 1400, full: 2600 };
 
-// A path the ball follows: dense points with a speed at each, sampled by time. Events fire at given points.
-class BallPath {
-  constructor() { this.points = []; this.speeds = []; this.events = []; }
-  add(point, speed) { this.points.push(point.clone()); this.speeds.push(speed); return this; }
-  addCurve(curve, from, to, v0, v1, lift, steps = 80) {
-    for (let i = 0; i <= steps; i++) {
-      const u = from + (to - from) * (i / steps);
-      this.add(curve.getPointAt(u).add(new THREE.Vector3(0, lift, 0)), v0 + (v1 - v0) * (i / steps));
-    }
-    return this;
-  }
-  line(to, v0, v1, steps = 24) {
-    const from = this.points.at(-1);
-    for (let i = 1; i <= steps; i++) this.add(from.clone().lerp(to, i / steps), v0 + (v1 - v0) * (i / steps));
-    return this;
-  }
-  event(name) { this.events.push({ at: this.points.length - 1, name }); return this; }
-  build() {
-    this.times = [0];
-    for (let i = 1; i < this.points.length; i++) {
-      const d = this.points[i].distanceTo(this.points[i - 1]);
-      const v = Math.max(0.05, (this.speeds[i] + this.speeds[i - 1]) / 2);
-      this.times.push(this.times[i - 1] + d / v);
-    }
-    this.duration = this.times.at(-1);
-    for (const e of this.events) e.time = this.times[e.at];
-    return this;
-  }
-  sample(t, out) {
-    const ts = this.times;
-    let lo = 0, hi = ts.length - 1;
-    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (ts[mid] <= t) lo = mid; else hi = mid; }
-    const span = ts[hi] - ts[lo] || 1;
-    return out.copy(this.points[lo]).lerp(this.points[hi], clamp((t - ts[lo]) / span));
-  }
-}
+// What the machine plays at each section.
+const PLAYS = { hero: 'play', deadbounce: 'ramp-deadbounce', tiptop: 'ramp-tiptop', about: 'pops', skills: 'hold', experience: 'hold', contact: 'hold' };
+const ROTATION = ['ramp-deadbounce', 'orbit-left', 'ramp-tiptop', 'orbit-right'];
 
 export class Show {
   constructor(h, { reduced }) {
     this.h = h;
     this.reduced = reduced;
     this.time = 0;
-    this.mode = 'rest';
-    this.modeTime = 0;
-    this.ballFade = 1;
-    this.pendingMode = null;
     this.power = 0; // 0 → 1 as the machine powers on
-    this.lastBall = new THREE.Vector3();
-    this.ballSpin = new THREE.Quaternion();
-    for (const b of [this.h.ball, this.h.shooterBall]) {
-      b.material = b.material.clone();
-      b.material.transparent = true;
-    }
-    this.paths = this.buildPaths();
-    this.cradle = this.cradlePoint(0);
-    this.h.ball.position.copy(this.cradle);
-    this.lastBall.copy(this.cradle);
     this.dropGoals = [0, 0, 0, 0];
     this.ladder = -1;
     this.station = null;
+    this.play = 'play';
+    this.exploded = 0;
     for (const d of h.drops) d.rest = d.holder.position.clone();
     for (const r of h.rollovers) r.pos = pf(r.x, r.y, BALL_R);
-    this.plunge = null; // the shooter ball's run up the lane after a launch
-    this.serve = null; // a new ball rolling into the shooter lane
+    h.shooterBall.visible = false; // one ball, as in a real game
+    h.ball.material = h.ball.material.clone();
+
+    // The simulation, built from the same layout as the parts.
+    this.physics = new Physics({ seed: 7 });
+    this.ids = buildColliders(this.physics, layout);
+    this.popColliders = this.physics.colliders.filter(c => c.kind === 'pop');
+    this.events();
+    // The autopilot's state: where the ball is in its cycle, and what each flipper is doing.
+    this.auto = { state: 'serve', at: 0, side: null, still: 0, shotUntil: 0, next: 0, user: -1e9, cache: new Map() };
+    h.plunger.releasedAt = -1;
+    this.serveAt = 0.2;
+    this.plungeSpeed = PLUNGE.full;
+    this.aim = new THREE.Vector3();
+    if (reduced) this.settleForStill();
   }
 
-  // Where the ball rests when cradled on a raised flipper.
-  cradlePoint(i) {
-    const f = FLIPPERS[i];
-    const a = f.up * DEG, s = 26;
-    const half = FLIPPER.baseR + (FLIPPER.tipR - FLIPPER.baseR) * (s / FLIPPER.length) + 0.6;
-    const dir = i === 0 ? 1 : -1;
-    const nx = -Math.sin(a) * dir, ny = Math.cos(a) * dir;
-    return pf(f.x + Math.cos(a) * s + nx * (half + BALL_R), f.y + Math.sin(a) * s + ny * (half + BALL_R), BALL_R);
+  // Reduced motion: no play. The ball is set on the left flipper's cradle once and the scene stays still.
+  settleForStill() {
+    const P = this.physics, f = FLIPPERS[0];
+    P.setFlipper('left', true);
+    P.ball.place(f.x + 20, f.y + 70, 0, -200);
+    P.run(2.5);
+    this.auto.state = 'still';
   }
 
-  // Point on a resting flipper's top edge where a returning ball meets it.
-  batPoint(i, s) {
-    const f = FLIPPERS[i];
-    const a = f.rest * DEG;
-    const half = FLIPPER.baseR + (FLIPPER.tipR - FLIPPER.baseR) * (s / FLIPPER.length);
-    const nx = -Math.sin(a), ny = Math.cos(a);
-    const sign = i === 0 ? 1 : -1;
-    return pf(f.x + Math.cos(a) * s + nx * sign * (half + BALL_R), f.y + Math.sin(a) * s + ny * sign * (half + BALL_R), BALL_R);
-  }
-
-  buildPaths() {
-    const [left, right] = this.h.ramps;
-    const onRamp = BALL_R * MM, onWire = WIRE.ride * MM;
-    // One shot: from a flipper, up the opposite ramp, down its wire, through the inlane onto the other flipper.
-    const shot = (from, ramp, toFlipper) => {
-      const p = new BallPath();
-      p.add(this.batPoint(from, 50), 0.4).event('flip-' + (from === 0 ? 'left' : 'right'));
-      p.line(ramp.curve.getPointAt(0).add(new THREE.Vector3(0, onRamp, 0)), 1.9, 1.6, 30);
-      p.addCurve(ramp.curve, 0, 1, 1.5, 0.5, onRamp, 110);
-      p.event('ramp-' + ramp.id);
-      p.addCurve(ramp.wireCurve, 0, 1, 0.55, 1.15, onWire, 120);
-      // Through the spread rails at the dead end, down onto the inlane, over its rollover, along the return lane
-      // and onto the flipper.
-      const end = ramp.wireCurve.getPointAt(1);
-      const m = x => (toFlipper === 0 ? x : 2 * PF.cx - x);
-      p.line(new THREE.Vector3(end.x, BALL_R * MM, end.z).add(new THREE.Vector3(0, 0, 0.006)), 0.9, 1.0, 10);
-      p.line(pf(m(69.4), 330, BALL_R), 1.0, 1.1, 18);
-      p.line(pf(m(68.4), 290, BALL_R), 1.1, 1.15, 8);
-      p.line(pf(m(76), 262, BALL_R), 1.15, 1.1, 8);
-      p.line(pf(m(92.6), 249.4, BALL_R), 1.1, 1.0, 8);
-      p.line(this.batPoint(toFlipper, 22), 1.0, 0.7, 14);
-      p.line(this.batPoint(toFlipper, 48), 0.7, 0.4, 10);
-      return p;
-    };
-    const loop = new BallPath();
-    for (const part of [shot(0, right, 1), shot(1, left, 0)]) {
-      part.build();
-      const offset = loop.points.length;
-      part.points.forEach((pt, k) => { if (k || !offset) loop.add(pt, part.speeds[k]); });
-      part.events.forEach(e => loop.events.push({ at: Math.max(0, e.at + offset - (offset ? 1 : 0)), name: e.name }));
-    }
-    loop.build();
-    const single = shot(0, right, 1).build();
-
-    // Pops: in from the top lanes, a run of bounces between the bumpers, out toward the drop targets.
-    const pops = new BallPath();
-    const ctr = POPS.map(p => new THREE.Vector2(p.x, p.y));
-    let pos = new THREE.Vector2(TOP_LANES.centers[1], TOP_LANES.y + 8);
-    pops.add(pf(pos.x, pos.y, BALL_R), 0.9);
-    const order = [2, 0, 1, 2, 1, 0, 2, 0];
-    const reach = POP.reach;
-    for (const k of order) {
-      const c = ctr[k];
-      const dirv = pos.clone().sub(c).normalize();
-      const hit = c.clone().add(dirv.multiplyScalar(reach));
-      pops.line(pf(hit.x, hit.y, BALL_R), 1.25, 1.1, 14);
-      pops.event('pop-' + k);
-      pos = hit;
-    }
-    pops.line(pf(PF.cx + 30, 690, BALL_R), 1.1, 0.8, 22);
-    pops.line(pf(PF.cx + 70, 640, BALL_R), 0.8, 0.5, 10);
-    pops.build();
-
-    // A soft plunge: up the shooter lane, through the gate, round the arch's right corner and into a top lane.
-    const plunge = new BallPath();
-    const lane = SHOOTER.ballRest[0];
-    plunge.add(pf(lane, SHOOTER.ballRest[1], BALL_R), 2.6);
-    plunge.line(pf(lane, ARCH.right.cy, BALL_R), 2.6, 2.35, 40);
-    const rr = ARCH.right.r - BALL_R;
-    for (let k = 1; k <= 24; k++) {
-      const a = (k / 24) * (Math.PI / 2);
-      plunge.add(pf(ARCH.right.cx + Math.cos(a) * rr, ARCH.right.cy + Math.sin(a) * rr, BALL_R), 2.3 - 0.5 * (k / 24));
-    }
-    const lx = TOP_LANES.centers[2];
-    plunge.line(pf(lx + 30, ARCH.right.cy + rr - 4, BALL_R), 1.8, 1.5, 10);
-    plunge.line(pf(lx + 4, TOP_LANES.guideTo + 8, BALL_R), 1.5, 1.2, 10);
-    plunge.line(pf(lx, TOP_LANES.y, BALL_R), 1.2, 1.05, 10);
-    plunge.line(pf(lx - 4, 900, BALL_R), 1.05, 0.95, 16);
-    plunge.build();
-    return { loop, pops, shot: single, plunge };
+  events() {
+    const P = this.physics;
+    P.on('kick', e => {
+      if (e.kind === 'pop') this.firePop(+String(e.id).slice(3), pf(e.x, e.y));
+      else if (e.kind === 'sling') this.kickSling(String(e.id).replace('sling-', ''));
+    });
+    P.on('hit', e => {
+      if (e.kind === 'drop') this.hitDrop(+String(e.id).slice(4));
+    });
+    P.on('enter', e => {
+      const id = String(e.id);
+      if (/^(lane|return)\d$/.test(id)) this.flash(id, 1.2);
+      else if (/^orbit\d$/.test(id)) this.flash(id, 1.4);
+      else if (id === 'gate') this.swingGate();
+      else if (id.endsWith('-made')) {
+        const ramp = id.slice(5, -5);
+        this.flash(ramp === 'deadbounce' ? 'ramp0' : 'ramp1', 1.4);
+        this.fireFlasher(ramp);
+      }
+    });
+    P.on('drain', () => {
+      // Into the trough; a new ball comes out to the shooter lane shortly.
+      this.auto.state = 'serve';
+      this.serveAt = this.time + 0.9;
+      for (const f of FLIPPERS) P.setFlipper(f.side, false);
+    });
   }
 
   setStation(name) {
     if (name === this.station) return;
     this.station = name;
-    const mode = { deadbounce: 'loop', tiptop: 'loop', about: 'pops' }[name] || 'cradle';
-    if (mode !== this.mode && mode !== this.pendingMode) this.pendingMode = mode;
-  }
-
-  // From the cradle: flip the left flipper and send the ball round the right ramp, then back to the cradle.
-  shoot() {
-    if (this.mode !== 'cradle' || this.pendingMode) return;
-    this.released = true;
-    this.hold('left', false);
-    this.mode = 'shot';
-    this.modeTime = 0;
-    this.eventCursor = 0;
-    this.lap = 0;
+    this.play = PLAYS[name] || this.play;
+    // Holding the ball when the pops need it: let it go, so it drains and comes back by the plunger.
+    if (this.play === 'pops' && this.auto.state === 'cradled') this.letGo();
   }
 
   // --- Part actions --------------------------------------------------------------------------------------
 
+  // A visitor's flip: it takes over from the autopilot for a few seconds.
   flip(side, hold = 0.16) {
-    const f = this.h.flippers.find(x => x.side === side);
-    if (!f) return;
-    f.target = f.up;
-    f.release = this.time + hold;
+    const P = this.physics;
+    this.auto.user = this.time;
+    P.setFlipper(side, true);
+    P.setFlipper(side, false, hold);
   }
   hold(side, on) {
-    const f = this.h.flippers.find(x => x.side === side);
-    if (!f) return;
-    f.held = on;
-    f.target = on ? f.up : f.rest;
+    this.auto.user = this.time;
+    this.physics.setFlipper(side, on);
+  }
+  // From a held ball: shoot it now (clicking the flipper at Contact does this).
+  shoot() {
+    if (this.auto.state !== 'cradled') return false;
+    this.auto.forceShot = true;
+    return true;
   }
   // `at`: where the ball struck, in playfield space. The skirt tilts toward it.
   firePop(i, at) {
@@ -220,33 +130,157 @@ export class Show {
     const s = this.h.slings.find(x => x.side === side);
     if (s) s.kicked = this.time;
   }
+  // A flasher fires in a quick double strobe, as games do for a made shot.
+  fireFlasher(id) {
+    const f = this.h.flashers.find(x => x.id === id);
+    if (f) f.fired = this.time;
+  }
   flash(id, amount = 1) {
     const ins = this.h.inserts.get(id);
     if (ins) ins.flash = Math.max(ins.flash, amount);
+  }
+  swingGate() {
+    const g = this.h.gate;
+    g.open = Math.max(g.open, 1.25);
+    g.velocity = 0;
   }
   // A drop target is knocked down; hitting one that's already down resets the bank.
   hitDrop(i) {
     const d = this.h.drops[i];
     if (!d) return;
-    if (d.state === 'up') { d.state = 'falling'; d.since = this.time; this.flash('drop' + i, 1.2); }
-    else if (d.state === 'down') this.resetBank();
+    if (d.state === 'up') {
+      d.state = 'falling';
+      d.since = this.time;
+      this.flash('drop' + i, 1.2);
+      this.physics.setEnabled('drop' + i, false);
+    } else if (d.state === 'down') this.resetBank();
   }
   // The reset coil lifts every dropped target at once.
   resetBank() {
-    for (const d of this.h.drops) if (d.state !== 'up') { d.state = 'rising'; d.since = this.time; }
+    for (const d of this.h.drops) {
+      if (d.state === 'up') continue;
+      d.state = 'rising';
+      d.since = this.time;
+      this.physics.setEnabled('drop' + d.index, true);
+    }
   }
+  // The plunger, worked by hand: pull, then release. With a ball in the lane, the release launches it.
   pull() {
     const pl = this.h.plunger;
-    if (this.plunge || this.serve) return;
     pl.pulling = true;
     pl.releasedAt = -1;
+    this.auto.user = this.time;
   }
-  release() {
+  release(speed) {
     const pl = this.h.plunger;
     if (!pl.pulling) return;
     pl.pulling = false;
     pl.releasedAt = this.time;
     pl.from = pl.pull;
+    pl.limit = 1;
+    this.plungeSpeed = speed ?? PLUNGE.soft + (PLUNGE.full - PLUNGE.soft) * pl.from;
+  }
+
+  // --- The autopilot ---------------------------------------------------------------------------------------
+
+  near(side) {
+    const b = this.physics.ball, f = FLIPPERS[side === 'left' ? 0 : 1];
+    if (!b.active || b.layer !== 0) return false;
+    const onSide = side === 'left' ? b.x < PF.cx + 8 : b.x > PF.cx - 8;
+    return onSide && b.y < f.y + 95 && Math.hypot(b.x - f.x, b.y - f.y) < FLIPPER.length + 70;
+  }
+  letGo() {
+    for (const f of FLIPPERS) this.physics.setFlipper(f.side, false);
+    this.auto.state = 'play';
+    this.auto.side = null;
+  }
+  // Where to aim for a shot, and the timing from a cradle, worked out once per flipper and target in the simulation.
+  shotFor(side, target) {
+    const key = side + ':' + target;
+    if (this.auto.cache.has(key)) return this.auto.cache.get(key);
+    let point = this.ids.aim[target.replace(/^ramp-/, '')];
+    if (target === 'pass') {
+      const other = FLIPPERS[side === 'left' ? 1 : 0];
+      point = [other.x + (side === 'left' ? 14 : -14), other.y + 150];
+    }
+    const r = point ? this.physics.aimFlip(side, point[0], point[1], { minArrive: target.startsWith('ramp') ? 2000 : 0 }) : null;
+    this.auto.cache.set(key, r);
+    return r;
+  }
+
+  autopilot(dt) {
+    const P = this.physics, b = P.ball, A = this.auto, t = this.time;
+    if (A.state === 'still') return;
+    if (t - A.user < 4) return; // a visitor is playing
+
+    if (A.state === 'serve') {
+      if (t < this.serveAt) return;
+      // The trough kicks a ball out from under the apron into the shooter lane.
+      A.state = 'serving';
+      A.at = t;
+      return;
+    }
+    if (A.state === 'serving') {
+      if (t - A.at < 0.38) return;
+      P.ball.place(SHOOTER.ballRest[0], SHOOTER.ballRest[1], 0, 0);
+      A.state = 'shooter';
+      A.at = t;
+      return;
+    }
+    if (A.state === 'shooter') {
+      // The autopilot's own plunge: soft for the pops, full otherwise.
+      const pl = this.h.plunger;
+      if (!pl.pulling && pl.releasedAt < 0 && t - A.at > 0.8) {
+        this.pull();
+        A.user = -1e9;
+        pl.limit = this.play === 'pops' ? 0.25 : 1;
+      }
+      if (pl.pulling && pl.pull >= pl.limit - 0.001 && t - A.at > 1.4) {
+        this.release(this.play === 'pops' ? PLUNGE.soft : PLUNGE.full);
+        A.user = -1e9;
+      }
+      return;
+    }
+
+    // In play.
+    if (!b.active) return;
+    const slow = b.speed < 30;
+    for (const f of FLIPPERS) {
+      const side = f.side;
+      const close = this.near(side);
+      if (A.state === 'play' && close && this.play !== 'pops' && t > A.shotUntil && b.vy < 40) {
+        // Catch: hold the flipper up and let the ball roll into the cradle.
+        P.setFlipper(side, true);
+        A.state = 'catching';
+        A.side = side;
+        A.at = t;
+      }
+    }
+    if (A.state === 'catching') {
+      if (!this.near(A.side)) { if (t - A.at > 0.4) this.letGo(); return; }
+      A.still = slow ? A.still + dt : 0;
+      if (A.still > 0.25) { A.state = 'cradled'; A.at = t; }
+      else if (t - A.at > 2.5) this.letGo();
+      return;
+    }
+    if (A.state === 'cradled') {
+      if (!this.near(A.side)) { this.letGo(); return; }
+      if (this.play === 'pops') { this.letGo(); return; }
+      const wait = A.forceShot ? 0 : this.play === 'hold' ? Infinity : 0.7;
+      if (t - A.at < wait) return;
+      A.forceShot = false;
+      let target = this.play;
+      if (target === 'play' || target === 'hold') { target = ROTATION[A.next % ROTATION.length]; A.next++; }
+      let shot = this.shotFor(A.side, target);
+      if (!shot || shot.miss > 14) { target = 'pass'; shot = this.shotFor(A.side, 'pass'); }
+      if (!shot) { this.letGo(); return; }
+      P.setFlipper(A.side, false);
+      P.setFlipper(A.side, true, shot.delay);
+      P.setFlipper(A.side, false, shot.delay + 0.25);
+      A.shotUntil = t + shot.delay + 0.5;
+      A.state = 'play';
+      A.side = null;
+    }
   }
 
   // --- Frame update --------------------------------------------------------------------------------------
@@ -256,23 +290,15 @@ export class Show {
     const t = this.time;
     const h = this.h;
     const P = this.power;
+    const sim = this.physics;
 
-    for (const f of h.flippers) {
-      if (f.release && t >= f.release && !f.held) { f.target = f.rest; f.release = 0; }
-      if (this.reduced) { f.angle = f.target; f.velocity = 0; f.pivot.rotation.y = f.angle * DEG; continue; }
-      const on = f.target === f.up, dir = Math.sign(f.up - f.rest);
-      let a = (f.angle - f.rest) * dir, w = f.velocity;
-      const n = Math.min(60, Math.ceil(dt / 0.0005)), step = dt / n;
-      for (let k = 0; k < n; k++) {
-        w += (on ? ALPHA * (a > STROKE - 6 ? 0.375 : 1) : -0.055 * ALPHA) * step;
-        a += w * step;
-        if (a >= STROKE) { a = STROKE; w = w > 60 ? -0.2 * w : Math.min(w, 0); }
-        if (a <= 0) { a = 0; w = w < -60 ? -0.1 * w : Math.max(w, 0); }
-      }
-      f.velocity = w;
-      f.angle = f.rest + dir * a;
-      f.pivot.rotation.y = f.angle * DEG;
+    // The exploded bumper (About) doesn't kick while it's apart.
+    if (this.popColliders[2]) this.popColliders[2].kick = this.exploded > 0.05 ? 0 : KICKS.pop;
+    if (!this.reduced) {
+      this.autopilot(dt);
+      sim.step(dt);
     }
+    for (const f of h.flippers) f.pivot.rotation.y = sim.flipperAngle(f.side) * DEG;
 
     // Pops: the skirt tilts toward the ball, the ring pulls down in 10 ms, holds through the pulse and springs back
     // by 75 ms; the cap and body flash with the lamp.
@@ -331,7 +357,7 @@ export class Show {
     }
 
     this.updateShooter(dt);
-    this.updateBall(dt, ctx);
+    this.updateBall();
     this.updateRollovers(dt);
     this.updateInserts(dt, ctx);
 
@@ -339,61 +365,67 @@ export class Show {
     h.backglass.material.color.setScalar(P * (0.92 + 0.08 * Math.sin(t * 1.3)));
     for (const light of h.gi) light.intensity = light.userData.base * P;
     for (const m of h.bulbs) m.emissiveIntensity = 2.2 * P * m.userData.gain;
+    for (const f of h.flashers) {
+      const e = f.fired === undefined ? 9 : t - f.fired;
+      const k = e < 0.09 ? 1 : e < 0.16 ? 0.15 : e < 0.25 ? 1 : Math.max(0, 1 - (e - 0.25) / 0.2);
+      const level = this.reduced ? 0 : k * k;
+      f.mat.emissiveIntensity = (0.08 + 3 * level) * P * f.mat.userData.gain;
+      f.light.intensity = 0.05 * level * P;
+    }
   }
 
-  // The shooter: the ball rides back with the tip as it's pulled, is struck as the tip drives home, runs up the
-  // lane and through the gate; a new ball then rolls in from the trough.
+  // The ball, drawn where the simulation has it (on a ramp or wire it carries its height), turning as it rolls.
+  updateBall() {
+    const b = this.physics.ball, ball = this.h.ball, A = this.auto;
+    if (A.state === 'serving') {
+      // Rolling out from under the apron into the lane.
+      const u = clamp((this.time - A.at) / 0.38), k = 1 - (1 - u) ** 2;
+      ball.visible = true;
+      ball.position.copy(pf(SHOOTER.laneLeft - 24 + (SHOOTER.ballRest[0] - SHOOTER.laneLeft + 24) * k, SHOOTER.ballRest[1] + 4 * (1 - k), BALL_R));
+      return;
+    }
+    ball.visible = b.active;
+    if (!b.active) return;
+    // Pulling the plunger lets the ball roll back with its tip.
+    const back = A.state === 'shooter' ? this.h.plunger.shown || 0 : 0;
+    ball.position.copy(pf(b.view.x, b.view.y - back, b.view.z));
+    ball.quaternion.set(b.q[0], b.q[2], -b.q[1], b.q[3]);
+  }
+
+  // The shooter: the tip comes back as it's pulled, drives home on release and overtravels into its buffer. If the
+  // ball is waiting in the lane, it's launched as the tip reaches home.
   updateShooter(dt) {
-    const h = this.h, pl = h.plunger, t = this.time, ball = h.shooterBall;
+    const h = this.h, pl = h.plunger, t = this.time, A = this.auto;
     let mm = 0;
-    if (pl.pulling) { pl.pull = Math.min(1, pl.pull + dt / 0.5); mm = pl.pull * PULL; }
+    if (pl.pulling) { pl.pull = Math.min(pl.limit ?? 1, pl.pull + dt / 0.5); mm = pl.pull * PULL; }
     else if (pl.releasedAt >= 0) {
       const e = t - pl.releasedAt, home = Math.PI / 2 / SPRING_W;
       if (e < home) mm = pl.from * PULL * Math.cos(SPRING_W * e);
       else {
-        if (!this.plunge && pl.from > 0.15) { this.plunge = { start: t, scale: 0.55 + 0.45 * pl.from }; }
+        if (A.state === 'shooter') {
+          this.physics.ball.place(SHOOTER.ballRest[0], SHOOTER.ballRest[1] + 1, 0, this.plungeSpeed);
+          A.state = 'play';
+        }
         const u = (e - home) / 0.12;
         mm = u < 1 ? -5 * pl.from * Math.sin(Math.PI * u) : 0;
         if (u >= 1) { pl.releasedAt = -1; pl.pull = 0; }
       }
     }
     if (this.reduced) mm = 0;
+    pl.shown = Math.max(0, mm);
     pl.group.position.copy(pl.rest);
     pl.group.position.z += mm * MM;
     pl.spring.scale.z = (pl.springLen - mm) / pl.springLen;
-    if (this.plunge) {
-      const path = this.paths.plunge, e = (t - this.plunge.start) * this.plunge.scale;
-      path.sample(Math.min(e, path.duration), ball.position);
-      ball.material.opacity = 1 - clamp((e - path.duration + 0.25) / 0.25);
-      ball.visible = ball.material.opacity > 0.01;
-      if (e > path.duration + 1.4) { this.plunge = null; this.serve = { start: t }; }
-    } else if (this.serve) {
-      const u = clamp((t - this.serve.start) / 0.35), k = 1 - (1 - u) ** 2;
-      ball.visible = true;
-      ball.material.opacity = clamp(u * 3);
-      ball.position.copy(pf(SHOOTER.laneLeft - 22 + (SHOOTER.ballRest[0] - SHOOTER.laneLeft + 22) * k, SHOOTER.ballRest[1] + 4 * (1 - k), BALL_R));
-      if (u >= 1) this.serve = null;
-    } else {
-      ball.visible = true;
-      ball.material.opacity = 1;
-      ball.position.copy(pf(SHOOTER.ballRest[0], SHOOTER.ballRest[1] - Math.max(0, mm), BALL_R));
-    }
-    // The gate swings open as the ball passes through, then falls shut and rings.
+    // The gate hangs like a pendulum and can only swing one way: closed, it rests against its stop.
     const g = h.gate;
-    const near = ball.visible && ball.position.distanceTo(g.at) < 30 * MM && this.plunge;
-    if (near) { g.open = Math.max(g.open, 1.25); g.velocity = 0; }
-    else {
-      // It hangs like a pendulum and can only swing one way: closed, it rests against its stop.
-      g.velocity += (-Math.sin(g.open) * 820 - g.velocity * 6) * dt;
-      g.open += g.velocity * dt;
-      if (g.open < 0) { g.open = 0; g.velocity = Math.abs(g.velocity) > 0.5 ? -g.velocity * 0.3 : 0; }
-    }
+    g.velocity += (-Math.sin(g.open) * 820 - g.velocity * 6) * dt;
+    g.open += g.velocity * dt;
+    if (g.open < 0) { g.open = 0; g.velocity = Math.abs(g.velocity) > 0.5 ? -g.velocity * 0.3 : 0; }
     g.flap.rotation.x = this.reduced ? 0 : g.open;
   }
-
   // Rollover wires press flush under a passing ball and spring back; each lights its insert.
   updateRollovers(dt) {
-    const balls = [this.h.ball, this.h.shooterBall];
+    const balls = [this.h.ball];
     for (const r of this.h.rollovers) {
       let on = false;
       for (const b of balls) {
@@ -405,74 +437,6 @@ export class Show {
       r.press = on ? Math.min(1, r.press + dt / 0.01) : Math.max(0, r.press - dt / 0.03);
       r.wire.scale.y = 1 - 0.75 * r.press;
     }
-  }
-
-  updateBall(dt, ctx) {
-    const ball = this.h.ball;
-    const prev = this.lastBall;
-    // Mode changes fade the ball out, move it, and fade it back in.
-    if (this.pendingMode) {
-      this.ballFade = Math.max(0, this.ballFade - dt * 7);
-      if (this.ballFade === 0) {
-        if (this.mode === 'cradle') this.hold('left', false);
-        this.mode = this.pendingMode;
-        this.pendingMode = null;
-        this.modeTime = 0;
-        this.eventCursor = 0;
-        this.lap = undefined;
-        this.released = false;
-        if (this.mode === 'cradle') ball.position.copy(this.cradle);
-      }
-    } else {
-      this.ballFade = Math.min(1, this.ballFade + dt * 5);
-    }
-    ball.material.opacity = this.ballFade;
-    ball.visible = this.ballFade > 0.01;
-
-    this.modeTime += this.reduced ? 0 : dt;
-    if (this.mode === 'loop' || this.mode === 'pops') {
-      const path = this.paths[this.mode];
-      const pause = this.mode === 'pops' ? 0.9 : 0;
-      const cycle = path.duration + pause;
-      const local = this.modeTime % cycle;
-      const lap = Math.floor(this.modeTime / cycle);
-      if (lap !== this.lap) { this.lap = lap; this.eventCursor = 0; }
-      while (this.eventCursor < path.events.length && path.events[this.eventCursor].time <= local) {
-        this.trigger(path.events[this.eventCursor].name, path.points[path.events[this.eventCursor].at]);
-        this.eventCursor++;
-      }
-      path.sample(Math.min(local, path.duration), ball.position);
-      if (this.mode === 'pops' && local > path.duration) this.ballFade = Math.max(0, 1 - (local - path.duration) * 4);
-    } else if (this.mode === 'shot') {
-      const path = this.paths.shot;
-      while (this.eventCursor < path.events.length && path.events[this.eventCursor].time <= this.modeTime) {
-        this.trigger(path.events[this.eventCursor].name, path.points[path.events[this.eventCursor].at]);
-        this.eventCursor++;
-      }
-      path.sample(Math.min(this.modeTime, path.duration), ball.position);
-      if (this.modeTime > path.duration + 0.25 && !this.pendingMode) this.pendingMode = 'cradle';
-    } else if (this.mode === 'cradle') {
-      if (!this.released) {
-        this.hold('left', true);
-        ball.position.lerp(this.cradle, 1 - Math.exp(-dt * 20));
-      }
-    }
-    // Rolling: spin the ball by the distance travelled.
-    const move = ball.position.clone().sub(prev);
-    const dist = move.length();
-    if (dist > 1e-6 && dist < 0.2) {
-      const axis = new THREE.Vector3(move.z, 0, -move.x).normalize();
-      this.ballSpin.setFromAxisAngle(axis, dist / (BALL_R * MM));
-      ball.quaternion.premultiply(this.ballSpin);
-    }
-    prev.copy(ball.position);
-  }
-
-  trigger(name, at) {
-    if (name.startsWith('flip-')) this.flip(name.slice(5));
-    else if (name.startsWith('pop-')) this.firePop(+name.slice(4), at);
-    else if (name === 'ramp-deadbounce') this.flash('ramp0', 1.4);
-    else if (name === 'ramp-tiptop') this.flash('ramp1', 1.4);
   }
 
   // Inserts: each lamp eases toward its goal; flashes decay on top.
@@ -497,6 +461,7 @@ export class Show {
           break;
         }
         case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.6 : 0.35) : 0.1; break;
+        case 'orbit': goal = 0.1; break;
         case 'return': goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18; break;
       }
       ins.flash = Math.max(0, ins.flash - dt * 3);

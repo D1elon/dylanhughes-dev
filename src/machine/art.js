@@ -3,7 +3,7 @@
 // measured lengths, and labels where the site's sections live.
 import {
   PF, POPS, POP, DROPS, LADDER, PLAY_AGAIN, RAMP_ARROWS, RAMPS, TOP_LANES, TOP_LANE_INSERTS, FLIPPERS, FLIPPER,
-  SLINGS, GUIDES, APRON, ARCH, SHOOTER, LANE_LETTERS, RETURN_LANES,
+  SLINGS, GUIDES, APRON, ARCH, SHOOTER, LANE_LETTERS, RETURN_LANES, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_ARROWS,
 } from './layout.js';
 
 export const COLORS = {
@@ -66,6 +66,7 @@ export function insertList() {
   const list = [];
   TOP_LANE_INSERTS.forEach((p, i) => list.push({ id: `lane${i}`, group: 'lanes', x: p.x, y: p.y, angle: 0, shape: circleShape(20), color: 'alu' }));
   RAMP_ARROWS.forEach((a, i) => list.push({ id: `ramp${i}`, group: 'ramp' + i, x: a.x, y: a.y, angle: a.angle - 90, shape: arrowShape(28.6, 63.5), color: 'plasma' }));
+  ORBIT_ARROWS.forEach((a, i) => list.push({ id: `orbit${i}`, group: 'orbit', index: i, x: a.x, y: a.y, angle: a.angle - 90, shape: arrowShape(20.6, 38.1), color: 'alu' }));
   for (let i = 0; i < DROPS.count; i++) {
     const x = DROPS.cx + (i - (DROPS.count - 1) / 2) * DROPS.pitch;
     list.push({ id: `drop${i}`, group: 'drops', index: i, x, y: DROPS.y - 36, angle: 0, shape: triangleShape(17, 13), color: 'plasma' });
@@ -134,7 +135,7 @@ export function drawPlayfield(scale) {
     }
   }
 
-  // Shot lines: each flipper's tip to the opposite ramp, dashed and kept clear of the centre column.
+  // Shot lines: each flipper's tip to the opposite orbit's throat, dashed and kept clear of the centre column.
   g.save();
   g.beginPath();
   g.rect(0, 0, c.width, c.height);
@@ -144,8 +145,8 @@ export function drawPlayfield(scale) {
     const f = FLIPPERS[1 - i];
     const a = (f.up * Math.PI) / 180;
     const tip = [f.x + Math.cos(a) * FLIPPER.length, f.y + Math.sin(a) * FLIPPER.length];
-    const arrow = RAMP_ARROWS[i];
-    shotLine(g, X, Y, S, tip, [arrow.x + (i ? 8 : -8), arrow.y + 30], i === 0 ? 'Left ramp' : 'Right ramp');
+    const arrow = ORBIT_ARROWS[i];
+    shotLine(g, X, Y, S, tip, [arrow.x + (i ? 10 : -10), arrow.y + 22], i === 0 ? 'Left orbit' : 'Right orbit');
   });
   g.restore();
 
@@ -157,15 +158,15 @@ export function drawPlayfield(scale) {
       g.beginPath(); g.arc(X(p.x), Y(p.y), S(r), 0, Math.PI * 2); g.stroke();
     }
   }
-  label(g, X(PF.cx), Y(726), 'About', S(10.5), ALU(0.88), 'display');
-  label(g, X(PF.cx), Y(712), 'Pop bumpers · Ø 60', S(4.4), ALU(0.5), 'mono');
+  label(g, X(PF.cx), Y(842), 'About', S(10.5), ALU(0.88), 'display');
+  label(g, X(PF.cx), Y(828), 'Pop bumpers · Ø 60', S(4.4), ALU(0.5), 'mono');
 
   // Ramp labels.
   RAMP_ARROWS.forEach((arrow, i) => {
     const name = i === 0 ? 'Deadbounce' : 'Tip Top';
-    const x = arrow.x + (i === 0 ? -6 : 6);
-    label(g, X(x), Y(arrow.y - 38), name, S(8.6), ALU(0.9), 'display');
-    label(g, X(x), Y(arrow.y - 49), 'Case study', S(4.2), ALU(0.5), 'mono');
+    const x = arrow.x + (i === 0 ? -52 : 52);
+    label(g, X(x), Y(arrow.y + 2), name, S(8.6), ALU(0.9), 'display');
+    label(g, X(x), Y(arrow.y - 9), 'Case study', S(4.2), ALU(0.5), 'mono');
   });
 
   // Drop bank.
@@ -213,7 +214,6 @@ export function drawPlayfield(scale) {
 
   // Dimensions: the board's width along the top, its length up the left outlane.
   dimension(g, X, Y, S, [PF.rail + 30, ARCH.top - 18], [SHOOTER.laneRight - 30, ARCH.top - 18], '514.35', 'h');
-  dimension(g, X, Y, S, [24, 460], [24, 760], '1066.8', 'v');
 
   // Chevrons down each return lane, toward the flippers.
   for (const l of RETURN_LANES) {
@@ -388,7 +388,9 @@ function drawPlan(g, X, Y, s) {
   g.lineTo(X(SHOOTER.laneRight), Y(0));
   g.stroke();
   line(0.4);
-  g.beginPath(); g.moveTo(X(SHOOTER.laneLeft), Y(SHOOTER.apronTop)); g.lineTo(X(SHOOTER.laneLeft), Y(SHOOTER.dividerTop)); g.stroke();
+  g.beginPath(); g.moveTo(X(SHOOTER.dividerFace), Y(SHOOTER.apronTop)); g.lineTo(X(SHOOTER.dividerFace), Y(SHOOTER.dividerTop)); g.stroke();
+  // Orbit guides and wedges.
+  for (const o of [...ORBIT_GUIDES, ...ORBIT_WEDGES]) { g.beginPath(); o.line.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke(); }
   // Apron.
   g.beginPath();
   g.moveTo(X(APRON.leftShoulder[0]), Y(APRON.leftShoulder[1]));
@@ -416,7 +418,8 @@ function drawPlan(g, X, Y, s) {
   for (const r of RAMPS) {
     g.beginPath(); r.path.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))));
     const t = r.turn, dir = t.mirror ? -1 : 1;
-    for (let k = 0; k <= 12; k++) { const a = (k / 12) * Math.PI; g.lineTo(X(t.cx + dir * Math.cos(a) * t.r), Y(t.cy + Math.sin(a) * t.r)); }
+    for (let k = 0; k <= 12; k++) { const a = ((t.from + (t.to - t.from) * (k / 12)) * Math.PI) / 180; g.lineTo(X(t.cx + dir * Math.cos(a) * t.r), Y(t.cy + Math.sin(a) * t.r)); }
+    if (t.exit) g.lineTo(X(t.exit[0]), Y(t.exit[1]));
     g.stroke();
     g.setLineDash([3, 3]);
     g.beginPath(); r.wire.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke();

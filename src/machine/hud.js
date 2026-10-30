@@ -36,7 +36,8 @@ export class Hud {
   update(camera, width, height, reveal, tall) {
     for (const link of this.links) {
       let r = reveal[link.index] || 0;
-      if (tall && !link.primary) r = 0;
+      // One line per section, plus one to the list entry its part is showing now.
+      if (!link.primary && (tall || !link.el.classList.contains('current'))) r = 0;
       if (r < 0.01) {
         if (link.shown !== 0) { link.g.style.display = 'none'; link.shown = 0; }
         continue;

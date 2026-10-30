@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import {
   PF, BALL_R, FLIPPERS, FLIPPER, SLINGS, APRON, SHOOTER, ARCH, GUIDES, STAR_POSTS, REBOUND, GATE, TOP_LANES, POPS, POP,
-  RAMPS, RAMP, WIRE, DROPS, RETURN_LANES, RUBBER_POSTS,
+  RAMPS, RAMP, WIRE, DROPS, RETURN_LANES, RUBBER_POSTS, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_POSTS, ORBIT_ROLLOVERS, GI_SPOTS_UPPER,
 } from './layout.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MM, pf, extrude, extrudeLocal, place, lathe, tube, tubeLocal, densify, wall, roundedHull, ccw, arcPoints } from './geo.js';
@@ -49,7 +49,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   root.add(body);
   const playfield = new THREE.Group();
   body.add(playfield);
-  const handles = { root, body, playfield, inserts: new Map(), pops: [], drops: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [] };
+  const handles = { root, body, playfield, inserts: new Map(), pops: [], drops: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [], flashers: [] };
 
   // Converts playfield millimetres to world coordinates.
   handles.toWorld = (x, y, h = 0) => {
@@ -106,8 +106,10 @@ function buildRails(group, M) {
   ];
   group.add(mesh(wall(band, BAND.t, BAND.h), M.steel));
   guideFeet(group, M, band, 1);
-  const divider = [[SHOOTER.laneLeft - f, SHOOTER.apronTop], [SHOOTER.laneLeft - f, SHOOTER.dividerTop]];
-  group.add(mesh(wall(divider, BAND.t, BAND.h), M.steel));
+  // The shooter lane's divider: a 6 mm bar, stopping short of the arch so the right orbit joins the lane.
+  const t = SHOOTER.laneLeft - SHOOTER.dividerFace;
+  const divider = [[SHOOTER.dividerFace + t / 2, SHOOTER.apronTop], [SHOOTER.dividerFace + t / 2, SHOOTER.dividerTop]];
+  group.add(mesh(wall(divider, t, BAND.h), M.steel));
 }
 
 // Feet bent out of a guide's bottom edge every `spacing` mm on the side the ball can't reach, each held by a screw.
@@ -136,10 +138,20 @@ function buildGuides(group, M, handles) {
   for (const g of GUIDES) group.add(mesh(wall(g, BAND.t, BAND.h), M.steel));
   for (const [x, y] of STAR_POSTS) group.add(starPost(M, x, y));
   for (const [x, y] of RUBBER_POSTS) group.add(starPost(M, x, y));
-  // The rebound rubber: one ring stretched round two star posts across the arch's corner.
-  for (const [x, y] of REBOUND) group.add(starPost(M, x, y, { ring: false }));
-  const band = densify(roundedHull(ccw(REBOUND), 7.13, 10), 4);
-  group.add(mesh(tube(band.map(([x, y]) => [x, y, 13.5]), 2.38, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
+  // A rebound rubber, when the layout has one: one ring stretched round two star posts.
+  if (REBOUND.length) {
+    for (const [x, y] of REBOUND) group.add(starPost(M, x, y, { ring: false }));
+    const band = densify(roundedHull(ccw(REBOUND), 7.13, 10), 4);
+    group.add(mesh(tube(band.map(([x, y]) => [x, y, 13.5]), 2.38, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
+  }
+  // The orbits: formed steel inner guides up each side and round the top corners, and the wedges that close the
+  // space behind each throat's bend. Each inner guide ends at a post with a rubber ring, at its throat's mouth.
+  group.add(mesh(mergeGeometries([...ORBIT_GUIDES, ...ORBIT_WEDGES].map(g => wall(g.line, BAND.t, BAND.h))), M.steel));
+  for (const [x, y] of ORBIT_POSTS) {
+    group.add(post(M, x, y, { height: 27 }));
+    group.add(place(mesh(new THREE.TorusGeometry(7.1 * MM, 2.38 * MM, 10, 28).rotateX(Math.PI / 2).translate(0, 13.5 * MM, 0), M.rubber), x, y));
+  }
+  for (const [i, r] of ORBIT_ROLLOVERS.entries()) handles.rollovers.push(rollover(group, M, r.x, r.y, 'orbit' + i));
   // Return-lane rollovers.
   for (const [i, l] of RETURN_LANES.entries()) handles.rollovers.push(rollover(group, M, l.x, l.y, 'return' + i));
 }
@@ -371,30 +383,47 @@ function buildPops(group, M, art, anisotropy, handles) {
   const capGeo = lathe([[0, 31.6], [25, 31.6], [29.4, 32], [30, 33], [30, 36.5], [29.3, 37.8], [25.5, 41.6], [21, 43.1], [10, 43.45], [0, 43.5]], 72);
   const decal = new THREE.MeshStandardMaterial({ map: texture(art.popDecal, anisotropy), roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
   const decalGeo = new THREE.CircleGeometry(20.5 * MM, 48).rotateX(-Math.PI / 2).translate(0, 43.56 * MM, 0);
+  const socketGeo = new THREE.BoxGeometry(9 * MM, 6 * MM, 6 * MM).translate(0, 3 * MM, 0);
+  const bulbGeo = lathe([[0, 6], [2.6, 6], [3.4, 7], [5, 10], [5, 18.5], [3.8, 21.5], [0, 22.4]], 20);
   for (const [i, p] of POPS.entries()) {
     const g = new THREE.Group();
-    g.add(mesh(base, M.graphitePlastic));
+    // Each part sits in its own holder, so the exploded view can lift it along the bumper's axis. `lift` is how far
+    // it rises in the fully exploded view, in millimetres; the labels name the parts.
+    const parts = [];
+    const part = (label, lift, ...objects) => {
+      const holder = new THREE.Group();
+      holder.add(...objects);
+      holder.userData = { label, lift };
+      g.add(holder);
+      parts.push(holder);
+      return holder;
+    };
+    part('Base', 0, mesh(base, M.graphitePlastic));
     const skirtMesh = mesh(skirt, M.whitePlastic);
-    g.add(skirtMesh);
+    part('Skirt', 26, skirtMesh);
+    const bulbMat = M.bulb.clone();
+    handles.bulbs.push(bulbMat);
+    part('Lamp · #555', 56, mesh(socketGeo, M.darkSteel, { cast: false }), mesh(bulbGeo, bulbMat, { cast: false }));
     const bodyMat = M.popBody.clone();
     const bodyMesh = mesh(body, bodyMat);
-    g.add(bodyMesh);
+    part('Body', 86, bodyMesh);
     const ring = new THREE.Group();
     ring.add(mesh(ringGeo, M.chrome));
     for (const s of [-1, 1]) ring.add(mesh(rodGeo, M.chrome).translateX(s * 19.5 * MM));
     ring.position.y = POP.ringRest * MM;
-    g.add(ring);
+    part('Ring & rods', 128, ring);
     const capMat = M.popCap.clone();
     const cap = mesh(capGeo, capMat, { receive: false });
-    g.add(cap);
-    g.add(mesh(decalGeo, decal, { cast: false }));
+    part('Cap · Ø60', 172, cap);
+    part('Decal', 206, mesh(decalGeo, decal, { cast: false }));
     // Two cap screws through the decal.
-    for (const s of [-1, 1]) g.add(mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.9 * MM, 16).translate(s * 17.46 * MM, 43.75 * MM, 0), M.chrome, { cast: false }));
+    const screws = [-1, 1].map(s => mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.9 * MM, 16).translate(s * 17.46 * MM, 43.75 * MM, 0), M.chrome, { cast: false }));
+    part('Cap screws ×2', 232, ...screws);
     place(g, p.x, p.y);
     group.add(g);
-    for (const child of g.children) child.userData.action = 'pop-' + i;
+    g.traverse(o => { o.userData.action = 'pop-' + i; });
     handles.interactive.push(cap, bodyMesh, skirtMesh);
-    handles.pops.push({ group: g, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y });
+    handles.pops.push({ group: g, parts, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y });
   }
 }
 
@@ -436,10 +465,10 @@ function buildRamps(group, M, handles) {
     const t = ramp.turn, dir = t.mirror ? -1 : 1;
     const turnPts = [];
     for (let k = 1; k <= 18; k++) {
-      const a = (k / 18) * Math.PI;
+      const a = ((t.from + (t.to - t.from) * (k / 18)) * Math.PI) / 180;
       turnPts.push([t.cx + dir * Math.cos(a) * t.r, t.cy + Math.sin(a) * t.r, t.h0 + (t.h1 - t.h0) * (k / 18)]);
     }
-    const centre = [...ramp.path, ...turnPts];
+    const centre = [...ramp.path, ...turnPts, ...(t.exit ? [t.exit] : [])];
     const curve = new THREE.CatmullRomCurve3(centre.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     let turnStart = 0;
     for (let i = 1; i < ramp.path.length; i++) turnStart += Math.hypot(...ramp.path[i].map((v, k) => v - ramp.path[i - 1][k]));
@@ -453,12 +482,36 @@ function buildRamps(group, M, handles) {
     group.add(g);
     handles.interactive.push(body);
 
+    // A flasher on the turn's outer wall, at the apex: it fires when the ramp is made.
+    handles.flashers.push(flasher(group, M, curve, turnStart, outer, ramp.id));
+
     // The wireform carries on from the end of the turn.
     const wireCurve = new THREE.CatmullRomCurve3(ramp.wire.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     group.add(mesh(sweepWires(wireCurve), M.chrome));
     group.add(wireSupports(wireCurve, ramp, M));
     handles.ramps.push({ id: ramp.id, side: ramp.side, curve, wireCurve, group: g });
   }
+}
+
+// A flasher dome: a clear orange dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
+// light that throws its flash onto the playfield.
+function flasher(group, M, curve, turnStart, outer, id) {
+  const L = curve.getLength() / MM, u = (turnStart + (L - turnStart) * 0.5) / L;
+  const p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
+  const side = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(outer);
+  const g = new THREE.Group();
+  g.position.copy(p).addScaledVector(side, (RAMP.width / 2 + RAMP.side + 9) * MM);
+  g.position.y = p.y + (RAMP.outerWall - 4) * MM;
+  g.add(mesh(new THREE.BoxGeometry(14 * MM, 2 * MM, 22 * MM).translate(0, -1 * MM, 6 * MM).applyMatrix4(new THREE.Matrix4().lookAt(new THREE.Vector3(), side, new THREE.Vector3(0, 1, 0))), M.darkSteel, { cast: false }));
+  g.add(mesh(lathe([[0, 0], [15, 0], [15, 4], [13.5, 5], [0, 5]], 32), M.graphitePlastic, { cast: false }));
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0xff7a2a, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: 0xff5a10, emissiveIntensity: 0, transparent: true, opacity: 0.88 });
+  mat.userData.gain = M.popCap.userData.gain * 2;
+  g.add(mesh(lathe([[0, 5], [12.5, 5], [12.5, 9], [12, 14], [10, 19.5], [6.5, 23.5], [0, 25]], 32), mat, { cast: false }));
+  const light = new THREE.PointLight(0xff8a3a, 0, 0.5, 2);
+  light.position.y = 16 * MM;
+  g.add(light);
+  group.add(g);
+  return { id, mat, light, level: 0 };
 }
 
 // The ramp's body: a 3 mm floor and 2.4 mm walls swept along its centre line. The channel is 42 mm, flared to a
@@ -518,7 +571,7 @@ function sweepRamp(curve, turnStart, outer) {
 function rampSupports(curve, turnStart, outer, M, rampMat) {
   const L = curve.getLength() / MM, up = new THREE.Vector3(0, 1, 0);
   const turnLen = L - turnStart;
-  const spots = [[230, 1], [230, -1], [turnStart + 30, outer], [turnStart + turnLen * 0.55, outer], [L - 12, outer]];
+  const spots = RAMP.stations({ turnStart, turnLen, length: L }).map(({ s, side }) => [s, side * outer]);
   const posts = [], tabs = [], screws = [];
   for (const [s, side] of spots) {
     const u = Math.min(1, s / L), p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
@@ -527,6 +580,9 @@ function rampSupports(curve, turnStart, outer, M, rampMat) {
     if (floor < 30) continue;
     const off = RAMP.width / 2 + RAMP.side + 6.5;
     const base = p.clone().addScaledVector(sv, off * MM);
+    // Never on, or past, the rail.
+    const bx = base.x / MM + PF.w / 2, by = PF.l / 2 - base.z / MM;
+    if (bx < PF.rail + 4.62 || bx > SHOOTER.laneRight - 4.62 || by > ARCH.top - 4.62) continue;
     const h = floor - RAMP.floor - 1.5;
     posts.push(new THREE.CylinderGeometry(4.62 * MM, 4.62 * MM, h * MM, 6).translate(base.x, (h / 2) * MM, base.z));
     const tab = new THREE.BoxGeometry(18 * MM, 1.5 * MM, (off - RAMP.width / 2 + 5) * MM);
@@ -684,7 +740,7 @@ function buildBalls(group, M, handles) {
 // General illumination: #44-style bulbs (T-3¼ glass in a wedge socket) tucked under the slingshot plastics and beside
 // posts, never in a lane, with a few point lights to carry their glow.
 function buildGI(group, M, handles) {
-  const spots = [[106, 300], [368.35, 300], [112, 332], [362.35, 332], [60, 1015], [110, 1040]];
+  const spots = [[106, 300], [368.35, 300], [112, 332], [362.35, 332], ...GI_SPOTS_UPPER];
   const glass = lathe([[0, 0], [3.2, 0], [4.6, 3], [5.1, 7], [5.1, 12], [4.2, 15.5], [2.4, 17], [0, 17.3]], 16);
   const socket = new THREE.CylinderGeometry(4.2 * MM, 4.6 * MM, 6 * MM, 12).translate(0, 3 * MM, 0);
   for (const [x, y] of spots) {
