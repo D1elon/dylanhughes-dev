@@ -97,41 +97,47 @@
     update();
   });
 
-  // The dot-matrix display.
+  // The dot-matrix display. On the home page's machine the 3D scene runs it; if the machine fails, it runs here.
+  const machine = root.classList.contains('machine');
   let dmd = null;
   const canvas = $('[data-dmd]');
-  if (canvas && window.DMD && window.DMD_FONTS) {
-    const label = $('[data-dmd-label]');
-    const count = $('[data-dmd-count]');
-    const pause = $('[data-dmd-pause]');
-    const next = $('[data-dmd-next]');
-    const scenes = canvas.dataset.dmdScenes ? canvas.dataset.dmdScenes.split(',') : undefined;
-    dmd = new DMD(canvas, {
-      reduced,
-      scenes,
-      onScene: (name, i, n) => { if (label) label.textContent = name; if (count && n > 1) count.textContent = `${i} / ${n}`; },
-    });
-    let paused = reduced, onScreen = true;
-    const sync = () => { if (!paused && onScreen && !document.hidden) dmd.start(); else dmd.stop(); };
-    if (pause) {
-      if (reduced) pause.hidden = true;
-      pause.addEventListener('click', () => {
-        paused = !paused;
-        pause.setAttribute('aria-pressed', String(paused));
-        pause.textContent = paused ? 'Play' : 'Pause';
-        sync();
+  const startDisplay = () => {
+    if (canvas && window.DMD && window.DMD_FONTS && !dmd) {
+      const label = $('[data-dmd-label]');
+      const count = $('[data-dmd-count]');
+      const pause = $('[data-dmd-pause]');
+      const next = $('[data-dmd-next]');
+      const scenes = canvas.dataset.dmdScenes ? canvas.dataset.dmdScenes.split(',') : undefined;
+      dmd = new DMD(canvas, {
+        reduced,
+        scenes,
+        onScene: (name, i, n) => { if (label) label.textContent = name; if (count && n > 1) count.textContent = `${i} / ${n}`; },
       });
+      let paused = reduced, onScreen = true;
+      const sync = () => { if (!paused && onScreen && !document.hidden) dmd.start(); else dmd.stop(); };
+      if (pause) {
+        if (reduced) pause.hidden = true;
+        pause.addEventListener('click', () => {
+          paused = !paused;
+          pause.setAttribute('aria-pressed', String(paused));
+          pause.textContent = paused ? 'Play' : 'Pause';
+          sync();
+        });
+      }
+      const advance = () => { dmd.next(); if (paused || reduced) dmd.still(); };
+      if (next) next.addEventListener('click', advance);
+      canvas.addEventListener('click', advance);
+      new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }).observe(canvas);
+      document.addEventListener('visibilitychange', sync);
+      dmd.sync = sync;
+      if (!animate || !$('[data-intro-dmd]')) dmd.boot();
     }
-    const advance = () => { dmd.next(); if (paused || reduced) dmd.still(); };
-    if (next) next.addEventListener('click', advance);
-    canvas.addEventListener('click', advance);
-    new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }).observe(canvas);
-    document.addEventListener('visibilitychange', sync);
-    dmd.sync = sync;
-    if (!animate || !$('[data-intro-dmd]')) dmd.boot();
-  }
+  };
+  if (machine) window.addEventListener('machine:failed', startDisplay, { once: true });
+  else startDisplay();
 
-  if (!animate) return;
+  // The machine has its own camera, scroll and anchors; everything below is for ordinary pages.
+  if (!animate || machine) return;
   // Line splits are measured, so they wait for the web fonts.
   document.fonts.ready.then(motion);
 

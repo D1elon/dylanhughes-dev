@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deadbounce · Case study · Dylan Hughes</title>
+  <meta name="description" content="Deadbounce is a studio Dylan Hughes is designing and building for homebrew pinball: design a playfield in 3D at real size, write the rules without code, play it on its own physics engine, then take cut plans and a wiring plan to the workshop.">
+  <meta name="theme-color" content="#E3E5E2">
+  <link rel="canonical" href="https://dylanhughes.dev/work/deadbounce.html">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://dylanhughes.dev/work/deadbounce.html">
+  <meta property="og:title" content="Deadbounce · A pinball studio by Dylan Hughes">
+  <meta property="og:description" content="Design a pinball machine in 3D, write its rules without code, play it, then build it.">
+  <meta property="og:image" content="https://dylanhughes.dev/assets/img/deadbounce-design.jpg">
+  <meta property="og:image:alt" content="Deadbounce's design page: a parts library beside a 3D playfield with ramps, pop bumpers and flippers.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/site.css">
+  <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('motion');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('motion')},2500)}</script>
+  <script src="/js/vendor/gsap.min.js" defer></script>
+  <script src="/js/vendor/ScrollTrigger.min.js" defer></script>
+  <script src="/js/vendor/SplitText.min.js" defer></script>
+  <script src="/js/vendor/lenis.min.js" defer></script>
+  <script src="/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header" data-header>
+    <div class="wrap header-row">
+      <a class="wordmark" href="/" aria-label="Dylan Hughes, home"><span class="wordmark-mark" aria-hidden="true"></span>Dylan Hughes</a>
+      <nav class="nav" id="site-nav" aria-label="Main">
+        <a href="/#work" aria-current="true">Work</a>
+        <a href="/#about">About</a>
+        <a href="/#skills">Skills</a>
+        <a href="/#experience">Experience</a>
+        <a href="#contact">Contact</a>
+        <a class="nav-resume" href="/assets/dylan-hughes-resume.pdf" download>Résumé <span class="sr-only">(PDF)</span></a>
+      </nav>
+      <p class="clock mono"><span class="led" aria-hidden="true"></span>Richmond <time data-clock>&nbsp;</time></p>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" data-menu>Menu</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="case-hero wrap" aria-labelledby="case-title">
+      <a class="back mono" href="/#work" data-intro><span aria-hidden="true">←</span> All work</a>
+      <p class="kicker mono" data-intro><span class="led" aria-hidden="true"></span>Product · In development</p>
+      <h1 class="case-page-title display" id="case-title" data-intro-lines>Everything it takes to build a pinball machine.</h1>
+      <div class="case-hero-grid" data-intro>
+        <div>
+          <p class="case-lede">Deadbounce is a studio for people building their own pinball machines. You design the playfield in 3D at real size, build the game’s rules without writing code, give it a display and sound, and play it. Then you take the cut plan, a drill template and a wiring plan to the workshop.</p>
+          <p class="case-lede">I’m designing and building it end to end, from the interface and the 3D editor to the physics engine and the files a machine shop reads.</p>
+        </div>
+        <dl class="spec">
+          <div><dt class="mono">My role</dt><dd>Product design, research and development</dd></div>
+          <div><dt class="mono">Built with</dt><dd>JavaScript, Three.js, Python, Mission Pinball Framework, Godot</dd></div>
+          <div><dt class="mono">Runs as</dt><dd>A Windows desktop app, or in the browser</dd></div>
+          <div><dt class="mono">Status</dt><dd>In development</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="case-shot wrap" aria-label="The design page">
+      <div class="case-media">
+        <span class="case-media-inner"><picture><source srcset="/assets/img/deadbounce-design.webp" type="image/webp"><img src="/assets/img/deadbounce-design.jpg" alt="Deadbounce’s design page: a parts library of flippers, slingshots, pop bumpers, walls, ramps and targets beside a 3D view of the Twin Ramps playfield, with its ramps, wireforms, pop bumpers and flippers." width="1600" height="975" fetchpriority="high" decoding="async"></picture></span>
+      </div>
+    </section>
+
+    <section class="case-facts wrap" aria-labelledby="numbers-title">
+      <h2 class="sr-only" id="numbers-title">In numbers</h2>
+      <dl class="facts">
+        <div data-fade><dt class="mono">Steps</dt><dd>7<small>Design, rules, display, play, build, wiring and export, in order along one top bar.</small></dd></div>
+        <div data-fade><dt class="mono">Rule features</dt><dd>19<small>Skill shots to multiball, each in plain English and as the config it writes.</small></dd></div>
+        <div data-fade><dt class="mono">Automated tests</dt><dd>1,451<small>Across the studio, the game runtime, the Visual Pinball adapter and the desktop app.</small></dd></div>
+        <div data-fade><dt class="mono">Controller platforms</dt><dd>5<small>FAST, OPP, P3-ROC, P-ROC and LISY, each with a wiring sheet.</small></dd></div>
+      </dl>
+    </section>
+
+    <section class="case-work wrap" aria-labelledby="work-title">
+      <div class="section-head">
+        <h2 class="section-title display" id="work-title" data-split>The work</h2>
+        <p class="section-note" data-fade>A homebrew machine usually means five programs that don’t talk to each other. Deadbounce keeps one game, from the first post to the last wire.</p>
+      </div>
+      <div class="deliverables">
+        <article class="deliverable">
+          <span class="rule" aria-hidden="true"></span>
+          <p class="mono" data-fade>Design</p>
+          <h3 data-fade>Build it the way real games are built.</h3>
+          <p data-fade>Parts go together as they do under the glass: posts screwed into T-nuts, flippers on their mounting plate with the coil under the board, ramps on standoffs, steel guides on feet where the ball can’t reach them. Design checks flag lower-third problems, such as a lane that could trap a ball.</p>
+        </article>
+        <article class="deliverable">
+          <span class="rule" aria-hidden="true"></span>
+          <p class="mono" data-fade>Rules</p>
+          <h3 data-fade>Write the game without writing code.</h3>
+          <p data-fade>Nineteen rule features, from lane sets and target banks to multiball and wizard modes, each shown in plain English and as the exact Mission Pinball Framework configuration it generates. The test suite plays every one, switch by switch, in real games.</p>
+        </article>
+        <article class="deliverable">
+          <span class="rule" aria-hidden="true"></span>
+          <p class="mono" data-fade>Play</p>
+          <h3 data-fade>Test what you’ll actually build.</h3>
+          <p data-fade>The ball runs on Deadbounce’s own physics engine, built from the same geometry the studio cuts and prints, with your rules and display live. Visual Pinball X stays available as an optional player and export.</p>
+        </article>
+        <article class="deliverable">
+          <span class="rule" aria-hidden="true"></span>
+          <p class="mono" data-fade>Build and wire</p>
+          <h3 data-fade>Take it to the workshop.</h3>
+          <p data-fade>Every hole, slot and insert pocket comes out as a DXF and SVG cut plan with a tiled drill template that prints at true size. The controller plan gives every switch, coil and light an address, with a wiring sheet, a power estimate and a safety checklist.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="gallery-section band-dark" aria-labelledby="gallery-title" data-theme="dark">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title display" id="gallery-title" data-split>Inside the studio</h2>
+          <p class="section-note" data-fade>Each step is one page, with the way on in the corner.</p>
+        </div>
+        <div class="gallery">
+          <figure data-fade>
+            <span class="shot"><picture><source srcset="/assets/img/deadbounce-rules.webp" type="image/webp"><img src="/assets/img/deadbounce-rules.jpg" alt="The game rules page: a list of rule features on the left, and the skill shot’s settings, plain-English summary and targets on the right." width="1600" height="975" loading="lazy" decoding="async"></picture></span>
+            <figcaption><strong>Game rules</strong>Pick a feature, fill in the blanks, and the studio writes the configuration. The summary at the top says what the rule does in plain English.</figcaption>
+          </figure>
+          <figure data-fade>
+            <span class="shot"><picture><source srcset="/assets/img/deadbounce-display.webp" type="image/webp"><img src="/assets/img/deadbounce-display.jpg" alt="The display and sound page: a choice between an amber dot-matrix display and a video screen, each showing Twin Ramps, Press Start." width="1600" height="975" loading="lazy" decoding="async"></picture></span>
+            <figcaption><strong>Display and sound</strong>A 128 × 32 dot-matrix display in any colour, or a 1280 × 720 screen, with attract mode, scoring, awards and high-score entry.</figcaption>
+          </figure>
+          <figure data-fade>
+            <span class="shot"><picture><source srcset="/assets/img/deadbounce-build.webp" type="image/webp"><img src="/assets/img/deadbounce-build.jpg" alt="The build page: board dimensions, a cut plan counting holes, pockets and cut-outs, and downloads for review drawings and a printable template." width="1600" height="975" loading="lazy" decoding="async"></picture></span>
+            <figcaption><strong>Build</strong>The cut plan counts every operation and marks anything that still needs a check against the part maker’s drawing.</figcaption>
+          </figure>
+          <figure data-fade>
+            <span class="shot"><picture><source srcset="/assets/img/deadbounce-wiring.webp" type="image/webp"><img src="/assets/img/deadbounce-wiring.jpg" alt="The controller and wiring page: guided setup for the ball trough, flippers, drop-target banks and ball locks, above a list of controller boards." width="1600" height="975" loading="lazy" decoding="async"></picture></span>
+            <figcaption><strong>Controller and wiring</strong>Choose a platform and set up each mechanism in turn. The plan always asks you to check coil ratings before power goes on.</figcaption>
+          </figure>
+        </div>
+        <p class="gallery-note" data-fade>The machine on the <a href="/">home page</a> is built to Deadbounce’s measurements: the board, the flipper spacing, the slingshots and the apron.</p>
+        <nav class="next-case" aria-label="Next case study">
+          <span class="mono">Next case study</span>
+          <a href="/work/tip-top-pinball.html">Tip Top Pinball <span aria-hidden="true">→</span></a>
+        </nav>
+      </div>
+    </section>
+
+    <section class="contact band-dark" id="contact" aria-labelledby="contact-title" data-theme="dark">
+      <div class="wrap">
+        <h2 class="contact-title display" id="contact-title" data-split>Have something that needs building?</h2>
+        <p class="contact-lede" data-fade>A website, a piece of interactive software, or a part that doesn’t exist yet. Email is the best way to reach me.</p>
+        <div class="contact-row" data-fade>
+          <a class="contact-email" href="mailto:dyl.harrell@gmail.com">dyl.harrell@gmail.com</a>
+          <button class="key key-dark mono" type="button" data-copy="dyl.harrell@gmail.com">Copy email</button>
+          <span class="sr-only" aria-live="polite" data-copy-status></span>
+          <ul class="contact-links">
+            <li><a href="/#work">All work <span aria-hidden="true">←</span></a></li>
+            <li><a href="https://github.com/d1elon" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a></li>
+            <li><a href="https://www.linkedin.com/in/dylan-hughes-va/" target="_blank" rel="noopener noreferrer">LinkedIn <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a></li>
+          </ul>
+        </div>
+      </div>
+      <footer class="site-footer wrap mono">
+        <p>© <span data-year>2026</span> Dylan Hughes</p>
+        <p class="footer-made">Designed and built in Richmond, Virginia</p>
+        <a href="#main" data-top>Back to top <span aria-hidden="true">↑</span></a>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>

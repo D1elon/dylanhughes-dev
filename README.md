@@ -1,16 +1,19 @@
 # dylanhughes.dev
 
-Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. Static HTML, CSS and JavaScript with no build step; fonts and animation libraries are self-hosted.
+Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. The home page is a pinball machine rendered in 3D: it opens on the backbox, and scrolling flies the camera down over the playfield, where each section of the page is a part of the machine. Everything else is static HTML, CSS and JavaScript; fonts and animation libraries are self-hosted. Only the 3D machine has a build step.
 
 ## Structure
 
-- `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact
+- `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact. The same HTML is the 3D machine's copy and the plain page shown without WebGL.
+- `work/deadbounce.html`: Deadbounce case study
 - `work/tip-top-pinball.html`: Tip Top Pinball case study, with a before-and-after comparison
 - `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
 - `404.html`: not-found page, served by GitHub Pages for any missing URL
 - `css/site.css`: the whole design system (tokens at the top)
 - `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion
 - `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its hand-drawn bitmap fonts
+- `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Commit it after every change to the source.
+- `src/machine/`: the machine's source, and `tools/build-machine.mjs`, its build script
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
 - `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
 - `assets/`: résumé PDF, favicon, social share image (`og.png`) and photographs
@@ -24,10 +27,30 @@ Brushed-aluminium greys and graphite, cabinet-black bands for work and contact, 
 
 The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball, Richmond and the local time) with plasma persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
 
+## The 3D machine
+
+`src/machine/` is plain ES modules on Three.js, bundled by esbuild into `js/machine.js`:
+
+```bash
+npm install
+npm run build     # or: npm run watch
+```
+
+- `layout.js`: every playfield measurement, in millimetres from the left rail and the front edge. The board, flippers, slingshots, apron and shooter lane follow the Blank playfield in Deadbounce.
+- `art.js`: the playfield, backglass, apron, cards and cabinet art, drawn on canvases at load
+- `machine.js`: the cabinet, backbox and every playfield part
+- `materials.js` and `stage.js`: materials, lights, environment and post-processing, with lighter settings for phones
+- `show.js`: everything that moves: flippers, pop bumpers, slingshots, drop targets, inserts, the plunger and the ball's scripted runs
+- `director.js`: the camera. Each section of the page is a station with a pose; scrolling blends between them and holds on each while its copy is read.
+- `overlay.js` and `hud.js`: the hero copy laid onto the backglass as real HTML, and the leader lines from parts to the copy about them
+- `main.js`: starts it all and connects scrolling, pointer, keyboard and clicks
+
+The machine runs only where WebGL 2 is available, data saving is off and the address has no `?flat`. If it can't start, the page falls back to the plain layout and the 2D display. With reduced motion, the camera cuts between stations and nothing animates.
+
 ## Adding a project
 
 1. Copy `work/tip-top-pinball.html` to `work/<project>.html` and replace its content. Give the hero image a unique `view-transition-name` (see `.vt-tiptop` in `css/site.css`) so it morphs from the home page.
-2. Add an `<article class="case">` for it in the Work section of `index.html`.
+2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a plate in `PLATES` in `src/machine/main.js`.
 3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`.
 4. Add the page to `sitemap.xml`.
 
@@ -37,7 +60,7 @@ All content and navigation work without JavaScript. Motion runs only when the vi
 
 ## Local preview
 
-Pages use root-relative paths, so serve the repository root:
+Pages use root-relative paths, so serve the repository root (after `npm run build` if the machine's source changed):
 
 ```bash
 python3 -m http.server 8765 --bind 127.0.0.1

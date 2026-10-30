@@ -1,0 +1,14 @@
+{
+  "name": "dylanhughes-dev",
+  "private": true,
+  "type": "module",
+  "description": "Portfolio for Dylan Hughes. Static site; the 3D machine is bundled from src/machine into js/machine.js.",
+  "scripts": {
+    "build": "node tools/build-machine.mjs",
+    "watch": "node tools/build-machine.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "three": "0.186.1"
+  }
+}
