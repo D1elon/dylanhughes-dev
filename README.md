@@ -1,36 +1,56 @@
 # dylanhughes.dev
 
-Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. The site is static HTML, CSS, and JavaScript with no build step.
+Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. Static HTML, CSS and JavaScript with no build step; fonts and animation libraries are self-hosted.
 
 ## Structure
 
-- `index.html`: introduction, selected work, experience, skills, education, about, and contact
-- `work/tip-top-pinball.html`: the finished client website case study
+- `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact
+- `work/tip-top-pinball.html`: Tip Top Pinball case study, with a before-and-after comparison
 - `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
-- `css/style.css` and `js/main.js`: presentation and interactions
-- `assets/dylan-hughes-resume.pdf`: downloadable résumé, copied from Dylan's revised résumé
-- `assets/img/*.webp`: optimized versions of the portrait, workshop, and project images
-- `CNAME`, `robots.txt`, and `sitemap.xml`: domain and search-engine configuration
+- `404.html`: not-found page, served by GitHub Pages for any missing URL
+- `css/site.css`: the whole design system (tokens at the top)
+- `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion
+- `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its baked fonts
+- `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
+- `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels), Silkscreen (display font source)
+- `tools/bake-dmd-glyphs.mjs`: regenerates `js/dmd-glyphs.js` when the display needs new words
+- `assets/`: résumé PDF, favicon, social share image (`og.png`) and photographs
+- `CNAME`, `robots.txt` and `sitemap.xml`: domain and search-engine configuration
 
 Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.
 
+## Design
+
+Brushed-aluminium greys and graphite, cabinet-black bands for work and contact, and a single plasma orange taken from the dot-matrix display. Headlines are expanded Archivo, body text is Instrument Sans, and small spec labels are Martian Mono.
+
+The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball, Richmond and the local time) with plasma persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
+
+## Adding a project
+
+1. Copy `work/tip-top-pinball.html` to `work/<project>.html` and replace its content. Give the hero image a unique `view-transition-name` (see `.vt-tiptop` in `css/site.css`) so it morphs from the home page.
+2. Add an `<article class="case">` for it in the Work section of `index.html`.
+3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`.
+4. Add the page to `sitemap.xml`.
+
+## Motion and accessibility
+
+All content and navigation work without JavaScript. Motion runs only when the visitor has not asked for reduced motion; otherwise the display shows still frames, smooth scrolling is off and nothing animates. Line splits wait for the fonts and are removed after each animation so text reflows normally. The display pauses when off screen or in a background tab. axe reports no WCAG 2.1 AA violations on any page.
+
 ## Local preview
 
-Serve the repository root with a local static HTTP server, then open its URL in a browser. For example:
+Pages use root-relative paths, so serve the repository root:
 
 ```bash
-python -m http.server 8765 --bind 127.0.0.1
+python3 -m http.server 8765 --bind 127.0.0.1
 ```
+
+## Display text
+
+The display's large words are baked from Archivo so they look the same in every browser. To add one, add it to `BIG` in `tools/bake-dmd-glyphs.mjs`, serve the site as above and run `node tools/bake-dmd-glyphs.mjs http://127.0.0.1:8765` (needs Playwright). Small text is composed from the baked Silkscreen glyphs at runtime.
 
 ## Résumé updates
 
-The PDF is the approved revised résumé, not a generated copy of site HTML. When it changes, replace `assets/dylan-hughes-resume.pdf` with the newly approved PDF and align the experience, skills, education, and project facts in `index.html`.
-
-## Presentation and accessibility
-
-The layout adapts from 320px upward. The mobile navigation is progressively enhanced: all links remain available with JavaScript disabled. The experience section includes a native expandable engineering highlight. Visible keyboard focus, reduced-motion preferences, semantic headings, image descriptions, and browser-print styles are included.
-
-Image `width` and `height` attributes reserve layout space. The home page uses WebP images with JPEG fallbacks. The original résumé PDF is unchanged.
+The PDF is the approved revised résumé, not a generated copy of site HTML. When it changes, replace `assets/dylan-hughes-resume.pdf` and align the experience, skills and education in `index.html`.
 
 ## Deployment
 
