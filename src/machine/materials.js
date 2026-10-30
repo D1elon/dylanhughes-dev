@@ -22,7 +22,8 @@ export function makeMaterials(envMap) {
   M.trim = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.38, metalness: 0.9 });
   M.chrome = new THREE.MeshStandardMaterial({ color: 0xdcdfe2, roughness: 0.06, metalness: 1 });
   M.ball = new THREE.MeshStandardMaterial({ color: 0xd6dadd, roughness: 0.05, metalness: 1, envMap, envMapIntensity: 1.15 });
-  M.steel = new THREE.MeshStandardMaterial({ color: 0xbfc4c8, roughness: 0.34, metalness: 1, roughnessMap: brushed() });
+  M.steel = new THREE.MeshStandardMaterial({ color: 0xbfc4c8, roughness: 0.42, metalness: 1, roughnessMap: brushed() });
+  M.zinc = new THREE.MeshStandardMaterial({ color: 0xc2c6c9, roughness: 0.5, metalness: 1 });
   M.darkSteel = new THREE.MeshStandardMaterial({ color: 0x34383b, roughness: 0.4, metalness: 1 });
   M.rubber = new THREE.MeshStandardMaterial({ color: 0x0e0f10, roughness: 0.6 });
   M.rubberOrange = new THREE.MeshStandardMaterial({ color: 0xff6a13, roughness: 0.55 });

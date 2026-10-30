@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
 import { buildMachine, buildPlate, BACKBOX } from './machine.js';
-import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawPlastic, drawApron, drawBankPlate, loadArtFonts } from './art.js';
+import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawPlastic, drawApron, drawBankPlate, drawPopDecal, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
 import { SurfaceOverlay } from './overlay.js';
@@ -75,6 +75,7 @@ async function start() {
     plastic: drawPlastic(256, 256),
     apron: drawApron(quality.low ? 1024 : 2048),
     bankPlate: drawBankPlate(512, 160),
+    popDecal: drawPopDecal(256),
     cards: { instructions: drawApronCard('instructions', 625), free: drawApronCard('free', 625) },
     targets: ['Web', 'Game', 'Media', 'Fab'].map(n => drawTargetFace(n, 160)),
   };

@@ -596,6 +596,33 @@ export function drawTargetFace(name, width) {
   return c;
 }
 
+// A pop bumper's cap decal: a printed disc under the cap's clear top, with the dot-matrix DH from the apron.
+export function drawPopDecal(size) {
+  const c = canvas(size, size);
+  const g = c.getContext('2d');
+  const m = size / 2;
+  g.fillStyle = '#f1efe9';
+  g.beginPath(); g.arc(m, m, m, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = COLORS.plasma;
+  g.lineWidth = size * 0.07;
+  g.beginPath(); g.arc(m, m, m * 0.88, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = 'rgba(22,24,26,0.5)';
+  g.lineWidth = size * 0.008;
+  g.beginPath(); g.arc(m, m, m * 0.74, 0, Math.PI * 2); g.stroke();
+  const D = ['1110', '1001', '1001', '1001', '1110'], H = ['1001', '1001', '1111', '1001', '1001'];
+  const dot = size * 0.06, x0 = m - (9 * dot) / 2, y0 = m - (5 * dot) / 2 - size * 0.04;
+  [D, H].forEach((glyph, k) => glyph.forEach((row, y) => [...row].forEach((on, x) => {
+    g.fillStyle = on === '1' ? COLORS.ink : 'rgba(22,24,26,0.1)';
+    g.beginPath(); g.arc(x0 + (k * 5 + x + 0.5) * dot, y0 + (y + 0.5) * dot, dot * 0.36, 0, Math.PI * 2); g.fill();
+  })));
+  g.fillStyle = COLORS.ink;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = FONTS.mono(size * 0.075, 600);
+  g.fillText('1,000', m, m + size * 0.22);
+  return c;
+}
+
 // The drop bank's front plate.
 export function drawBankPlate(width, height) {
   const c = canvas(width, height);

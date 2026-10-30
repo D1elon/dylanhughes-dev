@@ -64,7 +64,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   buildFlippers(playfield, M, handles);
   buildApron(playfield, M, art, anisotropy);
   buildTopLanes(playfield, M, handles);
-  buildPops(playfield, M, handles);
+  buildPops(playfield, M, art, anisotropy, handles);
   buildDrops(playfield, M, art, anisotropy, handles);
   buildRamps(playfield, M, handles);
   buildGate(playfield, M, handles);
@@ -360,14 +360,17 @@ function buildTopLanes(group, M, handles) {
 
 // A pop bumper: a dark base, a plastic skirt the ball presses against, a lit body, the steel ring on its two rods,
 // and the cap. When the skirt tilts it closes the switch, and the coil pulls the ring down onto the ball.
-function buildPops(group, M, handles) {
+function buildPops(group, M, art, anisotropy, handles) {
   const base = lathe([[0, 0], [17, 0], [17, 2.7], [0, 2.7]], 40);
   const skirt = lathe([[11, 2.7], [23.15, 2.7], [23.4, 3.4], [23.15, 4.7], [22.2, 5.4], [11, 5.4]], 56);
   const body = lathe([[0, 5.4], [15.5, 5.4], [15.5, 31.6], [0, 31.6]], 40);
   const ringGeo = lathe([[15.8, -9], [16.8, -9], [16.8, 0], [22.6, 0], [23.2, 0.5], [23.2, 1.5], [22.6, 2], [15.8, 2], [15.8, -9]], 56);
   const rodGeo = new THREE.CylinderGeometry(1.6 * MM, 1.6 * MM, 42 * MM, 10).translate(0, -21 * MM, 0);
-  // Lathe profiles run from the axis at the bottom, out and up, so their normals face outward.
-  const capGeo = lathe([[0, 44], [3, 43.98], [6, 43.92], [9, 43.8], [12, 43.62], [15, 43.36], [18, 42.98], [21, 42.4], [24, 41.5], [27, 39.7], [29, 37.6], [29.8, 35.8], [30, 34], [29.4, 32], [25, 31.6], [0, 31.6]].reverse(), 72);
+  // The cap: a chamfered top over a short rim, with a printed decal under its clear top. Lathe profiles run from the
+  // axis at the bottom, out and up, so their normals face outward.
+  const capGeo = lathe([[0, 31.6], [25, 31.6], [29.4, 32], [30, 33], [30, 36.5], [29.3, 37.8], [25.5, 41.6], [21, 43.1], [10, 43.45], [0, 43.5]], 72);
+  const decal = new THREE.MeshStandardMaterial({ map: texture(art.popDecal, anisotropy), roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  const decalGeo = new THREE.CircleGeometry(20.5 * MM, 48).rotateX(-Math.PI / 2).translate(0, 43.56 * MM, 0);
   for (const [i, p] of POPS.entries()) {
     const g = new THREE.Group();
     g.add(mesh(base, M.graphitePlastic));
@@ -384,8 +387,9 @@ function buildPops(group, M, handles) {
     const capMat = M.popCap.clone();
     const cap = mesh(capGeo, capMat, { receive: false });
     g.add(cap);
-    // Two cap screws.
-    for (const s of [-1, 1]) g.add(mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 1.1 * MM, 16).translate(s * 17.46 * MM, 42.9 * MM, 0), M.chrome));
+    g.add(mesh(decalGeo, decal, { cast: false }));
+    // Two cap screws through the decal.
+    for (const s of [-1, 1]) g.add(mesh(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.9 * MM, 16).translate(s * 17.46 * MM, 43.75 * MM, 0), M.chrome, { cast: false }));
     place(g, p.x, p.y);
     group.add(g);
     for (const child of g.children) child.userData.action = 'pop-' + i;
@@ -534,7 +538,7 @@ function rampSupports(curve, turnStart, outer, M, rampMat) {
   }
   const g = new THREE.Group();
   if (posts.length) {
-    g.add(mesh(mergeGeometries(posts), M.steel));
+    g.add(mesh(mergeGeometries(posts), M.zinc));
     const tabMesh = mesh(mergeGeometries(tabs), rampMat, { cast: false, receive: false });
     tabMesh.renderOrder = 2;
     g.add(tabMesh, mesh(mergeGeometries(screws), M.darkSteel, { cast: false }));
@@ -601,7 +605,7 @@ function wireSupports(curve, ramp, M) {
   const end = curve.getPointAt(1);
   strap(pf(ramp.post[0], ramp.post[1], 30.2), end.clone().add(new THREE.Vector3(0, -6 * MM, 0)), 7, 2);
   const g = new THREE.Group();
-  g.add(mesh(mergeGeometries(posts), M.steel), mesh(mergeGeometries(straps), M.steel));
+  g.add(mesh(mergeGeometries(posts), M.zinc), mesh(mergeGeometries(straps), M.zinc));
   return g;
 }
 
