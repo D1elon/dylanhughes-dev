@@ -65,7 +65,7 @@ export function circleShape(d, steps = 36) {
 export function insertList() {
   const list = [];
   TOP_LANE_INSERTS.forEach((p, i) => list.push({ id: `lane${i}`, group: 'lanes', x: p.x, y: p.y, angle: 0, shape: circleShape(20), color: 'alu' }));
-  RAMP_ARROWS.forEach((a, i) => list.push({ id: `ramp${i}`, group: 'ramp' + i, x: a.x, y: a.y, angle: a.angle - 90, shape: arrowShape(30, 40), color: 'plasma' }));
+  RAMP_ARROWS.forEach((a, i) => list.push({ id: `ramp${i}`, group: 'ramp' + i, x: a.x, y: a.y, angle: a.angle - 90, shape: arrowShape(28.6, 63.5), color: 'plasma' }));
   for (let i = 0; i < DROPS.count; i++) {
     const x = DROPS.cx + (i - (DROPS.count - 1) / 2) * DROPS.pitch;
     list.push({ id: `drop${i}`, group: 'drops', index: i, x, y: DROPS.y - 36, angle: 0, shape: triangleShape(17, 13), color: 'plasma' });
@@ -576,13 +576,13 @@ const DOT_ICONS = {
   Fab: '0011100/0111110/0000000/0111110/0000000/0111110/1111111',
 };
 export function drawTargetFace(name, width) {
-  const height = Math.round(width * (34 / 25.4));
+  const height = Math.round(width * (DROPS.height / DROPS.width));
   const c = canvas(width, height);
   const g = c.getContext('2d');
   g.fillStyle = '#ecede9';
   g.fillRect(0, 0, width, height);
   const rows = DOT_ICONS[name].split('/');
-  const cell = width * 0.085, ox = width / 2 - (rows[0].length * cell) / 2, oy = height * 0.16;
+  const cell = width * 0.074, ox = width / 2 - (rows[0].length * cell) / 2, oy = height * 0.12;
   rows.forEach((row, y) => [...row].forEach((on, x) => {
     g.fillStyle = on === '1' ? COLORS.plasma : 'rgba(22,24,26,0.12)';
     g.beginPath(); g.arc(ox + (x + 0.5) * cell, oy + (y + 0.5) * cell, cell * 0.36, 0, Math.PI * 2); g.fill();
@@ -592,7 +592,7 @@ export function drawTargetFace(name, width) {
   g.letterSpacing = `${width * 0.01}px`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(name.toUpperCase(), width / 2, height * 0.8);
+  g.fillText(name.toUpperCase(), width / 2, height * 0.83);
   return c;
 }
 

@@ -30,6 +30,8 @@ const ACTIONS = {
   'drop-1': { label: 'Drop the target' },
   'drop-2': { label: 'Drop the target' },
   'drop-3': { label: 'Drop the target' },
+  'sling-left': { label: 'Kick the slingshot' },
+  'sling-right': { label: 'Kick the slingshot' },
   'flip-left': { label: 'Flip' },
   'flip-right': { label: 'Flip' },
   plunger: { label: 'Launch a ball back to the top' },
@@ -51,12 +53,14 @@ const STOPS = {
 
 // Plates that rise out of the playfield at a stop, carrying the stop's picture.
 const PLATES = {
-  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [96, 992], width: 0.13, aspect: 950 / 730, action: 'ramp-deadbounce' },
-  tiptop: { url: '/assets/img/tiptop.jpg', at: [378, 992], width: 0.13, aspect: 1600 / 1027, action: 'ramp-tiptop' },
+  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [100, 972], width: 0.13, aspect: 950 / 730, action: 'ramp-deadbounce' },
+  tiptop: { url: '/assets/img/tiptop.jpg', at: [374.35, 972], width: 0.13, aspect: 1600 / 1027, action: 'ramp-tiptop' },
   about: { url: '/assets/img/dylan.jpg', at: [237, 1036], width: 0.07, aspect: 512 / 640, action: 'portrait' },
 };
 
 async function start() {
+  // The page's head script decides: without WebGL 2, with data saving on or at ?flat, the page stays plain.
+  if (!root.classList.contains('machine')) return;
   const canvas = $('[data-stage]');
   const stations = $$('[data-station]');
   if (!canvas || !stations.length) throw new Error('No stage on this page');
@@ -85,10 +89,11 @@ async function start() {
   });
 
   const stage = createStage(canvas, quality);
-  const M = makeMaterials();
+  const M = makeMaterials(stage.envMap);
   const anisotropy = Math.min(quality.anisotropy, stage.renderer.capabilities.getMaxAnisotropy());
   const h = buildMachine({ M, art, dmdCanvas, anisotropy });
   stage.scene.add(h.root);
+  if (stage.ao) stage.ao.setSceneClipBox(new THREE.Box3().setFromObject(h.root).expandByScalar(0.03));
   dmd.onPaint = () => { h.dmd.texture.needsUpdate = true; };
   const show = new Show(h, { reduced });
 
@@ -211,7 +216,8 @@ async function start() {
     if (def && def.href) { location.href = def.href; return; }
     if (action.startsWith('pop-')) show.firePop(+action.slice(4));
     else if (action === 'portrait') [0, 1, 2].forEach((i, k) => setTimeout(() => show.firePop(i), k * 140));
-    else if (action.startsWith('drop-')) { const i = +action.slice(5); show.dropGoals[i] = show.dropGoals[i] ? 0 : 1; show.manualDrops = true; show.flash('drop' + i, 1.2); }
+    else if (action.startsWith('drop-')) { show.hitDrop(+action.slice(5)); show.manualDrops = true; }
+    else if (action.startsWith('sling-')) show.kickSling(action.slice(6));
     else if (action === 'flip-left' || action === 'flip-right') playFlip(action.slice(5));
     else if (action === 'plunger') launch();
     else if (action === 'dmd') dmd.next();
@@ -377,6 +383,7 @@ async function start() {
       }
     }
     stage.render();
+    stage.govern(now);
     requestAnimationFrame(frame);
   }
 

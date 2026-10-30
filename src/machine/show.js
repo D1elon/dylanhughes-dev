@@ -1,10 +1,20 @@
 // Everything that moves: flippers, pops, slings, drop targets, inserts, the plunger and the ball's scripted runs.
 import * as THREE from 'three';
-import { BALL_R, FLIPPER, FLIPPERS, POPS, POP, TOP_LANES, PF } from './layout.js';
+import { BALL_R, FLIPPER, FLIPPERS, POPS, POP, TOP_LANES, PF, SHOOTER, ARCH, DROPS, WIRE, RETURN_LANES } from './layout.js';
 import { MM, pf } from './geo.js';
 
 const DEG = Math.PI / 180;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const smooth = t => t * t * (3 - 2 * t);
+
+// Flipper coil: a constant torque swings the bat through its 52° stroke in 28 ms. Over the last 6° the hold winding
+// takes over at 0.375 of the torque; the return spring gives 0.055 of it, bringing the bat home in about 0.11 s.
+// Both stops are hard: the end-of-stroke stop throws the bat back at a fifth of its speed, the rest stop at a tenth.
+const STROKE = 52, ALPHA = (2 * STROKE) / 0.028 ** 2;
+
+// Shooter: 44.45 mm of pull; released, the spring drives the tip home in about 16 ms and it overtravels 5 mm into
+// its buffer before settling.
+const PULL = 44.45, SPRING_W = 99;
 
 // A path the ball follows: dense points with a speed at each, sampled by time. Events fire at given points.
 class BallPath {
@@ -55,8 +65,10 @@ export class Show {
     this.power = 0; // 0 → 1 as the machine powers on
     this.lastBall = new THREE.Vector3();
     this.ballSpin = new THREE.Quaternion();
-    this.h.ball.material = this.h.ball.material.clone();
-    this.h.ball.material.transparent = true;
+    for (const b of [this.h.ball, this.h.shooterBall]) {
+      b.material = b.material.clone();
+      b.material.transparent = true;
+    }
     this.paths = this.buildPaths();
     this.cradle = this.cradlePoint(0);
     this.h.ball.position.copy(this.cradle);
@@ -64,6 +76,10 @@ export class Show {
     this.dropGoals = [0, 0, 0, 0];
     this.ladder = -1;
     this.station = null;
+    for (const d of h.drops) d.rest = d.holder.position.clone();
+    for (const r of h.rollovers) r.pos = pf(r.x, r.y, BALL_R);
+    this.plunge = null; // the shooter ball's run up the lane after a launch
+    this.serve = null; // a new ball rolling into the shooter lane
   }
 
   // Where the ball rests when cradled on a raised flipper.
@@ -88,7 +104,7 @@ export class Show {
 
   buildPaths() {
     const [left, right] = this.h.ramps;
-    const onRamp = BALL_R * MM, onWire = 7.5 * MM;
+    const onRamp = BALL_R * MM, onWire = WIRE.ride * MM;
     // One shot: from a flipper, up the opposite ramp, down its wire, through the inlane onto the other flipper.
     const shot = (from, ramp, toFlipper) => {
       const p = new BallPath();
@@ -97,14 +113,17 @@ export class Show {
       p.addCurve(ramp.curve, 0, 1, 1.5, 0.5, onRamp, 110);
       p.event('ramp-' + ramp.id);
       p.addCurve(ramp.wireCurve, 0, 1, 0.55, 1.15, onWire, 120);
+      // Through the spread rails at the dead end, down onto the inlane, over its rollover, along the return lane
+      // and onto the flipper.
       const end = ramp.wireCurve.getPointAt(1);
-      const inlane = new THREE.Vector3(end.x, BALL_R * MM, end.z).add(new THREE.Vector3(0, 0, 0.018));
-      p.line(inlane, 1.0, 0.9, 8);
-      const side = toFlipper === 0 ? 1 : -1;
-      const mid = pf(PF.cx - side * 150, 262, BALL_R);
-      p.line(mid, 0.9, 0.8, 20);
-      p.line(this.batPoint(toFlipper, 34), 0.8, 0.55, 16);
-      p.line(this.batPoint(toFlipper, 50), 0.55, 0.4, 10);
+      const m = x => (toFlipper === 0 ? x : 2 * PF.cx - x);
+      p.line(new THREE.Vector3(end.x, BALL_R * MM, end.z).add(new THREE.Vector3(0, 0, 0.006)), 0.9, 1.0, 10);
+      p.line(pf(m(69.4), 330, BALL_R), 1.0, 1.1, 18);
+      p.line(pf(m(68.4), 290, BALL_R), 1.1, 1.15, 8);
+      p.line(pf(m(76), 262, BALL_R), 1.15, 1.1, 8);
+      p.line(pf(m(92.6), 249.4, BALL_R), 1.1, 1.0, 8);
+      p.line(this.batPoint(toFlipper, 22), 1.0, 0.7, 14);
+      p.line(this.batPoint(toFlipper, 48), 0.7, 0.4, 10);
       return p;
     };
     const loop = new BallPath();
@@ -123,7 +142,7 @@ export class Show {
     let pos = new THREE.Vector2(TOP_LANES.centers[1], TOP_LANES.y + 8);
     pops.add(pf(pos.x, pos.y, BALL_R), 0.9);
     const order = [2, 0, 1, 2, 1, 0, 2, 0];
-    const reach = POP.cap / 2 + BALL_R - 1;
+    const reach = POP.reach;
     for (const k of order) {
       const c = ctr[k];
       const dirv = pos.clone().sub(c).normalize();
@@ -135,7 +154,24 @@ export class Show {
     pops.line(pf(PF.cx + 30, 690, BALL_R), 1.1, 0.8, 22);
     pops.line(pf(PF.cx + 70, 640, BALL_R), 0.8, 0.5, 10);
     pops.build();
-    return { loop, pops, shot: single };
+
+    // A soft plunge: up the shooter lane, through the gate, round the arch's right corner and into a top lane.
+    const plunge = new BallPath();
+    const lane = SHOOTER.ballRest[0];
+    plunge.add(pf(lane, SHOOTER.ballRest[1], BALL_R), 2.6);
+    plunge.line(pf(lane, ARCH.right.cy, BALL_R), 2.6, 2.35, 40);
+    const rr = ARCH.right.r - BALL_R;
+    for (let k = 1; k <= 24; k++) {
+      const a = (k / 24) * (Math.PI / 2);
+      plunge.add(pf(ARCH.right.cx + Math.cos(a) * rr, ARCH.right.cy + Math.sin(a) * rr, BALL_R), 2.3 - 0.5 * (k / 24));
+    }
+    const lx = TOP_LANES.centers[2];
+    plunge.line(pf(lx + 30, ARCH.right.cy + rr - 4, BALL_R), 1.8, 1.5, 10);
+    plunge.line(pf(lx + 4, TOP_LANES.guideTo + 8, BALL_R), 1.5, 1.2, 10);
+    plunge.line(pf(lx, TOP_LANES.y, BALL_R), 1.2, 1.05, 10);
+    plunge.line(pf(lx - 4, 900, BALL_R), 1.05, 0.95, 16);
+    plunge.build();
+    return { loop, pops, shot: single, plunge };
   }
 
   setStation(name) {
@@ -170,24 +206,47 @@ export class Show {
     f.held = on;
     f.target = on ? f.up : f.rest;
   }
-  firePop(i) {
+  // `at`: where the ball struck, in playfield space. The skirt tilts toward it.
+  firePop(i, at) {
     const p = this.h.pops[i];
-    if (p) p.fire = 1;
+    if (!p) return;
+    p.fired = this.time;
+    const c = p.group.position;
+    const a = this.time * 7.3;
+    const dx = at ? at.x - c.x : Math.cos(a), dz = at ? at.z - c.z : Math.sin(a);
+    p.axis.set(dz, 0, -dx).normalize();
   }
   kickSling(side) {
     const s = this.h.slings.find(x => x.side === side);
-    if (s) s.kick = 1;
+    if (s) s.kicked = this.time;
   }
   flash(id, amount = 1) {
     const ins = this.h.inserts.get(id);
     if (ins) ins.flash = Math.max(ins.flash, amount);
   }
-  pull() { this.h.plunger.pull = 1; this.h.plunger.pulling = true; }
+  // A drop target is knocked down; hitting one that's already down resets the bank.
+  hitDrop(i) {
+    const d = this.h.drops[i];
+    if (!d) return;
+    if (d.state === 'up') { d.state = 'falling'; d.since = this.time; this.flash('drop' + i, 1.2); }
+    else if (d.state === 'down') this.resetBank();
+  }
+  // The reset coil lifts every dropped target at once.
+  resetBank() {
+    for (const d of this.h.drops) if (d.state !== 'up') { d.state = 'rising'; d.since = this.time; }
+  }
+  pull() {
+    const pl = this.h.plunger;
+    if (this.plunge || this.serve) return;
+    pl.pulling = true;
+    pl.releasedAt = -1;
+  }
   release() {
     const pl = this.h.plunger;
+    if (!pl.pulling) return;
     pl.pulling = false;
-    pl.released = this.time;
-    this.launch = { start: this.time };
+    pl.releasedAt = this.time;
+    pl.from = pl.pull;
   }
 
   // --- Frame update --------------------------------------------------------------------------------------
@@ -198,59 +257,154 @@ export class Show {
     const h = this.h;
     const P = this.power;
 
-    // Flippers: a fast, slightly overshooting swing like a real coil.
     for (const f of h.flippers) {
       if (f.release && t >= f.release && !f.held) { f.target = f.rest; f.release = 0; }
-      const k = f.target === f.up ? 70 : 34;
-      f.velocity += (f.target - f.angle) * k * k * dt - f.velocity * 2 * k * 0.55 * dt;
-      f.angle += f.velocity * dt;
-      if (this.reduced) f.angle = f.target;
+      if (this.reduced) { f.angle = f.target; f.velocity = 0; f.pivot.rotation.y = f.angle * DEG; continue; }
+      const on = f.target === f.up, dir = Math.sign(f.up - f.rest);
+      let a = (f.angle - f.rest) * dir, w = f.velocity;
+      const n = Math.min(60, Math.ceil(dt / 0.0005)), step = dt / n;
+      for (let k = 0; k < n; k++) {
+        w += (on ? ALPHA * (a > STROKE - 6 ? 0.375 : 1) : -0.055 * ALPHA) * step;
+        a += w * step;
+        if (a >= STROKE) { a = STROKE; w = w > 60 ? -0.2 * w : Math.min(w, 0); }
+        if (a <= 0) { a = 0; w = w < -60 ? -0.1 * w : Math.max(w, 0); }
+      }
+      f.velocity = w;
+      f.angle = f.rest + dir * a;
       f.pivot.rotation.y = f.angle * DEG;
     }
 
-    // Pops: the ring snaps down, the skirt wobbles and the cap flashes.
+    // Pops: the skirt tilts toward the ball, the ring pulls down in 10 ms, holds through the pulse and springs back
+    // by 75 ms; the cap and body flash with the lamp.
     for (const p of h.pops) {
-      p.fire = Math.max(0, p.fire - dt * 6);
-      const e = p.fire;
-      p.ring.position.y = (27 - 17 * Math.pow(e, 0.6)) * MM;
-      p.skirt.rotation.x = Math.sin(t * 60) * 0.06 * e;
-      p.capMat.emissiveIntensity = (0.22 + 2.6 * e) * P;
+      const e = p.fired < 0 ? 9 : t - p.fired;
+      const ring = e < 0.004 ? 0 : e < 0.014 ? ((e - 0.004) / 0.01) ** 2 : e < 0.03 ? 1 : e < 0.075 ? 0.5 + 0.5 * Math.cos((Math.PI * (e - 0.03)) / 0.045) : 0;
+      p.ring.position.y = (POP.ringRest - POP.ringTravel * (this.reduced ? 0 : ring)) * MM;
+      const tilt = e < 0.006 ? e / 0.006 : Math.max(0, 1 - (e - 0.006) / 0.035);
+      p.skirt.quaternion.setFromAxisAngle(p.axis, this.reduced ? 0 : tilt * 2.5 * DEG);
+      const glow = e < 0.5 ? Math.exp(-e / 0.07) : 0;
+      p.capMat.emissiveIntensity = (0.22 + 2.6 * glow) * P * p.capMat.userData.gain;
+      p.bodyMat.emissiveIntensity = (0.06 + 1.4 * glow) * P * p.bodyMat.userData.gain;
     }
 
-    // Slings.
+    // Slings: the arm swings out in 8 ms, holds through the pulse and is back by 65 ms; the rubber rings on a moment.
     for (const s of h.slings) {
-      s.kick = Math.max(0, s.kick - dt * 7);
-      s.kicker.position.copy(s.rest).addScaledVector(s.push, Math.sin(s.kick * Math.PI));
+      const e = s.kicked < 0 ? 9 : t - s.kicked;
+      let arm = 0;
+      if (e < 0.008) arm = Math.sin((e / 0.008) * (Math.PI / 2));
+      else if (e < 0.025) arm = 1;
+      else if (e < 0.065) arm = 0.5 + 0.5 * Math.cos((Math.PI * (e - 0.025)) / 0.04);
+      const ring = e >= 0.065 && e < 0.35 ? -0.16 * Math.sin((e - 0.065) * Math.PI * 2 * 22) * Math.exp(-(e - 0.065) * 14) : 0;
+      if (this.reduced) arm = 0;
+      s.arm.position.copy(s.rest).addScaledVector(s.push, arm);
+      const rub = this.reduced ? 0 : arm + ring;
+      if (Math.abs(rub - s.shown) > 0.015 || (rub === 0 && s.shown !== 0)) {
+        s.rubber.geometry.dispose();
+        s.rubber.geometry = s.rubberGeo(rub * 9);
+        s.shown = rub;
+      }
     }
 
-    // Drop targets drop fast and reset with a little bounce.
+    // Drop targets: knocked back 1.5 mm off the latch, then down in about 30 ms. The bank resets together: up past
+    // the latch, then settling back onto it.
     for (const d of h.drops) {
-      const goal = this.dropGoals[d.index];
-      const speed = goal > d.down ? 14 : 5;
-      d.down += clamp(goal - d.down, -dt * speed, dt * speed);
-      const dip = d.down >= 0.999 ? 1 : d.down;
-      d.holder.position.y = -dip * 35 * MM;
+      const e = t - d.since;
+      let down = 0, back = 0;
+      if (d.state === 'falling') {
+        back = Math.min(1, e / 0.005) * 1.5;
+        const u = Math.max(0, (e - 0.005) / 0.03);
+        down = -(DROPS.height + 1) * Math.min(1, u * u);
+        if (u >= 1) d.state = 'down';
+      } else if (d.state === 'down') {
+        down = -(DROPS.height + 1); back = 1.5;
+      } else if (d.state === 'rising') {
+        const u = e / 0.03, v = (e - 0.03) / 0.045;
+        if (u < 1) down = -(DROPS.height + 1) + (DROPS.height + 3) * (1 - (1 - u) ** 2);
+        else if (v < 1) down = 2 * (0.5 + 0.5 * Math.cos(Math.PI * v));
+        else d.state = 'up';
+      }
+      if (this.reduced) { down = d.state === 'up' || d.state === 'rising' ? 0 : -(DROPS.height + 1); back = 0; }
+      d.holder.position.copy(d.rest);
+      d.holder.position.y += down * MM;
+      d.holder.position.z -= back * MM;
+      this.dropGoals[d.index] = d.state === 'falling' || d.state === 'down' ? 1 : 0;
     }
 
-    // Plunger.
-    const pl = h.plunger;
-    if (pl.pulling) pl.pull = Math.min(1, pl.pull + dt * 2.4);
-    else pl.pull = Math.max(0, pl.pull - dt * 22);
-    pl.group.position.copy(pl.rest).add(new THREE.Vector3(0, 0, pl.pull * 40 * MM));
-    if (this.launch) {
-      const u = (t - this.launch.start) / 0.55;
-      const b = h.shooterBall;
-      if (u < 1) b.position.copy(pf(491.35, 117.9 + u * u * 780, BALL_R));
-      else if (u < 3) b.visible = false;
-      else { b.visible = true; b.position.copy(pf(491.35, 117.9, BALL_R)); this.launch = null; }
-    }
-
+    this.updateShooter(dt);
     this.updateBall(dt, ctx);
+    this.updateRollovers(dt);
     this.updateInserts(dt, ctx);
 
     // Backglass and lights follow the power level.
     h.backglass.material.color.setScalar(P * (0.92 + 0.08 * Math.sin(t * 1.3)));
     for (const light of h.gi) light.intensity = light.userData.base * P;
+    for (const m of h.bulbs) m.emissiveIntensity = 2.2 * P * m.userData.gain;
+  }
+
+  // The shooter: the ball rides back with the tip as it's pulled, is struck as the tip drives home, runs up the
+  // lane and through the gate; a new ball then rolls in from the trough.
+  updateShooter(dt) {
+    const h = this.h, pl = h.plunger, t = this.time, ball = h.shooterBall;
+    let mm = 0;
+    if (pl.pulling) { pl.pull = Math.min(1, pl.pull + dt / 0.5); mm = pl.pull * PULL; }
+    else if (pl.releasedAt >= 0) {
+      const e = t - pl.releasedAt, home = Math.PI / 2 / SPRING_W;
+      if (e < home) mm = pl.from * PULL * Math.cos(SPRING_W * e);
+      else {
+        if (!this.plunge && pl.from > 0.15) { this.plunge = { start: t, scale: 0.55 + 0.45 * pl.from }; }
+        const u = (e - home) / 0.12;
+        mm = u < 1 ? -5 * pl.from * Math.sin(Math.PI * u) : 0;
+        if (u >= 1) { pl.releasedAt = -1; pl.pull = 0; }
+      }
+    }
+    if (this.reduced) mm = 0;
+    pl.group.position.copy(pl.rest);
+    pl.group.position.z += mm * MM;
+    pl.spring.scale.z = (pl.springLen - mm) / pl.springLen;
+    if (this.plunge) {
+      const path = this.paths.plunge, e = (t - this.plunge.start) * this.plunge.scale;
+      path.sample(Math.min(e, path.duration), ball.position);
+      ball.material.opacity = 1 - clamp((e - path.duration + 0.25) / 0.25);
+      ball.visible = ball.material.opacity > 0.01;
+      if (e > path.duration + 1.4) { this.plunge = null; this.serve = { start: t }; }
+    } else if (this.serve) {
+      const u = clamp((t - this.serve.start) / 0.35), k = 1 - (1 - u) ** 2;
+      ball.visible = true;
+      ball.material.opacity = clamp(u * 3);
+      ball.position.copy(pf(SHOOTER.laneLeft - 22 + (SHOOTER.ballRest[0] - SHOOTER.laneLeft + 22) * k, SHOOTER.ballRest[1] + 4 * (1 - k), BALL_R));
+      if (u >= 1) this.serve = null;
+    } else {
+      ball.visible = true;
+      ball.material.opacity = 1;
+      ball.position.copy(pf(SHOOTER.ballRest[0], SHOOTER.ballRest[1] - Math.max(0, mm), BALL_R));
+    }
+    // The gate swings open as the ball passes through, then falls shut and rings.
+    const g = h.gate;
+    const near = ball.visible && ball.position.distanceTo(g.at) < 30 * MM && this.plunge;
+    if (near) { g.open = Math.max(g.open, 1.25); g.velocity = 0; }
+    else {
+      // It hangs like a pendulum and can only swing one way: closed, it rests against its stop.
+      g.velocity += (-Math.sin(g.open) * 820 - g.velocity * 6) * dt;
+      g.open += g.velocity * dt;
+      if (g.open < 0) { g.open = 0; g.velocity = Math.abs(g.velocity) > 0.5 ? -g.velocity * 0.3 : 0; }
+    }
+    g.flap.rotation.x = this.reduced ? 0 : g.open;
+  }
+
+  // Rollover wires press flush under a passing ball and spring back; each lights its insert.
+  updateRollovers(dt) {
+    const balls = [this.h.ball, this.h.shooterBall];
+    for (const r of this.h.rollovers) {
+      let on = false;
+      for (const b of balls) {
+        if (!b.visible) continue;
+        if (Math.abs(b.position.x - r.pos.x) < 9 * MM && Math.abs(b.position.z - r.pos.z) < 21 * MM && b.position.y < 20 * MM) on = true;
+      }
+      if (on && !r.on) this.flash(r.insert, 1.2);
+      r.on = on;
+      r.press = on ? Math.min(1, r.press + dt / 0.01) : Math.max(0, r.press - dt / 0.03);
+      r.wire.scale.y = 1 - 0.75 * r.press;
+    }
   }
 
   updateBall(dt, ctx) {
@@ -284,7 +438,7 @@ export class Show {
       const lap = Math.floor(this.modeTime / cycle);
       if (lap !== this.lap) { this.lap = lap; this.eventCursor = 0; }
       while (this.eventCursor < path.events.length && path.events[this.eventCursor].time <= local) {
-        this.trigger(path.events[this.eventCursor].name);
+        this.trigger(path.events[this.eventCursor].name, path.points[path.events[this.eventCursor].at]);
         this.eventCursor++;
       }
       path.sample(Math.min(local, path.duration), ball.position);
@@ -292,7 +446,7 @@ export class Show {
     } else if (this.mode === 'shot') {
       const path = this.paths.shot;
       while (this.eventCursor < path.events.length && path.events[this.eventCursor].time <= this.modeTime) {
-        this.trigger(path.events[this.eventCursor].name);
+        this.trigger(path.events[this.eventCursor].name, path.points[path.events[this.eventCursor].at]);
         this.eventCursor++;
       }
       path.sample(Math.min(this.modeTime, path.duration), ball.position);
@@ -314,9 +468,9 @@ export class Show {
     prev.copy(ball.position);
   }
 
-  trigger(name) {
-    if (name.startsWith('flip-')) { this.flip(name.slice(5)); this.kickSling(name.slice(5) === 'left' ? 'right' : 'left'); }
-    else if (name.startsWith('pop-')) this.firePop(+name.slice(4));
+  trigger(name, at) {
+    if (name.startsWith('flip-')) this.flip(name.slice(5));
+    else if (name.startsWith('pop-')) this.firePop(+name.slice(4), at);
     else if (name === 'ramp-deadbounce') this.flash('ramp0', 1.4);
     else if (name === 'ramp-tiptop') this.flash('ramp1', 1.4);
   }
@@ -331,33 +485,31 @@ export class Show {
         case 'lanes': {
           // A chase across the three lanes, then all three together.
           const step = Math.floor(t * 3) % 5, lane = Number(id.slice(-1));
-          goal = step === lane || step === 4 ? 1.8 : 0.22;
+          goal = step === lane || step === 4 ? 1.1 : 0.12;
           break;
         }
-        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 2.2 : 0.4) : 0.3; break;
-        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 2.2 : 0.4) : 0.3; break;
-        case 'drops': goal = this.dropGoals[ins.index] > 0.5 ? 2.2 : 0.12; break;
+        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
+        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
+        case 'drops': goal = this.dropGoals[ins.index] > 0.5 ? 1.5 : 0.08; break;
         case 'ladder': {
-          if (s === 'experience') goal = ins.index < this.ladder ? 1.5 : ins.index === this.ladder ? (Math.floor(t * 5) % 2 ? 2.6 : 1.2) : 0.1;
+          if (s === 'experience') goal = ins.index < this.ladder ? 1.1 : ins.index === this.ladder ? (Math.floor(t * 5) % 2 ? 1.7 : 0.8) : 0.08;
           else goal = (Math.floor(t * 4) % 6) === ins.index ? 0.9 : 0.12;
           break;
         }
-        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 2.4 : 0.5) : 0.15; break;
+        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.6 : 0.35) : 0.1; break;
         case 'return': goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18; break;
       }
       ins.flash = Math.max(0, ins.flash - dt * 3);
       ins.level += (goal - ins.level) * (1 - Math.exp(-dt * 18));
-      ins.mat.emissiveIntensity = (ins.level + ins.flash * 2) * P;
+      ins.mat.emissiveIntensity = (ins.level + ins.flash * 2) * P * ins.mat.userData.gain;
     }
   }
 
+  // Scrolling through Skills knocks the targets down in turn; scrolling back above it resets the bank.
   setDrops(progress) {
-    // Each target drops in turn across the station's hold.
-    for (let i = 0; i < 4; i++) {
-      const goal = progress > 0.12 + i * 0.2 ? 1 : 0;
-      if (goal && !this.dropGoals[i]) this.flash('drop' + i, 1.2);
-      this.dropGoals[i] = goal;
-    }
+    const goals = [0, 1, 2, 3].map(i => progress > 0.12 + i * 0.2);
+    goals.forEach((goal, i) => { if (goal && this.h.drops[i].state === 'up') this.hitDrop(i); });
+    if (!goals.some(Boolean) && this.h.drops.some(d => d.state === 'down' || d.state === 'falling')) this.resetBank();
   }
   setLadder(progress) { this.ladder = Math.min(4, Math.floor(progress * 5.2)); }
 }

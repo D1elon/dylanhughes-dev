@@ -61,6 +61,24 @@ export function tube(points, r, { tension = 0.5, segments, radial = 10, closed =
   return new THREE.TubeGeometry(curve, segments || Math.max(12, Math.round(length / 0.006)), r * MM, radial, closed);
 }
 
+// A round tube through local points [[x, y, h], ...] in millimetres, for parts built round their own origin and then
+// placed with `place`.
+export function tubeLocal(points, r, { tension = 0.5, segments, radial = 10, closed = false } = {}) {
+  const curve = new THREE.CatmullRomCurve3(points.map(([x, y, h]) => new THREE.Vector3(x * MM, h * MM, -y * MM)), closed, 'catmullrom', tension);
+  return new THREE.TubeGeometry(curve, segments || Math.max(12, Math.round(curve.getLength() / 0.002)), r * MM, radial, closed);
+}
+
+// Inserts points along any edge of a closed outline longer than `step` millimetres.
+export function densify(points, step) {
+  const out = [];
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k < n; k++) out.push([a[0] + (b[0] - a[0]) * (k / n), a[1] + (b[1] - a[1]) * (k / n)]);
+  }
+  return out;
+}
+
 export function curve3(points, tension = 0.5) {
   return new THREE.CatmullRomCurve3(points.map(([x, y, h]) => pf(x, y, h)), false, 'catmullrom', tension);
 }
