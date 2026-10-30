@@ -220,6 +220,11 @@ export class Show {
     const s = this.h.slings.find(x => x.side === side);
     if (s) s.kicked = this.time;
   }
+  // A flasher fires in a quick double strobe, as games do for a made shot.
+  fireFlasher(id) {
+    const f = this.h.flashers.find(x => x.id === id);
+    if (f) f.fired = this.time;
+  }
   flash(id, amount = 1) {
     const ins = this.h.inserts.get(id);
     if (ins) ins.flash = Math.max(ins.flash, amount);
@@ -339,6 +344,13 @@ export class Show {
     h.backglass.material.color.setScalar(P * (0.92 + 0.08 * Math.sin(t * 1.3)));
     for (const light of h.gi) light.intensity = light.userData.base * P;
     for (const m of h.bulbs) m.emissiveIntensity = 2.2 * P * m.userData.gain;
+    for (const f of h.flashers) {
+      const e = f.fired === undefined ? 9 : t - f.fired;
+      const k = e < 0.09 ? 1 : e < 0.16 ? 0.15 : e < 0.25 ? 1 : Math.max(0, 1 - (e - 0.25) / 0.2);
+      const level = this.reduced ? 0 : k * k;
+      f.mat.emissiveIntensity = (0.08 + 3 * level) * P * f.mat.userData.gain;
+      f.light.intensity = 0.05 * level * P;
+    }
   }
 
   // The shooter: the ball rides back with the tip as it's pulled, is struck as the tip drives home, runs up the
@@ -471,8 +483,8 @@ export class Show {
   trigger(name, at) {
     if (name.startsWith('flip-')) this.flip(name.slice(5));
     else if (name.startsWith('pop-')) this.firePop(+name.slice(4), at);
-    else if (name === 'ramp-deadbounce') this.flash('ramp0', 1.4);
-    else if (name === 'ramp-tiptop') this.flash('ramp1', 1.4);
+    else if (name === 'ramp-deadbounce') { this.flash('ramp0', 1.4); this.fireFlasher('deadbounce'); }
+    else if (name === 'ramp-tiptop') { this.flash('ramp1', 1.4); this.fireFlasher('tiptop'); }
   }
 
   // Inserts: each lamp eases toward its goal; flashes decay on top.

@@ -49,7 +49,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   root.add(body);
   const playfield = new THREE.Group();
   body.add(playfield);
-  const handles = { root, body, playfield, inserts: new Map(), pops: [], drops: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [] };
+  const handles = { root, body, playfield, inserts: new Map(), pops: [], drops: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [], flashers: [] };
 
   // Converts playfield millimetres to world coordinates.
   handles.toWorld = (x, y, h = 0) => {
@@ -470,12 +470,36 @@ function buildRamps(group, M, handles) {
     group.add(g);
     handles.interactive.push(body);
 
+    // A flasher on the turn's outer wall, at the apex: it fires when the ramp is made.
+    handles.flashers.push(flasher(group, M, curve, turnStart, outer, ramp.id));
+
     // The wireform carries on from the end of the turn.
     const wireCurve = new THREE.CatmullRomCurve3(ramp.wire.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     group.add(mesh(sweepWires(wireCurve), M.chrome));
     group.add(wireSupports(wireCurve, ramp, M));
     handles.ramps.push({ id: ramp.id, side: ramp.side, curve, wireCurve, group: g });
   }
+}
+
+// A flasher dome: a clear orange dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
+// light that throws its flash onto the playfield.
+function flasher(group, M, curve, turnStart, outer, id) {
+  const L = curve.getLength() / MM, u = (turnStart + (L - turnStart) * 0.5) / L;
+  const p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
+  const side = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(outer);
+  const g = new THREE.Group();
+  g.position.copy(p).addScaledVector(side, (RAMP.width / 2 + RAMP.side + 9) * MM);
+  g.position.y = p.y + (RAMP.outerWall - 4) * MM;
+  g.add(mesh(new THREE.BoxGeometry(14 * MM, 2 * MM, 22 * MM).translate(0, -1 * MM, 6 * MM).applyMatrix4(new THREE.Matrix4().lookAt(new THREE.Vector3(), side, new THREE.Vector3(0, 1, 0))), M.darkSteel, { cast: false }));
+  g.add(mesh(lathe([[0, 0], [15, 0], [15, 4], [13.5, 5], [0, 5]], 32), M.graphitePlastic, { cast: false }));
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0xff7a2a, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: 0xff5a10, emissiveIntensity: 0, transparent: true, opacity: 0.88 });
+  mat.userData.gain = M.popCap.userData.gain * 2;
+  g.add(mesh(lathe([[0, 5], [12.5, 5], [12.5, 9], [12, 14], [10, 19.5], [6.5, 23.5], [0, 25]], 32), mat, { cast: false }));
+  const light = new THREE.PointLight(0xff8a3a, 0, 0.5, 2);
+  light.position.y = 16 * MM;
+  g.add(light);
+  group.add(g);
+  return { id, mat, light, level: 0 };
 }
 
 // The ramp's body: a 3 mm floor and 2.4 mm walls swept along its centre line. The channel is 42 mm, flared to a
