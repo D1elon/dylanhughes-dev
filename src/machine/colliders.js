@@ -155,8 +155,8 @@ function buildRamp(physics, layout, ramp) {
   const mouth = `ramp-${ramp.id}-mouth`, made = `ramp-${ramp.id}-made`;
   physics.addTrigger(across(body, 2, 10, RAMP.mouth / 2), mouth, { kind: 'mouth', layer: '*' });
   physics.addTrigger(across(body, rampEnd - 8, 10, RAMP.width / 2 + 4), made, { kind: 'ramp', layer: ramp.id });
-  const m = atPlan(body, 0), aim = atPlan(body, 30);
-  return { id: ramp.id, side: ramp.side, layer: ramp.id, mouth, made, at: [m.x, m.y], aim: [aim.x, aim.y] };
+  const m = atPlan(body, 0);
+  return { id: ramp.id, side: ramp.side, layer: ramp.id, mouth, made, at: [m.x, m.y], heading: Math.atan2(m.ty, m.tx) / DEG };
 }
 
 export function buildColliders(physics, layout) {
@@ -191,8 +191,8 @@ export function buildColliders(physics, layout) {
 
   // The apron: walls under its shoulders (their ball face 0.65 mm above each line). The ball drains under the lip;
   // it has drained once all of it is under there.
-  faceWalls(physics, offsetLine([APRON.leftShoulder, APRON.lipLeft], 0.65), 1, 4, { id: 'apron', kind: 'apron', mat: 'metal' });
-  faceWalls(physics, offsetLine([APRON.lipRight, APRON.rightShoulder], 0.65), 1, 4, { id: 'apron', kind: 'apron', mat: 'metal' });
+  // (As the 1.3 mm sheet itself: thickened, the right one's end would stand into the shooter lane.)
+  for (const run of [[APRON.leftShoulder, APRON.lipLeft], [APRON.lipRight, APRON.rightShoulder]]) polylineWalls(physics, run, 1.3, { id: 'apron', kind: 'apron', mat: 'metal' });
   const a0 = Math.atan2(APRON.lipEndY - APRON.lipCy, APRON.lipRight[0] - PF.cx) / DEG, a1 = Math.atan2(APRON.lipEndY - APRON.lipCy, APRON.lipLeft[0] - PF.cx) / DEG;
   const lip = arcPoints(PF.cx, APRON.lipCy, APRON.lipR, a0, a1, 4).map(([x, y]) => [x, y - R]);
   ids.drain = physics.addTrigger([[PF.rail, -60], [SHOOTER.laneLeft, -60], [SHOOTER.laneLeft, APRON.lipEndY - R], ...lip, [PF.rail, APRON.lipEndY - R]], 'drain', { drain: true });
@@ -242,9 +242,9 @@ export function buildColliders(physics, layout) {
   // Ramps and wireforms.
   ids.ramps = RAMPS.map(r => buildRamp(physics, layout, r));
 
-  // Where to aim: 30 mm inside each ramp's mouth, the middle of the drop bank, and each orbit lane's rollover.
+  // Where to aim: the centre of each ramp's mouth, the middle of the drop bank, and each orbit lane's rollover.
   ids.aim = {
-    ...Object.fromEntries(ids.ramps.map(r => [r.id, r.aim])),
+    ...Object.fromEntries(ids.ramps.map(r => [r.id, r.at])),
     drops: [DROPS.cx, DROPS.y - DROPS.thick / 2 - R - 2],
     ...(layout.ORBIT_ROLLOVERS ? Object.fromEntries(layout.ORBIT_ROLLOVERS.map(r => ['orbit-' + r.side, [r.x, r.y]])) : {}),
   };

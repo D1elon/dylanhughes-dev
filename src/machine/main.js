@@ -246,7 +246,6 @@ async function start() {
     if (e.code === 'ShiftRight') show.hold('right', false);
   });
   function playFlip(side, held = false) {
-    if (show.mode === 'cradle' && side === 'left' && !show.released) { show.shoot(); return; }
     if (held) show.hold(side, true); else show.flip(side);
   }
 

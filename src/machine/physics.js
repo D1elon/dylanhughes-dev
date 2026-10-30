@@ -112,7 +112,7 @@ class Ball {
 // hold winding gives 0.375 of it; released, the return spring gives 0.055 of it. The stops throw the bat back at a
 // fifth (end of stroke) and a tenth (rest) of its speed. The ball and bat trade impulses through `inertia`.
 class Flipper {
-  constructor(o, p) {
+  constructor(o) {
     Object.assign(this, { baseR: 11.28, tipR: 6.64, length: 62.8, strokeTime: 0.028, hold: 0.375, holdAngle: 6, ret: 0.055, eosBounce: 0.2, restBounce: 0.1, inertia: 2200 }, o);
     this.id = o.id || 'flipper-' + o.side;
     this.kind = 'flipper';
@@ -127,19 +127,17 @@ class Flipper {
     this.a = 0; this.w = 0; this.oa = 0; // travel from rest (rad), its rate, and travel at the last step (for drawing)
     this.on = false;
     this.queue = [];
-    this.eosAt = -1;
-    this.p = p;
   }
   get theta() { return this.restRad + this.dir * this.a; }
   get omega() { return this.w * this.dir; } // rad/s, counter-clockwise positive
   surfaceSpeed() { return Math.abs(this.w) * (this.length + this.tipR); }
-  update(h, now) {
+  update(h) {
     const acc = this.on ? this.alpha * (this.a > this.stroke - this.holdAngle ? this.hold : 1) : -this.alpha * this.ret;
     this.w += acc * h;
     this.a += this.w * h;
     if (this.a >= this.stroke) {
       this.a = this.stroke;
-      if (this.w > 0) { if (this.w > BOUNCE_W) { this.w *= -this.eosBounce; this.eosAt = now; } else this.w = 0; }
+      if (this.w > 0) this.w = this.w > BOUNCE_W ? -this.eosBounce * this.w : 0;
     } else if (this.a <= 0) {
       this.a = 0;
       if (this.w < 0) this.w = this.w < -BOUNCE_W ? -this.restBounce * this.w : 0;
@@ -228,7 +226,7 @@ export class Physics {
   }
   // o: { side, x, y, rest, up (degrees, counter-clockwise from +x), baseR, tipR, length, strokeTime?, inertia? (kg·mm²) }
   addFlipper(o) {
-    const f = new Flipper(o, this);
+    const f = new Flipper(o);
     this.flippers.push(f);
     return f.id;
   }
@@ -354,7 +352,7 @@ export class Physics {
   }
 
   substep(h, now) {
-    for (const f of this.flippers) f.update(h, now);
+    for (const f of this.flippers) f.update(h);
     const b = this.ball;
     if (!b.active) return;
     const serial = b.serial, R = this.R;
@@ -380,18 +378,21 @@ export class Physics {
   // Floor friction: the slip at the contact under the ball is taken out at up to μ·gN, 2/7 of it from the ball's speed
   // and 5/7 into its roll (a solid sphere). Then a little rolling resistance, and the spin about the vertical decays.
   roll(b, h) {
-    const R = this.R, ux = b.vx - b.wy * R, uy = b.vy + b.wx * R, slip = Math.hypot(ux, uy);
-    if (slip > 1e-9) {
-      const dv = Math.min((slip * 2) / 7, this.o.floorFriction * this.gN * h), px = (-dv * ux) / slip, py = (-dv * uy) / slip;
-      b.vx += px; b.vy += py;
-      b.wx += (py * 2.5) / R; b.wy -= (px * 2.5) / R;
-    }
+    this.floorImpulse(b, this.o.floorFriction * this.gN * h);
     const v = Math.hypot(b.vx, b.vy);
     if (v > 1e-9) {
       const k = (v - Math.min(v, this.o.rolling * this.gN * h)) / v;
       b.vx *= k; b.vy *= k; b.wx *= k; b.wy *= k;
     }
     b.wz *= Math.exp(-this.o.spinDecay * h);
+  }
+  // The wood's friction on the skid (the slip under the ball), up to `budget` mm/s of the ball's speed.
+  floorImpulse(b, budget) {
+    const R = this.R, ux = b.vx - b.wy * R, uy = b.vy + b.wx * R, slip = Math.hypot(ux, uy);
+    if (slip <= 1e-9) return;
+    const dv = Math.min((slip * 2) / 7, budget), px = (-dv * ux) / slip, py = (-dv * uy) / slip;
+    b.vx += px; b.vy += py;
+    b.wx += (py * 2.5) / R; b.wy -= (px * 2.5) / R;
   }
   // Turn the ball's orientation by its spin (for drawing).
   turn(b, h) {
@@ -454,24 +455,20 @@ export class Physics {
     const jn = ((1 + e) * speed) / inv; // mm/s given to the ball along n
     b.vx += jn * nx; b.vy += jn * ny;
     if (lever) body.push((-jn * this.mass * lever) / body.inertia);
-    // Friction against the tangential slip, capped by μ·jn: 1/m + R²/I = 3.5/m for a solid sphere.
+    // Friction against the slip at the contact, as Deadbounce's 3D law: one impulse along it, capped by μ·jn, with
+    // 1/m + R²/I = 3.5/m for a solid sphere. The slip has a part along the face (the ball's speed and its spin about
+    // the vertical) and a vertical part (its roll sweeping its face up or down the wall).
     ux -= un * nx; uy -= un * ny;
-    const slip = Math.hypot(ux, uy);
-    let budget = mat.f * jn;
-    if (slip > 1e-9 && budget > 0) {
-      const jt = Math.min(slip / 3.5, budget), px = (-jt * ux) / slip, py = (-jt * uy) / slip;
+    const uz = R * (b.wy * nx - b.wx * ny), slip = Math.hypot(ux, uy, uz);
+    if (slip > 1e-9 && mat.f > 0) {
+      const j = Math.min(slip / 3.5, mat.f * jn), px = (-j * ux) / slip, py = (-j * uy) / slip, pz = (-j * uz) / slip;
       b.vx += px; b.vy += py;
       b.wz += (ny * px - nx * py) / (0.4 * R);
-      budget -= jt;
-    }
-    // The roll's own slip at the contact is vertical (the ball's face sweeps up or down the wall); the wall's friction
-    // takes it out of the spin, with the wood carrying the push. Without this a ball rolling into a wall would keep its
-    // roll and be dragged straight back onto it.
-    const uz = R * (b.wy * nx - b.wx * ny);
-    if (Math.abs(uz) > 1e-9 && budget > 0) {
-      const pz = -Math.sign(uz) * Math.min(Math.abs(uz) / 2.5, budget);
       b.wx -= (ny * pz) / (0.4 * R);
       b.wy += (nx * pz) / (0.4 * R);
+      // The vertical push presses the ball into the wood or hops it off and back down onto it; either way the wood
+      // answers with about (1 + its restitution) of it, and its friction acts on the skid with that.
+      if (pz && b.z <= R + 0.5) this.floorImpulse(b, this.o.floorFriction * 1.25 * Math.abs(pz));
     }
     if (mat.scatter && speed > 4 * REST_SPEED) this.scatter(b, mat.scatter, k.svx || 0, k.svy || 0);
     return speed;
@@ -606,8 +603,8 @@ export class Physics {
     const b = this.ball;
     return {
       steps: this.steps, acc: this.acc, seed: this.seed,
-      ball: [b.x, b.y, b.z, b.vx, b.vy, b.vz, b.wx, b.wy, b.wz, b.layer, b.active, b.serial, ...b.q],
-      flippers: this.flippers.map(f => [f.a, f.w, f.on, f.eosAt, f.queue.map(q => ({ ...q }))]),
+      ball: [b.x, b.y, b.z, b.vx, b.vy, b.vz, b.wx, b.wy, b.wz, b.layer, b.active, b.serial, b.ox, b.oy, b.oz, ...b.q],
+      flippers: this.flippers.map(f => [f.a, f.w, f.oa, f.on, f.queue.map(q => ({ ...q }))]),
       colliders: this.colliders.map(c => [c.enabled, c.lastKick, c.solid]),
       triggers: this.triggers.map(t => [t.enabled, t.inside]),
       tracks: this.tracks.map(t => t.cursor),
@@ -616,9 +613,9 @@ export class Physics {
   loadState(s) {
     const b = this.ball;
     this.steps = s.steps; this.time = s.steps * this.dt; this.acc = s.acc; this.seed = s.seed;
-    [b.x, b.y, b.z, b.vx, b.vy, b.vz, b.wx, b.wy, b.wz, b.layer, b.active, b.serial] = s.ball;
-    b.q = s.ball.slice(12, 16);
-    s.flippers.forEach(([a, w, on, eosAt, queue], i) => Object.assign(this.flippers[i], { a, w, on, eosAt, oa: a, queue: queue.map(q => ({ ...q })) }));
+    [b.x, b.y, b.z, b.vx, b.vy, b.vz, b.wx, b.wy, b.wz, b.layer, b.active, b.serial, b.ox, b.oy, b.oz] = s.ball;
+    b.q = s.ball.slice(15, 19);
+    s.flippers.forEach(([a, w, oa, on, queue], i) => Object.assign(this.flippers[i], { a, w, oa, on, queue: queue.map(q => ({ ...q })) }));
     s.colliders.forEach(([enabled, lastKick, solid], i) => Object.assign(this.colliders[i], { enabled, lastKick, solid }));
     s.triggers.forEach(([enabled, inside], i) => Object.assign(this.triggers[i], { enabled, inside }));
     s.tracks.forEach((cursor, i) => { this.tracks[i].cursor = cursor; });
@@ -626,59 +623,67 @@ export class Physics {
 
   // --- Aiming ------------------------------------------------------------------------------------------------
 
-  // When to flip `side` so the ball passes closest to (tx, ty). Tries the real engine ahead of time without
-  // disturbing it: the flipper is released now (if held) and energised `delay` seconds later, for every delay up to
-  // `horizon` in steps of `coarse`, then to the millisecond around the best. Each try runs `follow` seconds past the
-  // flip and then extends the ball's line. Returns { delay, miss (mm), speed and angle (degrees) as the ball leaves the
-  // bat, x, y and u (mm from the pivot along the bat) of the ball when the flip starts }, or null with no ball.
+  // When to flip `side` so the ball passes closest to (tx, ty). It tries the real engine ahead of time and puts
+  // everything back: the flipper is released now (if held) and energised `delay` seconds later, for every delay up to
+  // `horizon` in steps of `coarse` at which the ball is within reach of the bat, then to the millisecond around the
+  // best. Each try follows the ball until it is clearly past its closest point to the target (or `follow` seconds).
+  // `minArrive` (mm/s): a try that passes slower counts as missing by a tenth of the shortfall too, so a shot that
+  // rattles into a ramp's mouth loses to one that goes in clean.
+  // Returns null with no ball or no reachable flip, else { delay, miss (mm), arrive (mm/s as it passes closest), speed
+  // (mm/s) and angle (degrees) as the ball leaves the bat, x, y and u (mm from the pivot along the bat) of the ball when
+  // the flip starts }. A ramp needs `arrive` of about 1900 mm/s from a flipper (the ball still skids; 1400 rolling).
   // Use: setFlipper(side, false); setFlipper(side, true, r.delay); setFlipper(side, false, r.delay + 0.25).
-  aimFlip(side, tx, ty, { horizon = 0.4, coarse = 0.004, follow = 0.25, hold = 0.3 } = {}) {
+  aimFlip(side, tx, ty, { horizon = 1.2, coarse = 0.008, follow = 0.6, hold = 0.3, reach = 12, minArrive = 0 } = {}) {
     const f = this.flipper(side), b = this.ball;
-    if (!f || !b.active) return null;
+    if (!f || !b.active || b.layer !== 0) return null;
     const start = this.saveState(), muted = this.muted;
     this.muted = true;
-    const fi = this.flippers.indexOf(f), at = (st, delay) => ({ st, delay });
-    // The ball's run with the flipper left down, kept every `coarse` seconds.
+    const fi = this.flippers.indexOf(f), every = Math.max(1, Math.round(coarse / this.dt));
+    const onBat = () => b.active && b.layer === 0 && !!this.flippers[fi].test(b.x, b.y, this.R + reach);
+    // The ball's run with the flipper let down, kept every `coarse` seconds while it is within reach of the bat.
     f.queue = []; f.on = false;
-    const marks = [], every = Math.max(1, Math.round(coarse / this.dt));
-    for (let k = 0; k * every * this.dt <= horizon + 1e-9 && b.active; k++) { marks.push(at(this.saveState(), k * every * this.dt)); this.run(every * this.dt); }
-    const trial = ({ st, delay }) => {
+    const marks = [];
+    for (let k = 0; k * every * this.dt <= horizon + 1e-9 && b.active; k++) {
+      if (onBat()) marks.push({ st: this.saveState(), delay: k * every * this.dt, k });
+      this.run(every * this.dt);
+    }
+    const trial = (st, delay) => {
       this.loadState(st);
       const fl = this.flippers[fi], c = Math.cos(fl.theta), s = Math.sin(fl.theta);
-      const u = (b.x - fl.x) * c + (b.y - fl.y) * s, fx = b.x, fy = b.y;
+      const r = { delay, miss: Math.hypot(b.x - tx, b.y - ty), arrive: b.speed, speed: 0, angle: 0, x: b.x, y: b.y, u: (b.x - fl.x) * c + (b.y - fl.y) * s };
       fl.queue = [{ at: this.time + hold, on: false }]; fl.on = true;
-      let miss = Math.hypot(b.x - tx, b.y - ty), speed = 0, angle = 0, left = false;
+      let left = false;
       for (let i = Math.round(follow / this.dt); i > 0 && b.active; i--) {
         this.fixedStep();
-        miss = Math.min(miss, Math.hypot(b.x - tx, b.y - ty));
+        const d = Math.hypot(b.x - tx, b.y - ty);
+        if (d < r.miss) { r.miss = d; r.arrive = b.speed; }
+        else if (left && d > r.miss + 40) break;
         if (!left && Math.hypot(b.x - fl.x, b.y - fl.y) > fl.length + fl.tipR + this.R + 12) {
-          left = true; speed = b.speed; angle = Math.atan2(b.vy, b.vx) / DEG;
+          left = true; r.speed = b.speed; r.angle = Math.atan2(b.vy, b.vx) / DEG;
         }
       }
-      // Past the followed stretch, a straight line.
-      const v2 = b.vx * b.vx + b.vy * b.vy, t = v2 > 1 ? ((tx - b.x) * b.vx + (ty - b.y) * b.vy) / v2 : 0;
-      if (b.active && t > 0) miss = Math.min(miss, Math.hypot(b.x + b.vx * t - tx, b.y + b.vy * t - ty));
-      return { delay, miss, speed, angle, x: fx, y: fy, u };
+      r.score = r.miss + Math.max(0, minArrive - r.arrive) * 0.1;
+      return r;
     };
-    let best = null, bk = 0;
-    marks.forEach((m, k) => { const r = trial(m); if (!best || r.miss < best.miss) { best = r; bk = k; } });
+    let best = null;
+    for (const m of marks) { const r = trial(m.st, m.delay); if (!best || r.score < best.score) { best = r; best.k = m.k; } }
     // Refine to the millisecond either side of the best coarse try.
     if (best && every > 1) {
-      for (const k of [bk - 1, bk]) {
-        if (k < 0 || k >= marks.length) continue;
-        let st = marks[k].st;
+      for (const m of marks.filter(x => x.k === best.k - 1 || x.k === best.k)) {
+        let st = m.st;
         for (let j = 1; j < every; j++) {
           this.loadState(st);
           this.fixedStep();
-          if (!b.active) break;
+          if (!onBat()) break;
           st = this.saveState();
-          const r = trial(at(st, marks[k].delay + j * this.dt));
-          if (r.miss < best.miss) best = r;
+          const r = trial(st, m.delay + j * this.dt);
+          if (r.score < best.score) best = { ...r, k: best.k };
         }
       }
     }
     this.loadState(start);
     this.muted = muted;
+    if (best) { delete best.k; delete best.score; }
     return best;
   }
 }
