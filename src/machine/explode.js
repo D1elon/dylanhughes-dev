@@ -53,7 +53,8 @@ export class Exploded {
   update(e, camera, width, height, side) {
     if (e < 0.001 && this.shown === 0) return;
     for (const p of this.parts) p.holder.position.y = p.lift * this.amountFor(p, e) * MM;
-    const show = smooth(clamp((e - 0.2) / 0.35));
+    // On tall screens the copy sits under the scene, so the callouts stay off and only the parts move.
+    const show = side === 'tall' ? 0 : smooth(clamp((e - 0.2) / 0.35));
     this.axis.visible = e > 0.01;
     this.axis.material.opacity = 0.85 * smooth(clamp(e / 0.3));
     this.el.style.opacity = show.toFixed(3);

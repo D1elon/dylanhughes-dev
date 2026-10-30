@@ -36,11 +36,13 @@ npm install
 npm run build     # or: npm run watch
 ```
 
-- `layout.js`: every playfield measurement, in millimetres from the left rail and the front edge. The board, flippers, slingshots, apron and shooter lane follow the Blank playfield in Deadbounce.
+- `layout.js`: every playfield measurement, in millimetres from the left rail and the front edge. The board, flippers, slingshots, apron, shooter lane and orbits follow Deadbounce's Blank playfield with orbit; the ramps, wireforms, pops and drop bank follow its Twin Ramps template.
 - `art.js`: the playfield, backglass, apron, cards and cabinet art, drawn on canvases at load
 - `machine.js`: the cabinet, backbox and every playfield part
 - `materials.js` and `stage.js`: materials, lights, environment and post-processing, with lighter settings for phones
-- `show.js`: everything that moves: flippers, pop bumpers, slingshots, drop targets, inserts, the plunger and the ball's scripted runs
+- `physics.js` and `colliders.js`: the ball's simulation, after the engine in Deadbounce. One steel ball rolls, spins and bounces in playfield millimetres, with the flippers as coils, the pops and slings kicking, the drop targets falling, and the ramps and wireforms as raised tracks. `colliders.js` builds every surface from `layout.js`.
+- `show.js`: animates the parts in step with the simulation and lights the inserts. Its autopilot plays the machine for each section: it shoots the case-study ramps, soft-plunges into the top lanes for the pops, and holds the ball on a flipper elsewhere. A visitor's flips (the Shift keys) take over for a few seconds.
+- `explode.js`: the About section's exploded view of a pop bumper
 - `director.js`: the camera. Each section of the page is a station with a pose; scrolling blends between them and holds on each while its copy is read.
 - `overlay.js` and `hud.js`: the hero copy laid onto the backglass as real HTML, and the leader lines from parts to the copy about them
 - `main.js`: starts it all and connects scrolling, pointer, keyboard and clicks
