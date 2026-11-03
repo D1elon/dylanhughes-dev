@@ -4,13 +4,12 @@
 import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
-import { buildMachine, buildPlate, BACKBOX, CABINET } from './machine.js';
+import { buildMachine, buildScreen, BACKBOX, CABINET } from './machine.js';
 import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
 import { Hud } from './hud.js';
 import { Exploded } from './explode.js';
-import { pf } from './geo.js';
 import { SLINGS, INLANE_GUIDES } from './layout.js';
 
 const root = document.documentElement;
@@ -44,11 +43,14 @@ const ACTIONS = {
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
   hero: { az: -18, el: 5, fit: [0.84, 1.02], side: 'left', fov: 30 },
-  // The case studies: each ramp's turn at the back, where it hands the ball to its wireform, with its plate beside it.
-  deadbounce: { at: [132, 902, 58], az: 30, el: 28, fit: [0.25, 0.24], side: 'right', lift: 18 },
-  tiptop: { at: [342.35, 902, 58], az: -30, el: 28, fit: [0.25, 0.24], side: 'left', lift: 10 },
-  // About: the back pop bumper, its parts lifting clear over the two in front.
-  about: { at: [240, 852, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
+  // The case studies: each ramp's turn at the back, where it hands the ball to its wireform, with its screen on the
+  // back panel above it. High enough that the ramp's flasher drops below the screen, low enough that the backbox's
+  // overhang stays above it.
+  deadbounce: { at: [120, 950, 70], az: 30, el: 34, fit: [0.25, 0.24], side: 'right', lift: 18 },
+  tiptop: { at: [368, 950, 70], az: -30, el: 34, fit: [0.25, 0.24], side: 'left', lift: 10 },
+  // About: the back pop bumper, its parts lifting clear over the two in front, seen from the right so the stack stands
+  // in the gap between the Deadbounce screen and the portrait.
+  about: { at: [240, 852, 92], az: 14, el: 30, fit: [0.32, 0.38], side: 'right', lift: 10 },
   // Skills: the four lane inserts across the field above the slings, Web to Fab.
   skills: { at: [237, 384, 0], az: 0, el: 50, fit: [0.47, 0.13], side: 'left', lift: 6 },
   // Experience: the five top lanes and their years, from the player's end over the pops.
@@ -57,14 +59,18 @@ const STOPS = {
   contact: { at: [237, 165, 22], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
 };
 
-// Plates that rise out of the playfield at a stop, carrying the stop's picture, each with its feet off every lane,
-// post and the saucer: the case studies' on the open wood between each ramp's turn and the saucer, clear of the target
-// guide, the saucer's flange and arrow, and the top lanes' rubbers; the portrait in the same open wood on the right,
-// behind the pops, clear of the exploded bumper, its callouts (on the left) and the ramp's flasher.
-const PLATES = {
-  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [190, 915], width: 0.11, feet: 0.25, aspect: 950 / 730, action: 'ramp-deadbounce' },
-  tiptop: { url: '/assets/img/tiptop.jpg', at: [284.35, 915], width: 0.11, feet: 0.25, aspect: 1600 / 1027, action: 'ramp-tiptop' },
-  about: { url: '/assets/img/dylan.jpg', at: [314, 932], width: 0.06, aspect: 512 / 640, action: 'portrait' },
+// Displays set into the back panel (machine.js), behind every playfield part, each lit as its station arrives: the
+// case studies' 16:10 screens at either side, behind their ramps, and the portrait in the middle. `x`, `h`: each
+// picture's middle across the board and above the wood, in millimetres; `width`, `height`: the picture. They're laid
+// out symmetrically about the cabinet's middle (x = 257.2, right of the play area's centre line, since the shooter
+// lane is on the right), and kept between the top arch rail and the backbox's overhang as the stations' cameras see
+// the panel (24 to 106 mm up). From About, the exploded bumper stands in the gap between the Deadbounce screen and the
+// portrait.
+const SCREEN_H = 62, SCREEN_AT = 65, PANEL_MID = 257.175, SPREAD = 209.4;
+const SCREENS = {
+  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', x: PANEL_MID - SPREAD, h: SCREEN_AT, width: SCREEN_H * 1.6, height: SCREEN_H, focus: [0.5, 0.55], action: 'ramp-deadbounce' },
+  about: { url: '/assets/img/dylan.jpg', x: PANEL_MID, h: SCREEN_AT, width: SCREEN_H * 0.8, height: SCREEN_H, focus: [0.5, 0.3], action: 'portrait' },
+  tiptop: { url: '/assets/img/tiptop.jpg', x: PANEL_MID + SPREAD, h: SCREEN_AT, width: SCREEN_H * 1.6, height: SCREEN_H, focus: [0.5, 0], action: 'ramp-tiptop' },
 };
 
 async function start() {
@@ -120,17 +126,13 @@ async function start() {
   director.setPoses(names.map(pose));
   const establish = { target: W(237, 470, 60), az: -34, el: 15, fit: [1.5, 1.6], side: 'center', fov: 30 };
 
-  // Plates: placed on the wood, turned to face their stop's camera and tilted back toward it.
-  const plates = {};
-  for (const [name, cfg] of Object.entries(PLATES)) {
-    if (!names.includes(name)) continue;
-    const plate = buildPlate({ M, url: cfg.url, width: cfg.width, aspect: cfg.aspect, action: cfg.action, feet: cfg.feet, anisotropy });
-    plate.group.position.copy(pf(cfg.at[0], cfg.at[1], 0));
-    plate.group.rotation.y = STOPS[name].az * DEG;
-    plate.tilt = STOPS[name].el * 0.45 * DEG;
-    h.playfield.add(plate.group);
-    h.interactive.push(plate.face);
-    plates[name] = plate;
+  // The back panel's displays.
+  const screens = {};
+  for (const [name, cfg] of Object.entries(SCREENS)) {
+    const screen = buildScreen({ M, anisotropy, ...cfg });
+    h.playfield.add(screen.group);
+    h.interactive.push(screen.face);
+    screens[name] = screen;
   }
 
   // Callouts from parts to copy.
@@ -369,7 +371,8 @@ async function start() {
   let lastStation = null;
   function frame(now) {
     if (!running) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const wall = Math.min(0.5, Math.max(0, (now - last) / 1000));
+    const dt = Math.min(0.05, wall);
     last = now;
     if (lenis) lenis.raf(now);
     const y = scrollY();
@@ -395,10 +398,10 @@ async function start() {
     updateCopy(f);
     syncLists(station);
 
-    // Plates swing up as their station arrives.
-    for (const [name, plate] of Object.entries(plates)) {
-      const i = names.indexOf(name);
-      plate.setReveal(clamp(1 - Math.abs(f - i) * 2), plate.tilt);
+    // Each display powers on as its station arrives, and goes dark as the camera leaves.
+    for (const [name, screen] of Object.entries(screens)) {
+      const d = Math.abs(f - names.indexOf(name));
+      screen.update(wall, screen.on ? d < 0.42 : d < 0.3, reduced);
     }
 
     hud.update(stage.camera, width, height, reveal, director.view.layout === 'tall');
@@ -428,7 +431,7 @@ async function start() {
   director.apply(director.at(0), 0, { instant: true });
   stage.render();
   requestAnimationFrame(t => { last = t; frame(t); powerOn(); });
-  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, plates };
+  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, screens, exploded };
 }
 
 start().catch(err => {

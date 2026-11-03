@@ -8,7 +8,7 @@ import {
 } from './layout.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MM, pf, extrude, extrudeLocal, place, lathe, tube, tubeLocal, densify, wall, roundedHull, ccw, arcPoints } from './geo.js';
-import { insertMaterial, lacquer } from './materials.js';
+import { insertMaterial, lacquer, glow, ROYAL, LIGHT, DEEP, LAMP_WHITE } from './materials.js';
 import { insertList, rolloverInsert, drawInsertPrint } from './art.js';
 
 const DEG = Math.PI / 180;
@@ -52,10 +52,10 @@ function printMaterial({ canvas, box }) {
   tex.offset.set(-u0 / (u1 - u0), -v0 / (v1 - v0));
   return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
 }
-// A plastic's cut edge catches the light inside it.
+// A plastic's cut edge catches the light inside it: royal blue, at about a seventh of a lamp's luminance.
 let edgeLitMat;
-const edgeLit = () => (edgeLitMat ||= new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.45 }));
-const nylon = new THREE.MeshPhysicalMaterial({ color: 0xece8dc, roughness: 0.45, clearcoat: 0.2 });
+const edgeLit = () => (edgeLitMat ||= new THREE.MeshStandardMaterial({ color: 0x0a1230, roughness: 0.3, emissive: ROYAL, emissiveIntensity: glow(ROYAL, 0.16) }));
+const nylon = new THREE.MeshPhysicalMaterial({ color: 0xe8eaee, roughness: 0.45, clearcoat: 0.2 });
 
 export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   const root = new THREE.Group();
@@ -351,7 +351,7 @@ function buildFlippers(group, M, handles) {
     const rubber = extrudeLocal(batOutline(f.baseR - 2.6, f.tipR - 2.6, d), band, { bevel: 2.6 });
     const cap = extrudeLocal(batOutline(...P.cap, d), f.height - P.rubberTo, { bevel: 0.9 });
     const pivot = new THREE.Group();
-    const parts = [[flange, M.whitePlastic, 0.6], [core, M.whitePlastic, P.rubberFrom], [rubber, M.rubberOrange, P.rubberFrom], [cap, M.whitePlastic, P.rubberTo]];
+    const parts = [[flange, M.whitePlastic, 0.6], [core, M.whitePlastic, P.rubberFrom], [rubber, M.rubberRoyal, P.rubberFrom], [cap, M.whitePlastic, P.rubberTo]];
     for (const [geo, mat, h] of parts) {
       const m = mesh(geo, mat);
       m.position.y = h * MM;
@@ -375,14 +375,14 @@ function buildApron(group, M, art, anisotropy) {
   const lip = arcPoints(PF.cx, APRON.lipCy, APRON.lipR, lipA0, lipA1, 36);
   const outline = [[PF.rail, -4], [SHOOTER.laneLeft, -4], APRON.rightShoulder, ...[...lip].reverse(), APRON.leftShoulder];
   const T = 1.3, top = APRON.deck;
-  const apronMat = new THREE.MeshPhysicalMaterial({ color: 0x1a1d20, roughness: 0.35, metalness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+  const apronMat = new THREE.MeshPhysicalMaterial({ color: 0x14161a, roughness: 0.4, metalness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.1 });
   // The deck's printed art: the top cap's UVs are its shape coordinates in metres, so the texture is fitted to them.
   const artTex = texture(art.apron, anisotropy);
   const x0 = (PF.rail - PF.w / 2) * MM, x1 = (SHOOTER.laneLeft - PF.w / 2) * MM;
   const y0 = (-4 - PF.l / 2) * MM, y1 = (APRON.rightShoulder[1] - PF.l / 2) * MM;
   artTex.repeat.set(1 / (x1 - x0), 1 / (y1 - y0));
   artTex.offset.set(-x0 / (x1 - x0), -y0 / (y1 - y0));
-  const artMat = new THREE.MeshPhysicalMaterial({ map: artTex, roughness: 0.4, metalness: 0.2, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+  const artMat = new THREE.MeshPhysicalMaterial({ map: artTex, roughness: 0.55, metalness: 0, clearcoat: 0.8, clearcoatRoughness: 0.1 });
   group.add(mesh(extrude(ccw(outline), top - T, T, { bevel: 0.4 }), [artMat, apronMat]));
   const h = top - T, open = 155.5 / 2;
   const walls = [
@@ -402,7 +402,7 @@ function buildApron(group, M, art, anisotropy) {
   // Instruction cards in their windows, as on every machine since the 1970s.
   for (const [kind, cx] of [['instructions', PF.cx - 147.65], ['free', PF.cx + 147.65]]) {
     const tex = texture(art.cards[kind], anisotropy);
-    const card = mesh(new THREE.PlaneGeometry(158.8 * MM, 88.9 * MM).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }), { cast: false });
+    const card = mesh(new THREE.PlaneGeometry(158.8 * MM, 88.9 * MM).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { cast: false });
     card.position.copy(pf(cx, 61.55, top + 0.3));
     group.add(card);
     const fx = 79.4 + 1.2, fy0 = 61.55 - 44.45 - 1.2, fy1 = 61.55 + 44.45 + 1.2;
@@ -611,7 +611,7 @@ function apex(curve) {
   return { at, outer: side };
 }
 
-// A flasher dome: a clear orange dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
+// A flasher dome: a clear royal-blue dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
 // light that throws its flash onto the playfield.
 function flasher(group, M, curve, width, ramp) {
   const { at: u, outer } = apex(curve);
@@ -623,10 +623,10 @@ function flasher(group, M, curve, width, ramp) {
   g.position.y = p.y + (RAMP.wall - 4) * MM;
   g.add(mesh(new THREE.BoxGeometry(14 * MM, 2 * MM, 22 * MM).translate(0, -1 * MM, 6 * MM).applyMatrix4(new THREE.Matrix4().lookAt(new THREE.Vector3(), side, new THREE.Vector3(0, 1, 0))), M.darkSteel, { cast: false }));
   g.add(mesh(lathe([[0, 0], [15, 0], [15, 4], [13.5, 5], [0, 5]], 32), M.graphitePlastic, { cast: false }));
-  const mat = new THREE.MeshPhysicalMaterial({ color: 0xff7a2a, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: 0xff5a10, emissiveIntensity: 0, transparent: true, opacity: 0.88 });
+  const mat = new THREE.MeshPhysicalMaterial({ color: ROYAL, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: ROYAL, emissiveIntensity: 0, transparent: true, opacity: 0.9 });
   mat.userData.gain = M.popCap.userData.gain * 2;
   g.add(mesh(lathe([[0, 5], [12.5, 5], [12.5, 9], [12, 14], [10, 19.5], [6.5, 23.5], [0, 25]], 32), mat, { cast: false }));
-  const light = new THREE.PointLight(0xff8a3a, 0, 0.5, 2);
+  const light = new THREE.PointLight(LIGHT, 0, 0.5, 2);
   light.position.y = 16 * MM;
   g.add(light);
   group.add(g);
@@ -826,7 +826,7 @@ function buildShooter(group, M, handles) {
   const plunger = new THREE.Group(); // origin at the tip's face; +Z runs toward the player
   plunger.add(mesh(lathe([[0, 0], [5.5, 0.4], [8.4, 1.8], [9.5, 4.5], [9.5, 25.4], [0, 25.4]], 24).rotateX(Math.PI / 2), M.rubber));
   plunger.add(mesh(new THREE.CylinderGeometry(4.76 * MM, 4.76 * MM, 194 * MM, 16).rotateX(Math.PI / 2).translate(0, 0, (6.4 + 97) * MM), M.chrome));
-  const knob = mesh(lathe([[0, 0], [6, 0], [10.5, 5], [14.3, 16], [13.6, 30], [8, 33], [0, 33.5]], 28).rotateX(Math.PI / 2).translate(0, 0, 196 * MM), M.rubberOrange);
+  const knob = mesh(lathe([[0, 0], [6, 0], [10.5, 5], [14.3, 16], [13.6, 30], [8, 33], [0, 33.5]], 28).rotateX(Math.PI / 2).translate(0, 0, 196 * MM), M.rubberRoyal);
   plunger.add(knob);
   plunger.position.copy(pf(bx, tipFace, 10));
   group.add(plunger);
@@ -859,7 +859,9 @@ function buildBalls(group, M, handles) {
 }
 
 // General illumination: #44-style bulbs (T-3¼ glass in a wedge socket) tucked under the slingshot plastics and beside
-// posts, never in a lane, with a few point lights to carry their glow.
+// posts, never in a lane, with a point light at bulb height for each group to carry their glow. Low, as real GI
+// is, the lights pool round their bulbs, and their reflections in the clear coat sit under the plastics and against
+// the rail, where the bulbs are, rather than as hot spots out on the open field.
 function buildGI(group, M, handles) {
   const spots = [[106, 300], [368.35, 300], [112, 332], [362.35, 332], ...GI_SPOTS_UPPER];
   const glass = lathe([[0, 0], [3.2, 0], [4.6, 3], [5.1, 7], [5.1, 12], [4.2, 15.5], [2.4, 17], [0, 17.3]], 16);
@@ -874,9 +876,9 @@ function buildGI(group, M, handles) {
     group.add(place(bulb, x, y));
     handles.bulbs.push(mat);
   }
-  const lights = [[120, 330, 70, 0.9], [355, 330, 70, 0.9], [237, 620, 120, 0.5], [237, 900, 110, 0.55]];
+  const lights = [[109, 316, 24, 0.9], [365.35, 316, 24, 0.9], ...GI_SPOTS_UPPER.map(([x, y]) => [x + (x < PF.cx ? 6 : -6), y, 20, 0.55])];
   for (const [x, y, h, k] of lights) {
-    const light = new THREE.PointLight(0xffd7a8, 0, 0.45, 2);
+    const light = new THREE.PointLight(LAMP_WHITE, 0, 0.4, 2);
     light.position.copy(pf(x, y, h));
     light.userData.base = k * 0.02;
     group.add(light);
@@ -907,11 +909,13 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
     return geo;
   };
   for (const s of [-1, 1]) {
-    const xo = s * (C.inner / 2 + C.wallT), xi = s * (C.inner / 2);
+    // The printed side stands a quarter of a millimetre proud of the wall, so it never shares a plane with the ends of
+    // the front, back and floor.
+    const xo = s * (C.inner / 2 + C.wallT + 0.00025), xi = s * (C.inner / 2);
     body.add(mesh(panel(xo, s), s > 0 ? sideArtFlip : sideArt));
     body.add(mesh(panel(xi, -s), M.cabinetInner));
-    // Side rail: brushed aluminium along the top.
-    const rail = mesh(new THREE.BoxGeometry(C.wallT + 0.012, 0.012, len + 0.004), M.aluminium);
+    // Side rail: black anodised aluminium along the top.
+    const rail = mesh(new THREE.BoxGeometry(C.wallT + 0.012, 0.012, len + 0.004), M.armour);
     rail.position.set(s * (C.inner / 2 + C.wallT / 2 - 0.002), C.top + 0.006, (C.front + C.back) / 2);
     body.add(rail);
   }
@@ -919,12 +923,12 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
   const front = mesh(new THREE.BoxGeometry(outer, frontH, C.wallT), M.cabinet);
   front.position.set(0, C.bottom + frontH / 2, C.front - C.wallT / 2);
   body.add(front);
-  // The sides' sweep carried across the front under the coin door, with its fine line.
+  // The sides' sweep carried across the front under the coin door, with its fine white line.
   const sweepH = (C.top - bottomAt(C.back)) * 0.08;
-  const sweep = mesh(new THREE.PlaneGeometry(outer, sweepH), new THREE.MeshStandardMaterial({ color: 0xc9470c, roughness: 0.42 }), { cast: false });
+  const sweep = mesh(new THREE.PlaneGeometry(outer, sweepH), new THREE.MeshPhysicalMaterial({ color: DEEP, roughness: 0.42, clearcoat: 0.7, clearcoatRoughness: 0.2 }), { cast: false });
   sweep.position.set(0, C.bottom + sweepH / 2, C.front + 0.0004);
   body.add(sweep);
-  const line = mesh(new THREE.PlaneGeometry(outer, 0.0045), new THREE.MeshStandardMaterial({ color: 0xffb27f, roughness: 0.4 }), { cast: false });
+  const line = mesh(new THREE.PlaneGeometry(outer, 0.0045), new THREE.MeshStandardMaterial({ color: 0xf5f6f8, roughness: 0.4 }), { cast: false });
   line.position.set(0, C.bottom + sweepH + 0.017, C.front + 0.0004);
   body.add(line);
   const backH = C.top - yMin;
@@ -952,14 +956,17 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
     const plate = mesh(new THREE.BoxGeometry(0.06, 0.085, 0.006), M.aluminium);
     plate.position.set(x, doorY + 0.045, C.front + 0.014);
     body.add(plate);
-    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.026, 0.002), new THREE.MeshBasicMaterial({ color: 0xff6a13 }));
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.026, 0.002), new THREE.MeshBasicMaterial({ color: LIGHT }));
     slot.position.set(x, doorY + 0.055, C.front + 0.0175);
     body.add(slot);
     const reject = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 16).rotateX(Math.PI / 2), M.trim);
     reject.position.set(x, doorY + 0.02, C.front + 0.018);
     body.add(reject);
   }
-  const start = mesh(lathe([[0, 0], [15, 0], [15, 4], [13, 9], [0, 10]], 28).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xff6a13, emissive: 0xff6a13, emissiveIntensity: 0.5, roughness: 0.3 }));
+  // The start button: royal-blue plastic lit from behind. Its gain keeps it at the luminance an orange one had.
+  const startMat = new THREE.MeshPhysicalMaterial({ color: ROYAL, emissive: ROYAL, emissiveIntensity: 0.5, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.05 });
+  startMat.userData.gain = glow(ROYAL, 1) * 0.32;
+  const start = mesh(lathe([[0, 0], [15, 0], [15, 4], [13, 9], [0, 10]], 28).rotateX(Math.PI / 2), startMat);
   start.position.set(-0.205, C.top - 0.07, C.front);
   body.add(start);
   handles.startButton = start;
@@ -970,7 +977,7 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
     const corner = new THREE.Vector3(x * (outer / 2 - 0.035), bottomAt(z), z).applyMatrix4(body.matrixWorld);
     const h = corner.y - C.floor;
     const leg = new THREE.Group();
-    leg.add(mesh(new THREE.BoxGeometry(0.06, h, 0.06), M.aluminium));
+    leg.add(mesh(new THREE.BoxGeometry(0.06, h, 0.06), M.armour));
     leg.add(mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.02, 16).translate(0, -h / 2 - 0.01, 0), M.rubber));
     leg.position.set(corner.x, C.floor + h / 2 + 0.02, corner.z);
     root.add(leg);
@@ -1072,56 +1079,109 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
   handles.backglassSize = [B.glassW, B.glassH];
 }
 
-// --- Media plates ------------------------------------------------------------------------------------------------
-// A screenshot or photo printed on a plate in an aluminium frame, on two chrome standoffs, like a ramp sign. It is
-// hinged at its foot: `reveal` swings it up from lying flat on the playfield to standing, facing the camera. `feet`:
-// the standoffs' distance either side of the middle, as a fraction of the plate's width.
+// --- Back panel displays ------------------------------------------------------------------------------------------
+// The back panel is the inside face of the cabinet's back wall, between the playfield's top edge and the backbox,
+// behind every playfield part. Three LCDs are set into it: a case study's screen on each side, behind its ramp, and the
+// portrait in the middle. Each sits in a thin black anodised bezel screwed to the panel at its corners, under its own
+// cover glass. It is dark until its station arrives, then powers on: the backlight comes up and a scan line draws the
+// picture in from the top. Leaving the station, it fades out.
 
-export function buildPlate({ M, url, width, aspect, action, anisotropy, feet = 0.32 }) {
-  const height = width / aspect;
-  const loader = new THREE.TextureLoader();
-  const tex = loader.load(url);
+// The panel's face, in playfield millimetres: `y` along the board, `top` above the wood (the cabinet's top edge), and
+// its extent across.
+export const BACK_PANEL = {
+  y: Math.round((PF.l / 2 - (CABINET.back + CABINET.wallT) / MM) * 100) / 100,
+  top: Math.round(CABINET.top / MM),
+  x0: Math.round((PF.w / 2 - CABINET.inner / 2 / MM) * 100) / 100,
+  x1: Math.round((PF.w / 2 + CABINET.inner / 2 / MM) * 100) / 100,
+};
+// An LCD module's build, in millimetres: the bezel's width round the picture, its depth off the panel and the
+// softening on its edges, and the M3 button-head screws through its corners.
+const LCD = { bezel: 4.5, depth: 4.2, bevel: 0.45, screw: 1.45 };
+
+// `x`, `h`: the picture's middle, across the board and above the wood; `width`, `height`: the picture's size. The
+// photo is cropped to fill it, held on `focus` (0–1 across and down the photo).
+export function buildScreen({ M, url, x, h, width, height, action, anisotropy, focus = [0.5, 0.5] }) {
+  const B = LCD, group = new THREE.Group();
+  const W = width + B.bezel * 2, H = height + B.bezel * 2;
+  // The picture: drawn into a canvas at the screen's own aspect, so its UVs run 0–1 over the glass.
+  const res = Math.min(1024, Math.round(width * 10.5));
+  const pic = document.createElement('canvas');
+  pic.width = res; pic.height = Math.round((res * height) / width);
+  const ctx = pic.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, pic.width, pic.height);
+  const tex = new THREE.CanvasTexture(pic);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = anisotropy;
-  const group = new THREE.Group();
-  const hinge = new THREE.Group();
-  group.add(hinge);
-  const lift = 0.028; // the plate stands on its standoffs this high above the wood
-  hinge.position.y = lift;
-  const face = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.32 }),
-  );
-  face.position.set(0, height / 2 + 0.006, 0.0032);
-  face.userData.action = action;
-  hinge.add(face);
-  const back = mesh(new THREE.BoxGeometry(width + 0.012, height + 0.012, 0.005), M.trim);
-  back.position.set(0, height / 2 + 0.006, 0);
-  back.userData.action = action;
-  hinge.add(back);
-  // The frame is printed plastic like the slings', its cut edge catching the light.
-  const edge = 0.0035;
-  const rim = new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.55 });
-  for (const [x, y, w, h] of [[0, height + 0.012 - edge / 2, width + 0.012, edge], [0, edge / 2, width + 0.012, edge], [-(width + 0.012) / 2 + edge / 2, height / 2 + 0.006, edge, height + 0.012], [(width + 0.012) / 2 - edge / 2, height / 2 + 0.006, edge, height + 0.012]]) {
-    const bar = mesh(new THREE.BoxGeometry(w, h, 0.007), rim);
-    bar.position.set(x, y, 0.001);
-    hinge.add(bar);
-  }
-  // Standoffs from the wood to the plate's foot.
-  for (const x of [-width * feet, width * feet]) {
-    const post = mesh(new THREE.CylinderGeometry(0.0028, 0.0034, lift, 12), M.chrome);
-    post.position.set(x, lift / 2, 0);
-    group.add(post);
-  }
-  const plate = { group, hinge, face, reveal: 0, shown: -1, height };
-  plate.setReveal = (r, tilt = 0) => {
-    if (Math.abs(r - plate.shown) < 0.002) return;
-    plate.shown = r;
-    const e = 1 - Math.pow(1 - r, 3);
-    hinge.rotation.x = -((1 - e) * (Math.PI / 2 - 0.05) + e * tilt); // flat on the wood → standing, leaning back
-    group.visible = r > 0.003;
-    group.scale.setScalar(0.85 + 0.15 * e);
+  const img = new Image();
+  img.decoding = 'async';
+  img.onload = () => {
+    const k = Math.max(pic.width / img.naturalWidth, pic.height / img.naturalHeight), w = img.naturalWidth * k, hh = img.naturalHeight * k;
+    ctx.drawImage(img, (pic.width - w) * focus[0], (pic.height - hh) * focus[1], w, hh);
+    tex.needsUpdate = true;
   };
-  plate.setReveal(0);
-  return plate;
+  img.src = url;
+  // The power-on: `uSeq` runs 0 → 1 through it (backlight, then the scan), and `uFade` dims the whole picture.
+  const uniforms = { uSeq: { value: 0 }, uFade: { value: 0 }, uRows: { value: pic.height / 3 } };
+  const faceMat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.86, 0.86, 0.86), toneMapped: false });
+  faceMat.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = 'uniform float uSeq;\nuniform float uFade;\nuniform float uRows;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        float back = smoothstep( 0.0, 0.2, uSeq );
+        float scan = clamp( ( uSeq - 0.16 ) / 0.6, 0.0, 1.0 ) * 1.08;
+        float down = 1.0 - vMapUv.y;
+        float shown = smoothstep( down - 0.012, down + 0.012, scan );
+        float line = exp( -pow( ( down - scan ) * 64.0, 2.0 ) ) * ( 1.0 - smoothstep( 0.92, 1.08, scan ) );
+        vec3 col = mix( vec3( 0.006, 0.009, 0.02 ) * back, diffuseColor.rgb, shown );
+        col += vec3( 0.36, 0.48, 1.0 ) * line * 0.75 * back;
+        float rows = 0.86 + 0.14 * sin( vMapUv.y * uRows * 6.2832 );
+        col *= mix( rows, 1.0, smoothstep( 0.72, 1.0, uSeq ) );
+        diffuseColor.rgb = col * uFade;
+      }`);
+  };
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(width * MM, height * MM), faceMat);
+  face.position.z = (B.depth - 0.9) * MM;
+  face.userData.screenAction = action;
+  group.add(face);
+  // The black matrix round the picture, and the cover glass over it.
+  const backing = new THREE.Mesh(new THREE.PlaneGeometry((width + 0.6) * MM, (height + 0.6) * MM), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  backing.position.z = (B.depth - 1.1) * MM;
+  group.add(backing);
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry((width + 0.4) * MM, (height + 0.4) * MM), M.screenGlass);
+  glass.position.z = (B.depth - 0.45) * MM;
+  group.add(glass);
+  // The bezel: a frame with softened edges round the picture.
+  const outline = (w, hgt, r) => { const s = new THREE.Shape(); s.moveTo(-w / 2 + r, -hgt / 2); s.lineTo(w / 2 - r, -hgt / 2); s.quadraticCurveTo(w / 2, -hgt / 2, w / 2, -hgt / 2 + r); s.lineTo(w / 2, hgt / 2 - r); s.quadraticCurveTo(w / 2, hgt / 2, w / 2 - r, hgt / 2); s.lineTo(-w / 2 + r, hgt / 2); s.quadraticCurveTo(-w / 2, hgt / 2, -w / 2, hgt / 2 - r); s.lineTo(-w / 2, -hgt / 2 + r); s.quadraticCurveTo(-w / 2, -hgt / 2, -w / 2 + r, -hgt / 2); return s; };
+  const frame = outline(W, H, 1.8);
+  frame.holes.push(outline(width + 0.2, height + 0.2, 0.4));
+  const bezel = mesh(new THREE.ExtrudeGeometry(frame, { depth: B.depth - B.bevel * 2, bevelEnabled: true, bevelSize: B.bevel, bevelThickness: B.bevel, bevelSegments: 2, curveSegments: 4 }).translate(0, 0, B.bevel).scale(MM, MM, MM), M.trim, { cast: false });
+  group.add(bezel);
+  // A screw through each corner of the bezel, its head just proud of the face.
+  const head = lathe([[0, 0], [B.screw, 0], [B.screw, 0.3], [B.screw * 0.7, 0.75], [0, 0.85]], 16).rotateX(Math.PI / 2);
+  const screwGeo = [];
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) screwGeo.push(head.clone().translate(sx * (W / 2 - B.bezel / 2), sy * (H / 2 - B.bezel / 2), B.depth - 0.1));
+  group.add(mesh(mergeGeometries(screwGeo).scale(MM, MM, MM), M.chrome, { cast: false }));
+  // A power LED in the bezel's lower right corner.
+  const ledMat = new THREE.MeshBasicMaterial({ color: 0x0a1430 });
+  const led = new THREE.Mesh(new THREE.CircleGeometry(0.55 * MM, 12), ledMat);
+  led.position.set((width / 2 - 6) * MM, -(height / 2 + B.bezel / 2) * MM, (B.depth + 0.02) * MM);
+  group.add(led);
+  group.position.copy(pf(x, BACK_PANEL.y, h));
+
+  const lit = new THREE.Color(LIGHT), dim = new THREE.Color(0x0a1430);
+  const screen = { group, face, action, seq: 0, fade: 0, on: false };
+  // `on`: whether its station is here. `wall`: seconds since the last frame, unclamped, so the power-on takes the same
+  // time however slowly frames come.
+  screen.update = (wall, on, reduced = false) => {
+    if (on) { screen.fade = 1; screen.seq = reduced ? 1 : Math.min(1, screen.seq + wall / 0.95); }
+    else { screen.fade = reduced ? 0 : Math.max(0, screen.fade - wall / 0.3); if (screen.fade === 0) screen.seq = 0; }
+    screen.on = on;
+    uniforms.uSeq.value = screen.seq;
+    uniforms.uFade.value = screen.fade;
+    ledMat.color.copy(screen.fade > 0 ? lit : dim);
+    // Clickable once it's showing something.
+    face.userData.action = screen.seq > 0.4 && screen.fade > 0.5 ? action : null;
+  };
+  screen.update(0, false, true);
+  return screen;
 }

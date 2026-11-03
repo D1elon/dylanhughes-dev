@@ -213,11 +213,11 @@ export const RAMPS = [
 // --- Inserts -------------------------------------------------------------------------------------------------------
 
 // All 21 of Origin's lenses, with their shapes (circle, arrow, hexagon, star, shield; an arrow points along +y turned
-// `angle` degrees counter-clockwise) and lamp colours. Origin's lilac lamps are plasma here, its violet ones a deeper
-// ember, its pale lilac a pale amber and its warm white aluminium.
-const LAMP = { a99cff: 'plasma', '8f7dff': 'ember', c9c0ff: 'amber', f4f3f8: 'alu' };
+// `angle` degrees counter-clockwise) and lamp colours. Origin's lilac lamps are royal blue here, its violet ones the
+// deeper royal, its pale lilac the light tint and its warm white white.
+const LAMP = { a99cff: 'royal', '8f7dff': 'deep', c9c0ff: 'light', f4f3f8: 'white' };
 export const INSERTS = Object.values(O).filter(c => c.type === 'insert').map(c => ({
-  id: c.id, x: c.x, y: c.y, angle: c.rotation || 0, width: c.width, length: c.length, shape: c.shape, color: LAMP[c.color] || 'alu', icon: c.icon,
+  id: c.id, x: c.x, y: c.y, angle: c.rotation || 0, width: c.width, length: c.length, shape: c.shape, color: LAMP[c.color] || 'white', icon: c.icon,
 }));
 
 // --- General illumination ------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
-/* A 128×32 plasma dot-matrix display, the kind of screen pinball machines used from the 1990s on.
-   Scenes draw brightness values into a buffer; the renderer adds plasma persistence and glow. */
+/* A 128×32 dot-matrix display, the kind of screen pinball machines used from the 1990s on, in ice white on royal blue.
+   Scenes draw brightness values into a buffer; the renderer adds the dots' persistence and glow. */
 (() => {
   'use strict';
   const COLS = 128, ROWS = 32, N = COLS * ROWS;
@@ -233,9 +233,10 @@
       const c = document.createElement('canvas');
       c.width = this.canvas.width; c.height = this.canvas.height;
       const x = c.getContext('2d');
-      x.fillStyle = '#0a0908';
+      x.fillStyle = '#06070a';
       x.fillRect(0, 0, c.width, c.height);
-      x.fillStyle = 'rgba(255, 106, 19, 0.075)';
+      // Unlit dots: a faint blue-grey.
+      x.fillStyle = 'rgba(120, 136, 170, 0.085)';
       const r = this.pitch * 0.36;
       for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
         x.beginPath();
@@ -252,13 +253,14 @@
         const c = document.createElement('canvas');
         c.width = c.height = size;
         const x = c.getContext('2d');
+        // A royal-blue glow round each lit dot, and the dot itself warming from royal to ice white as it brightens.
         const glow = x.createRadialGradient(mid, mid, 0, mid, mid, this.pitch * 1.4);
-        glow.addColorStop(0, `rgba(255, 110, 25, ${0.34 * v})`);
-        glow.addColorStop(1, 'rgba(255, 110, 25, 0)');
+        glow.addColorStop(0, `rgba(43, 89, 255, ${0.5 * v})`);
+        glow.addColorStop(1, 'rgba(43, 89, 255, 0)');
         x.fillStyle = glow;
         x.fillRect(0, 0, size, size);
-        const g = Math.round(70 + 110 * v), b = Math.round(10 + 70 * Math.max(0, v - 0.6));
-        x.fillStyle = `rgb(255, ${g}, ${b})`;
+        const r = Math.round(60 + 109 * v), g = Math.round(98 + 93 * v);
+        x.fillStyle = `rgb(${r}, ${g}, 255)`;
         x.globalAlpha = 0.25 + 0.75 * v;
         x.beginPath();
         x.arc(mid, mid, this.pitch * (0.33 + 0.05 * v), 0, Math.PI * 2);

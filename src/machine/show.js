@@ -368,7 +368,7 @@ export class Show {
     // The start button blinks while a ball waits, as in attract mode, and flashes when pressed.
     const pressed = this.startAt === undefined ? 9 : t - this.startAt;
     const waiting = this.auto.state === 'shooter' && Math.sin(t * 5) > 0;
-    h.startButton.material.emissiveIntensity = (0.3 + (waiting ? 0.5 : 0) + 3 * Math.exp(-pressed * 5)) * P;
+    h.startButton.material.emissiveIntensity = (0.3 + (waiting ? 0.5 : 0) + 3 * Math.exp(-pressed * 5)) * P * (h.startButton.material.userData.gain || 1);
     for (const f of h.flashers) {
       const e = f.fired === undefined ? 9 : t - f.fired;
       const k = e < 0.09 ? 1 : e < 0.16 ? 0.15 : e < 0.25 ? 1 : Math.max(0, 1 - (e - 0.25) / 0.2);
