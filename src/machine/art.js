@@ -1,10 +1,12 @@
-// Printed artwork, drawn on canvases: the playfield, the backglass, the cabinet sides, the apron cards and the
-// drop-target faces. The playfield is drawn like a cut plan: a graphite field, a fine grid, shot lines with their
-// measured lengths, and labels where the site's sections live.
+// Printed artwork, drawn on canvases: the playfield, the translite, the cabinet sides, the apron, the plastics, the
+// cards and the drop-target faces. The look follows Deadbounce's Origin table, rethemed in graphite and plasma
+// orange: a field lit like a stage, light running up the lanes, beams from the flippers to each shot, and every
+// insert in a pool of its own light. The site's sections are the shots: the case studies are the ramps.
 import {
   PF, POPS, POP, DROPS, LADDER, PLAY_AGAIN, RAMP_ARROWS, RAMPS, TOP_LANES, TOP_LANE_INSERTS, FLIPPERS, FLIPPER,
-  SLINGS, GUIDES, APRON, ARCH, SHOOTER, LANE_LETTERS, RETURN_LANES, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_ARROWS,
+  SLINGS, GUIDES, APRON, ARCH, SHOOTER, LANE_LETTERS, RETURN_LANES, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_ARROWS, ORBIT_ROLLOVERS,
 } from './layout.js';
+import { roundedHull, ccw } from './geo.js';
 
 export const COLORS = {
   field: '#15181b',
@@ -98,88 +100,134 @@ export function drawPlayfield(scale) {
   const X = x => x * scale;
   const Y = y => (PF.l - y) * scale;
   const S = v => v * scale;
+  const radial = (x, y, r, stops) => {
+    const grad = g.createRadialGradient(X(x), Y(y), 0, X(x), Y(y), S(r));
+    stops.forEach(([at, color]) => grad.addColorStop(at, color));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, c.width, c.height);
+  };
 
-  // Field.
+  // 1. The field: graphite, lit from the middle like a stage, with a warm pool behind the pops.
   g.fillStyle = COLORS.field;
   g.fillRect(0, 0, c.width, c.height);
-  const glow = g.createRadialGradient(X(PF.cx), Y(560), 0, X(PF.cx), Y(560), S(620));
-  glow.addColorStop(0, 'rgba(255,255,255,0.035)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = glow;
-  g.fillRect(0, 0, c.width, c.height);
+  radial(PF.cx, 520, 640, [[0, '#2a2c2f'], [0.55, '#1c1f22'], [1, 'rgba(21,24,27,0)']]);
+  radial(PF.cx, 830, 240, [[0, PLASMA(0.16)], [1, PLASMA(0)]]);
 
-  // Grid: 10 mm and 50 mm.
-  for (let mm = 0; mm <= Math.max(PF.w, PF.l); mm += 10) {
-    const major = mm % 50 === 0;
-    g.strokeStyle = ALU(major ? 0.075 : 0.032);
-    g.lineWidth = Math.max(1, S(major ? 0.45 : 0.3));
-    if (mm <= PF.w) { g.beginPath(); g.moveTo(X(mm), 0); g.lineTo(X(mm), c.height); g.stroke(); }
-    if (mm <= PF.l) { g.beginPath(); g.moveTo(0, Y(mm)); g.lineTo(c.width, Y(mm)); g.stroke(); }
+  // 2. A half-inch dot grid, brightest under the middle of the field.
+  g.fillStyle = ALU(1);
+  for (let y = 6.35; y < PF.l; y += 12.7) for (let x = 6.35; x < PF.w; x += 12.7) {
+    const d = Math.hypot((x - PF.cx) / 1.1, (y - 560) / 1.6), a = 0.13 * Math.max(0, 1 - d / 470);
+    if (a < 0.01) continue;
+    g.globalAlpha = a;
+    g.beginPath(); g.arc(X(x), Y(y), S(0.62), 0, Math.PI * 2); g.fill();
   }
+  g.globalAlpha = 1;
 
-  // Centre column: the strip the site scrolls down, from the drop bank to the play-again insert, ruled like a scale.
-  const top = DROPS.y + 30, bottom = PLAY_AGAIN.y - 30, half = 46;
-  const stripe = g.createLinearGradient(0, Y(top), 0, Y(bottom));
-  stripe.addColorStop(0, ALU(0));
-  stripe.addColorStop(0.2, ALU(0.045));
-  stripe.addColorStop(1, ALU(0.015));
-  g.fillStyle = stripe;
-  g.fillRect(X(PF.cx - half), Y(top), S(half * 2), S(top - bottom));
-  for (let mm = Math.ceil(bottom / 5) * 5; mm <= top; mm += 5) {
-    const len = mm % 50 === 0 ? 6 : mm % 10 === 0 ? 3.5 : 2;
-    g.strokeStyle = ALU(mm % 50 === 0 ? 0.4 : 0.2);
-    g.lineWidth = S(0.45);
-    for (const side of [-1, 1]) {
-      const x0 = PF.cx + side * half;
-      g.beginPath(); g.moveTo(X(x0), Y(mm)); g.lineTo(X(x0 - side * len), Y(mm)); g.stroke();
+  // 3. Light running up each lane: the in- and outlanes, the orbits, the top lanes, and the shooter lane's channel
+  // with chevrons pointing up it.
+  const laneLight = (x, y0, y1, width, alpha, tint = ALU) => {
+    const grad = g.createLinearGradient(0, Y(y0), 0, Y(y1));
+    grad.addColorStop(0, tint(0)); grad.addColorStop(0.35, tint(alpha)); grad.addColorStop(1, tint(0));
+    g.fillStyle = grad;
+    g.beginPath(); g.roundRect(X(x - width / 2), Y(y1), S(width), S(y1 - y0), S(width / 2)); g.fill();
+  };
+  for (const l of RETURN_LANES) laneLight(l.x, 220, 430, 20, 0.14);
+  for (const o of ORBIT_ROLLOVERS) laneLight(o.x, 640, 960, 22, 0.12);
+  for (const x of TOP_LANES.centers) laneLight(x, TOP_LANES.guideFrom - 30, TOP_LANES.guideTo + 30, 20, 0.18);
+  {
+    const x0 = SHOOTER.laneLeft, x1 = SHOOTER.laneRight;
+    const grad = g.createLinearGradient(0, Y(0), 0, Y(SHOOTER.dividerTop));
+    grad.addColorStop(0, PLASMA(0.05)); grad.addColorStop(1, PLASMA(0.22));
+    g.fillStyle = grad;
+    g.fillRect(X(x0), Y(SHOOTER.dividerTop), S(x1 - x0), S(SHOOTER.dividerTop));
+    const mid = (x0 + x1) / 2;
+    g.lineWidth = S(2.2); g.lineJoin = 'round'; g.lineCap = 'round';
+    for (let y = 150, i = 0; y < 800; y += 46, i++) {
+      g.strokeStyle = PLASMA(0.3 + i * 0.03);
+      g.beginPath(); g.moveTo(X(mid - 9), Y(y)); g.lineTo(X(mid), Y(y + 9)); g.lineTo(X(mid + 9), Y(y)); g.stroke();
     }
   }
 
-  // Shot lines: each flipper's tip to the opposite orbit's throat, dashed and kept clear of the centre column.
-  g.save();
-  g.beginPath();
-  g.rect(0, 0, c.width, c.height);
-  g.rect(X(PF.cx + half + 4), Y(top + 4), -S(half * 2 + 8), S(top - bottom + 8));
-  g.clip('evenodd');
-  RAMPS.forEach((ramp, i) => {
-    const f = FLIPPERS[1 - i];
-    const a = (f.up * Math.PI) / 180;
-    const tip = [f.x + Math.cos(a) * FLIPPER.length, f.y + Math.sin(a) * FLIPPER.length];
-    const arrow = ORBIT_ARROWS[i];
-    shotLine(g, X, Y, S, tip, [arrow.x + (i ? 10 : -10), arrow.y + 22], i === 0 ? 'Left orbit' : 'Right orbit');
-  });
-  g.restore();
-
-  // Pop bumper zone: rings around each pop.
-  for (const p of POPS) {
-    for (const [r, a] of [[POP.cap / 2 + 9, 0.22], [POP.cap / 2 + 15, 0.08]]) {
-      g.strokeStyle = ALU(a);
-      g.lineWidth = S(0.6);
-      g.beginPath(); g.arc(X(p.x), Y(p.y), S(r), 0, Math.PI * 2); g.stroke();
+  // 4. The shots: a beam from each flipper to the opposite ramp's mouth, crossing on the centre line; the orbits'
+  // beams fainter, down each orbit arrow's own axis; and one up the middle to the drop bank.
+  const beam = (from, to, w0, w1, alpha, tint = PLASMA) => {
+    const dx = to[0] - from[0], dy = to[1] - from[1], len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
+    const grad = g.createLinearGradient(X(from[0]), Y(from[1]), X(to[0]), Y(to[1]));
+    grad.addColorStop(0, tint(0)); grad.addColorStop(0.6, tint(alpha * 0.55)); grad.addColorStop(1, tint(alpha));
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(X(from[0] + nx * w0 / 2), Y(from[1] + ny * w0 / 2)); g.lineTo(X(to[0] + nx * w1 / 2), Y(to[1] + ny * w1 / 2));
+    g.lineTo(X(to[0] - nx * w1 / 2), Y(to[1] - ny * w1 / 2)); g.lineTo(X(from[0] - nx * w0 / 2), Y(from[1] - ny * w0 / 2));
+    g.closePath(); g.fill();
+    // Fine edges that sharpen as they reach the shot.
+    const edge = g.createLinearGradient(X(from[0]), Y(from[1]), X(to[0]), Y(to[1]));
+    edge.addColorStop(0, tint(0)); edge.addColorStop(1, tint(Math.min(1, alpha * 2.2)));
+    g.strokeStyle = edge; g.lineWidth = S(0.9);
+    for (const k of [1, -1]) {
+      g.beginPath(); g.moveTo(X(from[0] + k * nx * w0 / 2), Y(from[1] + k * ny * w0 / 2)); g.lineTo(X(to[0] + k * nx * w1 / 2), Y(to[1] + k * ny * w1 / 2)); g.stroke();
     }
+  };
+  RAMPS.forEach((ramp, i) => beam([PF.cx + (i ? -25 : 25), 196], ramp.path[0], 8, 50, 0.3));
+  for (const a of ORBIT_ARROWS) {
+    const r = (a.angle * Math.PI) / 180, dir = [Math.cos(r), Math.sin(r)];
+    beam([a.x - dir[0] * 400, a.y - dir[1] * 400], [a.x + dir[0] * 34, a.y + dir[1] * 34], 4, 28, 0.15, ALU);
   }
-  label(g, X(PF.cx), Y(842), 'About', S(10.5), ALU(0.88), 'display');
-  label(g, X(PF.cx), Y(828), 'Pop bumpers · Ø 60', S(4.4), ALU(0.5), 'mono');
+  beam([PF.cx, 470], [PF.cx, DROPS.y - 44], 6, 34, 0.14);
 
-  // Ramp labels.
-  RAMP_ARROWS.forEach((arrow, i) => {
-    const name = i === 0 ? 'Deadbounce' : 'Tip Top';
-    const x = arrow.x + (i === 0 ? -52 : 52);
-    label(g, X(x), Y(arrow.y + 2), name, S(8.6), ALU(0.9), 'display');
-    label(g, X(x), Y(arrow.y - 9), 'Case study', S(4.2), ALU(0.5), 'mono');
+  // 5. Every insert sits in a pool of its own light, in a printed bezel.
+  const inserts = insertList();
+  const extent = ins => { let r = 0; for (const [x, y] of ins.shape) r = Math.max(r, Math.hypot(x, y)); return r; };
+  for (const ins of inserts) {
+    const tint = ins.color === 'plasma' ? PLASMA : ALU, r = extent(ins) * 2.1;
+    const grad = g.createRadialGradient(X(ins.x), Y(ins.y), 0, X(ins.x), Y(ins.y), S(r));
+    grad.addColorStop(0, tint(0.4)); grad.addColorStop(0.55, tint(0.13)); grad.addColorStop(1, tint(0));
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(X(ins.x), Y(ins.y), S(r), 0, Math.PI * 2); g.fill();
+  }
+  for (const ins of inserts) {
+    const a = (ins.angle * Math.PI) / 180, grow = (extent(ins) + 2.6) / extent(ins);
+    g.save();
+    g.lineJoin = 'round';
+    g.beginPath();
+    ins.shape.forEach(([px, py], k) => {
+      const rx = (px * Math.cos(a) - py * Math.sin(a)) * grow, ry = (px * Math.sin(a) + py * Math.cos(a)) * grow;
+      k ? g.lineTo(X(ins.x + rx), Y(ins.y + ry)) : g.moveTo(X(ins.x + rx), Y(ins.y + ry));
+    });
+    g.closePath();
+    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = S(3.4); g.stroke();
+    g.strokeStyle = ins.color === 'plasma' ? PLASMA(0.62) : ALU(0.5); g.lineWidth = S(0.8); g.stroke();
+    g.restore();
+  }
+
+  // 6. Names: the site's sections are the shots. Small spaced capitals behind each arrow, along its axis.
+  const along = (a, text, size, color) => {
+    const r = ((a.angle - 90) * Math.PI) / 180, back = (a.length || 40) / 2 + 9;
+    g.save();
+    g.translate(X(a.x + Math.sin(r) * back), Y(a.y - Math.cos(r) * back));
+    g.rotate(-r);
+    label(g, 0, 0, text, size, color, 'mono');
+    g.restore();
+  };
+  RAMP_ARROWS.forEach((a, i) => {
+    // Up the arrow's outer side, reading toward the ramp.
+    const r = (a.angle * Math.PI) / 180, out = i === 0 ? 1 : -1, off = 21;
+    g.save();
+    g.translate(X(a.x - Math.sin(r) * off * out), Y(a.y + Math.cos(r) * off * out));
+    g.rotate(-r);
+    label(g, 0, 0, i === 0 ? 'Deadbounce' : 'Tip Top', S(4.6), ALU(0.9), 'mono');
+    g.restore();
   });
-
-  // Drop bank.
-  label(g, X(PF.cx), Y(DROPS.y - 56), 'Skills', S(9.5), ALU(0.9), 'display');
-  label(g, X(PF.cx), Y(DROPS.y - 67), '4-target bank', S(4), ALU(0.5), 'mono');
-
-  // Ladder labels.
-  label(g, X(PF.cx), Y(LADDER.top + 22), 'Experience', S(7), ALU(0.85), 'display');
+  ORBIT_ARROWS.forEach(a => along({ ...a, length: 38.1 }, 'Orbit', S(3.6), ALU(0.6)));
+  label(g, X(PF.cx), Y(DROPS.y - 58), 'Skills', S(4.4), ALU(0.85), 'mono');
+  label(g, X(PF.cx), Y(DROPS.y - 66), '4-target bank', S(3.2), ALU(0.45), 'mono');
+  label(g, X(PF.cx), Y(POPS[2].y + 52), 'About', S(4.4), ALU(0.85), 'mono');
+  label(g, X(PF.cx), Y(LADDER.top + 22), 'Experience', S(4.4), ALU(0.85), 'mono');
   LADDER_LABELS.forEach(([year, name], i) => {
     const y = LADDER.top - i * LADDER.pitch;
-    label(g, X(PF.cx - 28), Y(y), year, S(5.2), i === 0 ? PLASMA(0.95) : ALU(0.7), 'mono', 'right');
-    label(g, X(PF.cx + 28), Y(y), name.toUpperCase(), S(4.6), ALU(0.7), 'mono', 'left');
+    label(g, X(PF.cx - 26), Y(y), year, S(3.8), i === 0 ? PLASMA(0.95) : ALU(0.6), 'mono', 'right');
+    label(g, X(PF.cx + 26), Y(y), name, S(3.4), ALU(0.6), 'mono', 'left');
   });
+  label(g, X(PF.cx), Y(PLAY_AGAIN.y - 20), 'Contact', S(4.4), ALU(0.85), 'mono');
 
   // Legends printed under the inserts, read through the plastic: lane letters, return lanes, play again.
   const ink = 'rgba(16,18,20,0.9)';
@@ -187,60 +235,27 @@ export function drawPlayfield(scale) {
   for (const l of RETURN_LANES) {
     if (l.kind === 'outlane') {
       g.save(); g.translate(X(l.x), Y(l.insertY)); g.rotate(-Math.PI / 2);
-      label(g, 0, 0, 'SPECIAL', S(3.4), ink, 'mono'); g.restore();
+      label(g, 0, 0, 'Special', S(3.4), ink, 'mono'); g.restore();
     } else label(g, X(l.x), Y(l.insertY), '2X', S(5.5), ink, 'display');
   }
-  label(g, X(PLAY_AGAIN.x), Y(PLAY_AGAIN.y), 'PLAY AGAIN', S(4.6), ink, 'mono');
-  label(g, X(PF.cx), Y(PLAY_AGAIN.y - 22), 'Contact', S(8), ALU(0.75), 'display');
+  label(g, X(PLAY_AGAIN.x), Y(PLAY_AGAIN.y), 'Play again', S(4.2), ink, 'mono');
 
-  // Insert bezels: a dark halo and a fine ring around every insert.
-  for (const ins of insertList()) {
-    const pts = ins.shape;
-    const a = (ins.angle * Math.PI) / 180;
-    const path = () => {
-      g.beginPath();
-      pts.forEach(([px, py], k) => {
-        const rx = px * Math.cos(a) - py * Math.sin(a), ry = px * Math.sin(a) + py * Math.cos(a);
-        k ? g.lineTo(X(ins.x + rx), Y(ins.y + ry)) : g.moveTo(X(ins.x + rx), Y(ins.y + ry));
-      });
-      g.closePath();
-    };
-    g.save();
-    g.lineJoin = 'round';
-    g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = S(5); path(); g.stroke();
-    g.strokeStyle = ins.color === 'plasma' ? PLASMA(0.7) : ALU(0.55); g.lineWidth = S(0.8); path(); g.stroke();
-    g.restore();
-  }
-
-  // Dimensions: the board's width along the top, its length up the left outlane.
-  dimension(g, X, Y, S, [PF.rail + 30, ARCH.top - 18], [SHOOTER.laneRight - 30, ARCH.top - 18], '514.35', 'h');
-
-  // Chevrons down each return lane, toward the flippers.
-  for (const l of RETURN_LANES) {
-    for (let k = 0; k < 3; k++) {
-      const y = 290 - k * 16;
-      g.strokeStyle = ALU(0.18 + k * 0.08);
-      g.lineWidth = S(1.1);
-      g.beginPath(); g.moveTo(X(l.x - 6), Y(y + 4)); g.lineTo(X(l.x), Y(y - 2)); g.lineTo(X(l.x + 6), Y(y + 4)); g.stroke();
-    }
-  }
-
-  // Registration marks.
-  for (const [x, y] of [[20, 20], [PF.w - 20, 20], [20, PF.l - 20], [PF.w - 20, PF.l - 20]]) cross(g, X(x), Y(y), S(5), ALU(0.3), S(0.5));
-
-  // Cut-plan outlines for the slings and flippers, faint, as Deadbounce prints them.
-  g.strokeStyle = ALU(0.14);
-  g.lineWidth = S(0.5);
-  g.setLineDash([S(2), S(2)]);
-  for (const s of SLINGS) { g.beginPath(); s.posts.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.closePath(); g.stroke(); }
-  for (const f of FLIPPERS) {
-    const r = S(FLIPPER.length + FLIPPER.tipR + 3);
-    const a0 = -(Math.min(f.rest, f.up) * Math.PI) / 180, a1 = -(Math.max(f.rest, f.up) * Math.PI) / 180;
-    g.beginPath(); g.arc(X(f.x), Y(f.y), r, a1, a0); g.stroke();
-  }
-  g.setLineDash([]);
+  // 7. The lockup between the slings: the dot-matrix DH, the name, and the model under it.
+  dotMark(g, X(PF.cx), Y(318), S(2.2), PLASMA(1), ALU(0.06));
+  label(g, X(PF.cx), Y(301), 'Dylan Hughes', S(8.4), ALU(0.95), 'display');
+  label(g, X(PF.cx), Y(292), 'DH-26 · Richmond, Virginia', S(3), PLASMA(0.85), 'mono');
 
   return c;
+}
+
+// The dot-matrix DH: two 4 × 5 glyphs of lit dots, centred on (x, y), `dot` pixels apart.
+const DH_GLYPHS = [['1110', '1001', '1001', '1001', '1110'], ['1001', '1001', '1111', '1001', '1001']];
+function dotMark(g, x, y, dot, on, off) {
+  const x0 = x - (9 * dot) / 2, y0 = y - (5 * dot) / 2;
+  DH_GLYPHS.forEach((glyph, k) => glyph.forEach((row, j) => [...row].forEach((lit, i) => {
+    g.fillStyle = lit === '1' ? on : off;
+    g.beginPath(); g.arc(x0 + (k * 5 + i + 0.5) * dot, y0 + (j + 0.5) * dot, dot * 0.36, 0, Math.PI * 2); g.fill();
+  })));
 }
 
 function label(g, x, y, text, size, color, kind, align = 'center') {
@@ -261,217 +276,100 @@ function label(g, x, y, text, size, color, kind, align = 'center') {
   g.restore();
 }
 
-function shotLine(g, X, Y, S, from, to, name) {
-  g.save();
-  g.strokeStyle = PLASMA(0.55);
-  g.lineWidth = S(0.8);
-  g.setLineDash([S(4), S(3)]);
-  g.beginPath(); g.moveTo(X(from[0]), Y(from[1])); g.lineTo(X(to[0]), Y(to[1])); g.stroke();
-  g.setLineDash([]);
-  const ang = Math.atan2(-(to[1] - from[1]), to[0] - from[0]);
-  g.fillStyle = PLASMA(0.75);
-  g.translate(X(to[0]), Y(to[1]));
-  g.rotate(ang);
-  g.beginPath(); g.moveTo(0, 0); g.lineTo(-S(5), -S(2.4)); g.lineTo(-S(5), S(2.4)); g.closePath(); g.fill();
-  g.restore();
-  if (name) {
-    const len = Math.hypot(to[0] - from[0], to[1] - from[1]);
-    const mx = from[0] + (to[0] - from[0]) * 0.8, my = from[1] + (to[1] - from[1]) * 0.8;
-    g.save();
-    g.translate(X(mx), Y(my));
-    let rot = ang;
-    if (rot > Math.PI / 2) rot -= Math.PI; else if (rot < -Math.PI / 2) rot += Math.PI;
-    g.rotate(rot);
-    g.translate(0, -S(4));
-    label(g, 0, 0, `${name} · ${Math.round(len)} mm`, S(3.8), PLASMA(0.85), 'mono');
-    g.restore();
-  }
-}
-
-function dimension(g, X, Y, S, a, b, text, dir) {
-  g.save();
-  g.strokeStyle = ALU(0.28);
-  g.fillStyle = ALU(0.45);
-  g.lineWidth = S(0.45);
-  g.beginPath(); g.moveTo(X(a[0]), Y(a[1])); g.lineTo(X(b[0]), Y(b[1])); g.stroke();
-  for (const p of [a, b]) {
-    g.beginPath();
-    if (dir === 'h') { g.moveTo(X(p[0]), Y(p[1] - 3)); g.lineTo(X(p[0]), Y(p[1] + 3)); }
-    else { g.moveTo(X(p[0] - 3), Y(p[1])); g.lineTo(X(p[0] + 3), Y(p[1])); }
-    g.stroke();
-  }
-  const mx = X((a[0] + b[0]) / 2), my = Y((a[1] + b[1]) / 2);
-  g.translate(mx, my);
-  if (dir === 'v') g.rotate(-Math.PI / 2);
-  g.fillStyle = COLORS.field;
-  g.font = FONTS.mono(S(3.6));
-  const w = g.measureText(text).width + S(4);
-  g.fillRect(-w / 2, -S(2.6), w, S(5.2));
-  label(g, 0, 0, text, S(3.6), ALU(0.6), 'mono');
-  g.restore();
-}
-
-function cross(g, x, y, r, color, lw) {
-  g.save();
-  g.strokeStyle = color;
-  g.lineWidth = lw;
-  g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke();
-  g.beginPath(); g.arc(x, y, r * 0.55, 0, Math.PI * 2); g.stroke();
-  g.restore();
-}
-
-// --- Backglass ------------------------------------------------------------------------------------------------
-// The left of the glass is kept dark for the hero copy, which the site lays over it as real text. The right holds a
-// plan drawing of this machine's playfield, drawn from the same layout as the 3D parts.
-
+// --- Translite --------------------------------------------------------------------------------------------------
+// The backbox's translite, `width` wide at the glass's 1.32 : 1, printed to be lit from behind: a deep graphite field
+// with a warm glow, fine rays behind a large dot-matrix DH, a double frame, and the name and title set like a
+// game's.
 export function drawBackglass(width) {
   const height = Math.round(width / 1.32);
   const c = canvas(width, height);
   const g = c.getContext('2d');
-  const u = width / 1320; // design units: the glass is 1320 × 1000
+  const u = width / 1320;
+  const cx = width / 2, cy = height * 0.4;
 
-  g.fillStyle = '#0b0c0d';
+  const field = g.createRadialGradient(cx, cy, 0, cx, height * 0.45, Math.max(width, height) * 0.75);
+  field.addColorStop(0, '#3a2416'); field.addColorStop(0.42, '#1b1a1b'); field.addColorStop(1, '#0a0b0c');
+  g.fillStyle = field;
   g.fillRect(0, 0, width, height);
 
-  // Backlight: a warm bloom behind the plan, falling off toward the copy.
-  const light = g.createRadialGradient(980 * u, 470 * u, 0, 980 * u, 470 * u, 700 * u);
-  light.addColorStop(0, 'rgba(255, 120, 40, 0.22)');
-  light.addColorStop(0.45, 'rgba(255, 106, 19, 0.07)');
-  light.addColorStop(1, 'rgba(255, 106, 19, 0)');
-  g.fillStyle = light;
-  g.fillRect(0, 0, width, height);
-
-  // Dot-matrix screen over the whole glass.
-  g.fillStyle = 'rgba(227, 229, 226, 0.05)';
-  for (let y = 10 * u; y < height; y += 14 * u) for (let x = 10 * u; x < width; x += 14 * u) g.fillRect(x, y, 2 * u, 2 * u);
-
-  // Frame and corner marks.
-  g.strokeStyle = ALU(0.28);
-  g.lineWidth = 1.5 * u;
-  g.strokeRect(28 * u, 28 * u, width - 56 * u, height - 56 * u);
-  for (const [x, y] of [[28, 28], [1292, 28], [28, 972], [1292, 972]]) cross(g, x * u, y * u, 14 * u, ALU(0.45), 1.5 * u);
-
-  // The plan, rotated so the playfield's top points right, fitted into the right-hand panel.
-  const plan = { x: 760, y: 120, w: 500, h: 780 };
-  const s = Math.min(plan.w / PF.w, plan.h / PF.l) * u;
+  // Rays from behind the mark, as a light box shows them, and a dot field fading out from the middle.
   g.save();
-  g.translate((plan.x + plan.w / 2) * u, (plan.y + plan.h / 2) * u);
-  g.translate(-PF.w * s / 2, PF.l * s / 2);
-  const X = x => x * s, Y = y => -y * s;
-  drawPlan(g, X, Y, s);
+  g.translate(cx, cy);
+  for (let i = 0; i < 36; i++) {
+    g.rotate(Math.PI / 18);
+    g.fillStyle = PLASMA(i % 3 === 0 ? 0.075 : 0.035);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(width, -width * 0.03); g.lineTo(width, width * 0.03); g.fill();
+  }
   g.restore();
+  for (let y = 18 * u; y < height; y += 22 * u) for (let x = 18 * u; x < width; x += 22 * u) {
+    const a = 0.1 * Math.max(0, 1 - Math.hypot(x - cx, (y - cy) * 1.3) / (width * 0.55));
+    if (a < 0.01) continue;
+    g.fillStyle = ALU(a);
+    g.beginPath(); g.arc(x, y, 1.4 * u, 0, Math.PI * 2); g.fill();
+  }
 
-  // Callouts beside the plan.
-  g.font = FONTS.mono(15 * u);
-  g.letterSpacing = `${1.6 * u}px`;
-  g.fillStyle = ALU(0.55);
-  g.textAlign = 'left';
-  g.fillText('PLAYFIELD 514.35 × 1066.8 MM', 760 * u, 88 * u);
-  g.fillText('PITCH 6.5°  ·  BALL Ø 27 MM', 760 * u, 935 * u);
+  // The frame: a plasma line with a fine one inside it.
+  const inset = 46 * u;
+  g.strokeStyle = PLASMA(0.9); g.lineWidth = 5 * u;
+  g.beginPath(); g.roundRect(inset, inset, width - inset * 2, height - inset * 2, 36 * u); g.stroke();
+  g.strokeStyle = PLASMA(0.4); g.lineWidth = 1.6 * u;
+  g.beginPath(); g.roundRect(inset + 14 * u, inset + 14 * u, width - inset * 2 - 28 * u, height - inset * 2 - 28 * u, 26 * u); g.stroke();
 
-  // Model plate, top left.
-  g.fillStyle = PLASMA(0.9);
-  g.beginPath(); g.arc(78 * u, 84 * u, 6 * u, 0, Math.PI * 2); g.fill();
+  // The mark, glowing: lit dots with their unlit neighbours faintly printed, as on the display.
+  const dot = 40 * u;
+  g.save();
+  g.shadowColor = 'rgba(255, 120, 40, 0.9)'; g.shadowBlur = 38 * u;
+  dotMark(g, cx, cy, dot, PLASMA(1), 'rgba(0,0,0,0)');
+  g.restore();
+  dotMark(g, cx, cy, dot, '#ff8a3d', ALU(0.07));
+
+  // The title: the name, then the trade, then the place.
+  const nameY = cy + dot * 4.6;
+  g.save();
+  g.shadowColor = 'rgba(255, 240, 225, 0.5)'; g.shadowBlur = 18 * u;
+  label(g, cx, nameY, 'Dylan Hughes', 100 * u, '#f6f4f0', 'display');
+  g.restore();
+  label(g, cx, nameY + 76 * u, 'The portfolio', 24 * u, PLASMA(0.95), 'mono');
+  label(g, cx, nameY + 112 * u, 'Model DH-26 · Richmond, Virginia', 16 * u, ALU(0.55), 'mono');
   return c;
-}
-
-function drawPlan(g, X, Y, s) {
-  const line = (a, w = 1.2) => { g.strokeStyle = ALU(a); g.lineWidth = w; };
-  // Outline: rails and arch.
-  line(0.75, 1.6);
-  g.beginPath();
-  g.moveTo(X(PF.rail), Y(0));
-  g.lineTo(X(PF.rail), Y(ARCH.left.cy));
-  g.arc(X(ARCH.left.cx), Y(ARCH.left.cy), ARCH.left.r * s, Math.PI, Math.PI * 1.5);
-  g.lineTo(X(ARCH.right.cx), Y(ARCH.top));
-  g.arc(X(ARCH.right.cx), Y(ARCH.right.cy), ARCH.right.r * s, Math.PI * 1.5, Math.PI * 2);
-  g.lineTo(X(SHOOTER.laneRight), Y(0));
-  g.stroke();
-  line(0.4);
-  g.beginPath(); g.moveTo(X(SHOOTER.dividerFace), Y(SHOOTER.apronTop)); g.lineTo(X(SHOOTER.dividerFace), Y(SHOOTER.dividerTop)); g.stroke();
-  // Orbit guides and wedges.
-  for (const o of [...ORBIT_GUIDES, ...ORBIT_WEDGES]) { g.beginPath(); o.line.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke(); }
-  // Apron.
-  g.beginPath();
-  g.moveTo(X(APRON.leftShoulder[0]), Y(APRON.leftShoulder[1]));
-  g.lineTo(X(APRON.lipLeft[0]), Y(APRON.lipLeft[1]));
-  g.arc(X(PF.cx), Y(APRON.lipCy), APRON.lipR * s, Math.PI - Math.asin((APRON.lipCy - APRON.lipEndY) / APRON.lipR), Math.asin((APRON.lipCy - APRON.lipEndY) / APRON.lipR), true);
-  g.lineTo(X(APRON.rightShoulder[0]), Y(APRON.rightShoulder[1]));
-  g.stroke();
-  // Guides and slings.
-  for (const guide of GUIDES) { g.beginPath(); guide.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke(); }
-  line(0.65);
-  for (const sl of SLINGS) { g.beginPath(); sl.posts.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.closePath(); g.stroke(); }
-  // Flippers, lit.
-  g.fillStyle = PLASMA(0.95);
-  for (const f of FLIPPERS) {
-    const a = (f.rest * Math.PI) / 180;
-    g.save(); g.translate(X(f.x), Y(f.y)); g.rotate(-a);
-    g.beginPath();
-    g.arc(0, 0, FLIPPER.baseR * s, Math.PI / 2, Math.PI * 1.5);
-    g.lineTo(FLIPPER.length * s, -FLIPPER.tipR * s);
-    g.arc(FLIPPER.length * s, 0, FLIPPER.tipR * s, -Math.PI / 2, Math.PI / 2);
-    g.closePath(); g.fill(); g.restore();
-  }
-  // Ramps.
-  line(0.6);
-  for (const r of RAMPS) {
-    g.beginPath(); r.path.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))));
-    const t = r.turn, dir = t.mirror ? -1 : 1;
-    for (let k = 0; k <= 12; k++) { const a = ((t.from + (t.to - t.from) * (k / 12)) * Math.PI) / 180; g.lineTo(X(t.cx + dir * Math.cos(a) * t.r), Y(t.cy + Math.sin(a) * t.r)); }
-    if (t.exit) g.lineTo(X(t.exit[0]), Y(t.exit[1]));
-    g.stroke();
-    g.setLineDash([3, 3]);
-    g.beginPath(); r.wire.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke();
-    g.setLineDash([]);
-  }
-  // Pops, drops, lanes and inserts.
-  g.fillStyle = PLASMA(0.85);
-  for (const p of POPS) { g.beginPath(); g.arc(X(p.x), Y(p.y), (POP.cap / 2) * s, 0, Math.PI * 2); g.fill(); }
-  g.fillStyle = ALU(0.85);
-  for (let i = 0; i < DROPS.count; i++) {
-    const x = DROPS.cx + (i - (DROPS.count - 1) / 2) * DROPS.pitch;
-    g.fillRect(X(x - DROPS.width / 2), Y(DROPS.y + 3), DROPS.width * s, 6 * s);
-  }
-  line(0.6);
-  for (const x of TOP_LANES.guides) { g.beginPath(); g.moveTo(X(x), Y(TOP_LANES.guideFrom)); g.lineTo(X(x), Y(TOP_LANES.guideTo)); g.stroke(); }
-  for (const ins of insertList()) {
-    const a = (ins.angle * Math.PI) / 180;
-    g.fillStyle = ins.color === 'plasma' ? PLASMA(0.9) : ALU(0.7);
-    g.beginPath();
-    ins.shape.forEach(([px, py], k) => {
-      const rx = px * Math.cos(a) - py * Math.sin(a), ry = px * Math.sin(a) + py * Math.cos(a);
-      k ? g.lineTo(X(ins.x + rx), Y(ins.y + ry)) : g.moveTo(X(ins.x + rx), Y(ins.y + ry));
-    });
-    g.closePath(); g.fill();
-  }
 }
 
 // --- Cabinet, apron and targets ----------------------------------------------------------------------------------
 
-export function drawCabinetSide(width, height) {
+// A cabinet side, `width` from the back (x = 0) to the front, `height` from the top edge down to the bottom at the
+// back. The bottom is level in the world, so it rises toward the front to `frontBottom` of the height. Graphite
+// paint with a plasma sweep rising from low at the front to over half the side at the back, like a flipper's stroke;
+// a fine line riding over it, a pinstripe under the top edge, the DH cut out of the sweep under the backbox, and the
+// name in the open band.
+export function drawCabinetSide(width, height, { frontBottom = 0.77 } = {}) {
   const c = canvas(width, height);
   const g = c.getContext('2d');
-  g.fillStyle = '#16191c';
+  const bottomAt = x => height - (height - frontBottom * height) * (x / width);
+  // A point `along` the side from the front (0) to the back (1), `z` pixels above the bottom edge.
+  const at = (along, z) => { const x = width * (1 - along); return [x, bottomAt(x) - z]; };
+  g.fillStyle = '#141619';
   g.fillRect(0, 0, width, height);
-  // An aluminium band along the side with a plasma pinstripe.
-  const bandY = height * 0.34, bandH = height * 0.2;
-  const band = g.createLinearGradient(0, bandY, 0, bandY + bandH);
-  band.addColorStop(0, '#d5d8d6'); band.addColorStop(0.5, '#eceeeb'); band.addColorStop(1, '#c7cbc8');
-  g.fillStyle = band;
-  g.fillRect(0, bandY, width, bandH);
-  g.fillStyle = COLORS.plasma;
-  g.fillRect(0, bandY + bandH + height * 0.025, width, height * 0.012);
-  // Name on the band, near the front.
-  g.fillStyle = COLORS.ink;
-  g.font = FONTS.display(bandH * 0.42, 760);
-  g.fontStretch = 'expanded';
-  g.textBaseline = 'middle';
-  g.textAlign = 'left';
-  g.fillText('Dylan Hughes', width * 0.06, bandY + bandH / 2);
-  g.font = FONTS.mono(bandH * 0.16);
-  g.textAlign = 'right';
-  g.fillText('CREATIVE TECHNOLOGIST · RICHMOND, VIRGINIA', width * 0.94, bandY + bandH / 2);
+  const low = height * 0.08, back = height * 0.56;
+  const edge = [[0, low], [0.45, low * 0.8], [0.72, back * 0.55], [1, back]];
+  const curve = (lift = 0) => {
+    g.moveTo(...at(0, low + lift));
+    g.bezierCurveTo(...edge.slice(1).flatMap(([a, z]) => at(a, z + lift)));
+  };
+  const fill = g.createLinearGradient(width, 0, 0, 0);
+  fill.addColorStop(0, '#c9470c'); fill.addColorStop(0.55, COLORS.plasma); fill.addColorStop(1, '#ff9a55');
+  g.beginPath(); g.moveTo(width, height); g.lineTo(...at(0, low)); curve(); g.lineTo(0, height); g.closePath();
+  g.fillStyle = fill; g.fill();
+  g.lineCap = 'round';
+  g.strokeStyle = '#ffb27f'; g.lineWidth = height * 0.0065; g.beginPath(); curve(height * 0.03); g.stroke();
+  g.strokeStyle = PLASMA(0.9); g.lineWidth = height * 0.008; g.beginPath(); g.moveTo(0, height * 0.045); g.lineTo(width, height * 0.045); g.stroke();
+  // The mark, cut out of the sweep where it has grown tall.
+  const markAt = 0.86, [mx] = at(markAt, 0), deep = back * 0.92;
+  dotMark(g, mx, bottomAt(mx) - deep * 0.55, deep * 0.085, '#141619', 'rgba(20,22,25,0.18)');
+  // The name in the open band between the sweep's line and the pinstripe.
+  const [lx] = at(0.42, 0), band = bottomAt(lx) - (low * 0.9 + height * 0.03);
+  const mid = (height * 0.045 + band) / 2;
+  label(g, lx, mid - height * 0.035, 'Dylan Hughes', height * 0.12, '#f4f2ee', 'display');
+  label(g, lx, mid + height * 0.06, 'Creative technologist', height * 0.032, PLASMA(0.95), 'mono');
   return c;
 }
 
@@ -480,12 +378,13 @@ export function drawApronCard(kind, width) {
   const c = canvas(width, height);
   const g = c.getContext('2d');
   const u = width / 625;
-  g.fillStyle = '#ecede9';
+  // Printed dark, like the rest of the apron: light type on ink, inside a plasma rim.
+  g.fillStyle = '#17191c';
   g.fillRect(0, 0, width, height);
-  g.strokeStyle = COLORS.ink;
+  g.strokeStyle = PLASMA(0.85);
   g.lineWidth = 3 * u;
-  g.strokeRect(14 * u, 14 * u, width - 28 * u, height - 28 * u);
-  g.fillStyle = COLORS.ink;
+  g.beginPath(); g.roundRect(14 * u, 14 * u, width - 28 * u, height - 28 * u, 14 * u); g.stroke();
+  g.fillStyle = '#eceae6';
   g.textAlign = 'center';
   g.textBaseline = 'alphabetic';
   if (kind === 'instructions') {
@@ -503,13 +402,16 @@ export function drawApronCard(kind, width) {
     lines.forEach((t, i) => g.fillText(t, 52 * u, (120 + i * 42) * u));
     g.font = FONTS.mono(13 * u);
     g.textAlign = 'center';
+    g.fillStyle = PLASMA(0.9);
     g.fillText('DYLANHUGHES.DEV', width / 2, 316 * u);
   } else {
     g.font = FONTS.display(40 * u, 780);
     g.fontStretch = 'expanded';
     g.fillText('Free play', width / 2, 118 * u);
     g.font = FONTS.mono(15 * u);
+    g.fillStyle = PLASMA(0.9);
     g.fillText('RICHMOND, VIRGINIA · EASTERN TIME', width / 2, 172 * u);
+    g.fillStyle = '#eceae6';
     g.font = FONTS.body(20 * u, 500);
     g.fillText('Websites · Game software · Printed parts', width / 2, 232 * u);
     g.fillStyle = COLORS.plasma;
@@ -568,6 +470,13 @@ export function drawApron(width) {
   g.letterSpacing = `${0.5 * s}px`;
   g.fillStyle = ALU(0.55);
   g.fillText('MODEL DH-26 · RICHMOND, VIRGINIA', cx, base + 17 * s);
+  // The cabinet's sweep carried onto the apron: a glowing band along the front edge, with a fine line riding it.
+  const sweep = g.createLinearGradient(X(x0), 0, X(x1), 0);
+  sweep.addColorStop(0, '#ff8a3d'); sweep.addColorStop(0.5, '#b8400b'); sweep.addColorStop(1, '#ff8a3d');
+  const wave = lift => { g.moveTo(X(x0), Y(10 + lift)); g.bezierCurveTo(X(x0 + 130), Y(1.5 + lift), X(x1 - 130), Y(1.5 + lift), X(x1), Y(10 + lift)); };
+  g.fillStyle = sweep;
+  g.beginPath(); g.moveTo(X(x0), Y(y0)); wave(0); g.lineTo(X(x1), Y(y0)); g.closePath(); g.fill();
+  g.strokeStyle = PLASMA(0.7); g.lineWidth = 0.7 * s; g.beginPath(); wave(4.5); g.stroke();
   return c;
 }
 
@@ -646,13 +555,30 @@ export function drawBankPlate(width, height) {
 }
 
 // Plastic art for the sling covers: graphite with an aluminium edge line.
-export function drawPlastic(width, height) {
-  const c = canvas(width, height);
+// A sling's printed plastic, drawn on its own outline (`pad` mm round the posts) at `ppm` pixels per millimetre: ink
+// with a fine dot grid, and a plasma rim just inside the edge that reads as light caught in the plastic's cut edge.
+// Returns the canvas and its extent in playfield millimetres, so the texture can be fitted to the part.
+export function drawSlingPlastic(sling, ppm = 8, pad = 12) {
+  const posts = ccw(sling.posts);
+  const outline = roundedHull(posts, pad, 10);
+  const xs = outline.map(p => p[0]), ys = outline.map(p => p[1]);
+  const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const c = canvas((box[2] - box[0]) * ppm, (box[3] - box[1]) * ppm);
   const g = c.getContext('2d');
-  g.fillStyle = '#1b1f23';
-  g.fillRect(0, 0, width, height);
-  g.strokeStyle = 'rgba(255,106,19,0.9)';
-  g.lineWidth = width * 0.02;
-  g.strokeRect(width * 0.08, height * 0.08, width * 0.84, height * 0.84);
-  return c;
+  const X = x => (x - box[0]) * ppm, Y = y => (box[3] - y) * ppm;
+  const path = pts => { g.beginPath(); pts.forEach(([x, y], k) => (k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.closePath(); };
+  const cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
+  const shade = g.createRadialGradient(X(cx), Y(cy + 10), 0, X(cx), Y(cy), (box[2] - box[0]) * ppm);
+  shade.addColorStop(0, '#2b2d31'); shade.addColorStop(1, '#131517');
+  g.fillStyle = shade;
+  g.fillRect(0, 0, c.width, c.height);
+  g.save();
+  path(outline); g.clip();
+  g.fillStyle = ALU(0.09);
+  for (let y = box[1]; y < box[3]; y += 4.2) for (let x = box[0]; x < box[2]; x += 4.2) { g.beginPath(); g.arc(X(x), Y(y), 0.42 * ppm, 0, Math.PI * 2); g.fill(); }
+  g.restore();
+  g.lineJoin = 'round';
+  g.strokeStyle = PLASMA(0.95); g.lineWidth = 1.5 * ppm; path(roundedHull(posts, pad - 1.6, 10)); g.stroke();
+  g.strokeStyle = PLASMA(0.32); g.lineWidth = 0.5 * ppm; path(roundedHull(posts, pad - 4.4, 10)); g.stroke();
+  return { canvas: c, box };
 }

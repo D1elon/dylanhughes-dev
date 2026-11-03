@@ -278,26 +278,17 @@ html:not(.machine) .home .site-footer { background: var(--cab); }
 
 /* Copy arrives in a short stagger when the camera reaches its station. */
 .machine.motion .placard > * { transition: opacity .7s var(--ease), transform .7s var(--ease); }
-.machine.motion .placard:not(.is-here):not(.on-glass) > * { opacity: 0; transform: translateY(12px); }
+.machine.motion .placard:not(.is-here) > * { opacity: 0; transform: translateY(12px); }
 .machine.motion .placard.is-here > :nth-child(2) { transition-delay: .06s; }
 .machine.motion .placard.is-here > :nth-child(3) { transition-delay: .12s; }
 .machine.motion .placard.is-here > :nth-child(4) { transition-delay: .18s; }
 .machine.motion .placard.is-here > :nth-child(5) { transition-delay: .24s; }
 .machine.motion .placard.is-here > :nth-child(n+6) { transition-delay: .3s; }
 
-/* The hero copy on the backglass: laid out at the glass's design size (1320 × 1000) and mapped onto the glass
-   by a perspective transform each frame. */
-.hero-copy.on-glass { opacity: 0; background: none; box-shadow: none; border-radius: 0; color: var(--cab-ink); padding: 96px 0 0 104px; text-shadow: none; z-index: 3; }
-.hero-copy.on-glass::before { display: none; }
-.hero-copy.on-glass > * { width: 640px; }
-.hero-copy.on-glass .kicker { width: 1000px; font-size: 25px; gap: 18px; color: #c3c8cb; margin-bottom: 44px; }
-.hero-copy.on-glass .led { width: 12px; height: 12px; }
-.hero-copy.on-glass .hero-title { font-size: 86px; line-height: .98; letter-spacing: -.035em; color: #f4f5f2; }
-.hero-copy.on-glass .hero-lede { font-size: 33px; line-height: 1.45; color: #b9bfc3; margin-block: 40px 52px; max-width: none; }
-.hero-copy.on-glass .actions { gap: 22px; }
-.hero-copy.on-glass .btn { min-height: 92px; padding: 0 38px; font-size: 29px; border-radius: 14px; gap: 22px; }
-.hero-copy.on-glass .btn-line { border-color: rgba(227, 229, 226, .4); color: var(--cab-ink); border-width: 2px; }
-.hero-copy.on-glass .btn-line:hover { border-color: var(--cab-ink); }
+/* The hero: the copy beside the machine, a size up from the sections' and with the same hairline. */
+.machine .station-hero .placard { border-top: 1px solid rgba(227, 229, 226, .2); padding-top: 20px; }
+.machine .station-hero .hero-title { font-size: clamp(40px, 4.4vw, 70px); line-height: .98; letter-spacing: -.035em; color: #f5f6f3; }
+.machine .station-hero .hero-lede { color: #bcc2c6; font-size: 18px; line-height: 1.55; }
 
 /* Display controls and the scroll cue sit at the foot of the screen while the backbox is in view. */
 .machine .dmd-strip { position: fixed; z-index: 3; left: var(--gutter); bottom: 22px; justify-content: flex-start; padding: 6px 6px 6px 16px; border-radius: 10px; background: rgba(12, 13, 14, .7); border: 1px solid var(--cab-rule); backdrop-filter: blur(8px); transition: opacity .5s var(--ease), transform .5s var(--ease); }

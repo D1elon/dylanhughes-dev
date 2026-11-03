@@ -221,8 +221,18 @@ function rollover(group, M, x, y, insert) {
 const SLING = { postR: 4.76, cord: 6.35, travel: 9 };
 
 function buildSlings(group, M, art, handles) {
-  const plasticTex = texture(art.plastic);
-  const coverMat = new THREE.MeshPhysicalMaterial({ map: plasticTex, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
+  // Each plastic's print is drawn on its own outline; the cover's UVs are its shape coordinates in metres, so the
+  // texture is fitted to the print's extent.
+  const coverMat = i => {
+    const { canvas, box } = art.plastics[i];
+    const tex = texture(canvas);
+    const [u0, v0, u1, v1] = [(box[0] - PF.w / 2) * MM, (box[1] - PF.l / 2) * MM, (box[2] - PF.w / 2) * MM, (box[3] - PF.l / 2) * MM];
+    tex.repeat.set(1 / (u1 - u0), 1 / (v1 - v0));
+    tex.offset.set(-u0 / (u1 - u0), -v0 / (v1 - v0));
+    return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
+  };
+  // The plastic's cut edge catches the light inside it.
+  const edgeLit = new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.45 });
   const nylon = new THREE.MeshPhysicalMaterial({ color: 0xece8dc, roughness: 0.45, clearcoat: 0.2 });
   for (const sling of SLINGS) {
     const g = new THREE.Group();
@@ -248,7 +258,7 @@ function buildSlings(group, M, art, handles) {
     g.add(rubber);
     // The plastic on its posts, held by a washer and nut on each.
     const cover = roundedHull(ccw(posts), 12, 8);
-    g.add(mesh(extrude(cover, 30.5, 2.2, { bevel: 0.4 }), coverMat));
+    g.add(mesh(extrude(cover, 30.5, 2.2, { bevel: 0.4 }), [coverMat(SLINGS.indexOf(sling)), edgeLit]));
     for (const [x, y] of posts) {
       g.add(place(mesh(new THREE.CylinderGeometry(3.5 * MM, 3.5 * MM, 0.55 * MM, 16).translate(0, 0.275 * MM, 0), M.steel), x, y, 32.7));
       g.add(place(mesh(new THREE.CylinderGeometry(3.67 * MM, 3.67 * MM, 2.8 * MM, 6).translate(0, 1.4 * MM, 0), M.steel), x, y, 33.25));
@@ -753,7 +763,7 @@ function buildGI(group, M, handles) {
     group.add(place(bulb, x, y));
     handles.bulbs.push(mat);
   }
-  const lights = [[120, 330, 70, 0.9], [355, 330, 70, 0.9], [237, 620, 120, 1.1], [237, 900, 110, 1.0]];
+  const lights = [[120, 330, 70, 0.9], [355, 330, 70, 0.9], [237, 620, 120, 0.5], [237, 900, 110, 0.55]];
   for (const [x, y, h, k] of lights) {
     const light = new THREE.PointLight(0xffd7a8, 0, 0.45, 2);
     light.position.copy(pf(x, y, h));
@@ -798,6 +808,14 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
   const front = mesh(new THREE.BoxGeometry(outer, frontH, C.wallT), M.cabinet);
   front.position.set(0, C.bottom + frontH / 2, C.front - C.wallT / 2);
   body.add(front);
+  // The sides' sweep carried across the front under the coin door, with its fine line.
+  const sweepH = (C.top - bottomAt(C.back)) * 0.08;
+  const sweep = mesh(new THREE.PlaneGeometry(outer, sweepH), new THREE.MeshStandardMaterial({ color: 0xc9470c, roughness: 0.42 }), { cast: false });
+  sweep.position.set(0, C.bottom + sweepH / 2, C.front + 0.0004);
+  body.add(sweep);
+  const line = mesh(new THREE.PlaneGeometry(outer, 0.0045), new THREE.MeshStandardMaterial({ color: 0xffb27f, roughness: 0.4 }), { cast: false });
+  line.position.set(0, C.bottom + sweepH + 0.017, C.front + 0.0004);
+  body.add(line);
   const backH = C.top - yMin;
   const back = mesh(new THREE.BoxGeometry(outer, backH, C.wallT), M.cabinet);
   back.position.set(0, yMin + backH / 2, C.back + C.wallT / 2);
@@ -969,9 +987,11 @@ export function buildPlate({ M, url, width, aspect, action, anisotropy }) {
   back.position.set(0, height / 2 + 0.006, 0);
   back.userData.action = action;
   hinge.add(back);
+  // The frame is printed plastic like the slings', its cut edge catching the light.
   const edge = 0.0035;
+  const rim = new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.55 });
   for (const [x, y, w, h] of [[0, height + 0.012 - edge / 2, width + 0.012, edge], [0, edge / 2, width + 0.012, edge], [-(width + 0.012) / 2 + edge / 2, height / 2 + 0.006, edge, height + 0.012], [(width + 0.012) / 2 - edge / 2, height / 2 + 0.006, edge, height + 0.012]]) {
-    const bar = mesh(new THREE.BoxGeometry(w, h, 0.007), M.trim);
+    const bar = mesh(new THREE.BoxGeometry(w, h, 0.007), rim);
     bar.position.set(x, y, 0.001);
     hinge.add(bar);
   }

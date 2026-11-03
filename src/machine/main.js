@@ -4,14 +4,14 @@
 import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
-import { buildMachine, buildPlate, BACKBOX } from './machine.js';
-import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawPlastic, drawApron, drawBankPlate, drawPopDecal, loadArtFonts } from './art.js';
+import { buildMachine, buildPlate, BACKBOX, CABINET } from './machine.js';
+import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawApron, drawBankPlate, drawPopDecal, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
-import { SurfaceOverlay } from './overlay.js';
 import { Hud } from './hud.js';
 import { Exploded } from './explode.js';
 import { pf } from './geo.js';
+import { SLINGS } from './layout.js';
 
 const root = document.documentElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -44,7 +44,7 @@ const ACTIONS = {
 // Camera stops, in playfield millimetres. `side` is where the copy sits; the part is framed in the rest of the
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
-  hero: { az: 0, el: 2, fit: [0.62, 0.72], side: 'hero', fov: 30 },
+  hero: { az: -18, el: 5, fit: [0.84, 1.02], side: 'left', fov: 30 },
   deadbounce: { at: [108, 882, 68], az: 30, el: 28, fit: [0.21, 0.245], side: 'right', lift: 18 },
   tiptop: { at: [366.35, 882, 68], az: -30, el: 28, fit: [0.21, 0.245], side: 'left', lift: 10 },
   about: { at: [237, 846, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
@@ -73,8 +73,8 @@ async function start() {
   const art = {
     playfield: drawPlayfield(quality.playfieldScale),
     backglass: drawBackglass(quality.low ? 1320 : 2048),
-    cabinetSide: drawCabinetSide(2048, 768),
-    plastic: drawPlastic(256, 256),
+    cabinetSide: drawCabinetSide(2048, 768, { frontBottom: (CABINET.top - CABINET.bottom) / (CABINET.top - CABINET.bottom + (CABINET.front - CABINET.back) * Math.tan(6.5 * DEG)) }),
+    plastics: SLINGS.map(sl => drawSlingPlastic(sl)),
     apron: drawApron(quality.low ? 1024 : 2048),
     bankPlate: drawBankPlate(512, 160),
     popDecal: drawPopDecal(256),
@@ -125,10 +125,6 @@ async function start() {
     h.interactive.push(plate.face);
     plates[name] = plate;
   }
-
-  // Hero copy on the backglass, when there is room to read it there.
-  const glassCopy = $('[data-glass]');
-  const overlay = glassCopy ? new SurfaceOverlay(glassCopy, h.heroAnchor, [BACKBOX.glassW, BACKBOX.glassH]) : null;
 
   // Callouts from parts to copy.
   const hud = new Hud($('[data-hud]'), stations, W);
@@ -184,15 +180,6 @@ async function start() {
     stage.resize(width, height);
     director.setView(width, height, header ? header.offsetHeight : 64);
     root.classList.toggle('tall', director.view.layout === 'tall');
-    // The copy goes on the glass only where it reads at a comfortable size there.
-    if (overlay) {
-      director.apply(director.resolve(director.poses[0]), 0, { instant: true, still: true });
-      overlay.attach();
-      const fits = director.view.layout === 'wide' && overlay.scaleOn(stage.camera, width) * 33 >= 14.5;
-      if (!fits) overlay.detach();
-      root.classList.toggle('glass-on', fits);
-      director.current = null;
-    }
     stations.forEach(el => { const card = el.querySelector('.placard'); if (card) el.style.setProperty('--ph', card.offsetHeight + 'px'); });
     director.measure(stations, height, director.view.layout === 'tall');
   }
@@ -255,6 +242,8 @@ async function start() {
     setTimeout(() => { show.release(); scrollTo(0, { duration: 2.8 }); }, reduced ? 0 : 520);
   }
   for (const el of $$('[data-launch]')) el.addEventListener('click', e => { e.preventDefault(); launch(); });
+  // The hero's "See the work" presses the cabinet's start button on its way down to the playfield.
+  for (const el of $$('.station-hero a[href="#work"]')) el.addEventListener('click', () => show.pressStart());
   for (const el of $$('[data-flip]')) {
     el.addEventListener('pointerenter', () => show.flip(el.dataset.flip));
     el.addEventListener('focus', () => show.flip(el.dataset.flip));
@@ -287,8 +276,8 @@ async function start() {
     placards.forEach((p, i) => {
       let v = clamp(1 - Math.abs(f - i) * 2.4);
       if (reduced) v = Math.abs(f - i) < 0.5 ? 1 : 0;
-      reveal[i] = i === 0 && root.classList.contains('glass-on') ? 0 : v;
-      if (!p || (i === 0 && root.classList.contains('glass-on'))) return;
+      reveal[i] = v;
+      if (!p) return;
       if (Math.abs(v - shown[i]) < 0.003) return;
       shown[i] = v;
       p.style.opacity = v.toFixed(3);
@@ -313,7 +302,7 @@ async function start() {
     // Shade whichever side carries copy; on tall screens, the bottom.
     const tall = director.view.layout === 'tall';
     const side = s => Math.max(0, ...reveal.map((v, i) => (sides[i] === s ? v : 0)));
-    const next = { l: tall ? 0 : side('left'), r: tall ? 0 : side('right'), b: tall ? Math.max(...reveal.slice(1), root.classList.contains('glass-on') ? 0 : reveal[0]) : 0 };
+    const next = { l: tall ? 0 : side('left'), r: tall ? 0 : side('right'), b: tall ? Math.max(...reveal) : 0 };
     for (const k of ['l', 'r', 'b']) {
       if (Math.abs(next[k] - shadeState[k]) < 0.004) continue;
       shadeState[k] = next[k];
@@ -341,13 +330,13 @@ async function start() {
   }
 
   // The intro: the machine powers on in the dark and the camera glides in to the backbox.
-  const intro = { blend: reduced ? 1 : 0, glass: reduced ? 1 : 0 };
+  const intro = { blend: reduced ? 1 : 0 };
   function powerOn() {
     root.classList.remove('booting');
     root.classList.add('machine-ready');
     if (reduced || !window.gsap) {
       show.power = 1;
-      intro.blend = intro.glass = 1;
+      intro.blend = 1;
       dmd.boot();
       return;
     }
@@ -358,8 +347,7 @@ async function start() {
       .to(show, { power: 0.3, duration: 0.05, ease: 'none' }, 0.68)
       .to(show, { power: 1, duration: 0.5, ease: 'power2.out' }, 0.78)
       .call(() => dmd.boot(), null, 0.85)
-      .to(intro, { blend: 1, duration: 2.6, ease: 'power3.inOut' }, 0.2)
-      .to(intro, { glass: 1, duration: 0.9, ease: 'power2.out' }, 2.0);
+      .to(intro, { blend: 1, duration: 2.6, ease: 'power3.inOut' }, 0.2);
   }
 
   // Pauses when the page is hidden.
@@ -407,7 +395,6 @@ async function start() {
       plate.setReveal(clamp(1 - Math.abs(f - i) * 2), plate.tilt);
     }
 
-    if (overlay && overlay.attached) overlay.update(stage.camera, width, height, clamp(1 - f * 2.6) * intro.glass);
     hud.update(stage.camera, width, height, reveal, director.view.layout === 'tall');
     if (exploded) {
       const e = explodeAt(y);
@@ -435,12 +422,12 @@ async function start() {
   director.apply(director.at(0), 0, { instant: true });
   stage.render();
   requestAnimationFrame(t => { last = t; frame(t); powerOn(); });
-  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, overlay, plates };
+  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, plates };
 }
 
 start().catch(err => {
   console.error(err);
-  root.classList.remove('machine', 'booting', 'glass-on', 'tall');
+  root.classList.remove('machine', 'booting', 'tall');
   root.classList.add('machine-failed');
   window.dispatchEvent(new Event('machine:failed'));
 });
