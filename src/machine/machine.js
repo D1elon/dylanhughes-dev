@@ -2,13 +2,14 @@
 // parts. Returns handles for everything that moves or lights.
 import * as THREE from 'three';
 import {
-  PF, BALL_R, FLIPPERS, FLIPPER, SLINGS, APRON, SHOOTER, ARCH, GUIDES, STAR_POSTS, REBOUND, GATE, TOP_LANES, POPS, POP,
-  RAMPS, RAMP, WIRE, DROPS, RETURN_LANES, RUBBER_POSTS, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_POSTS, ORBIT_ROLLOVERS, GI_SPOTS_UPPER,
+  PF, BALL_R, FLIPPERS, batParts, SLINGS, APRON, DRAIN_GUIDES, SHOOTER, ARCH, INLANE_GUIDES, STAR_POSTS, GATE, TOP_LANES, POPS, POP,
+  RAMPS, RAMP, WIRE, RETURN_LANES, ORBIT_GUIDES, ORBIT_WEDGES, ORBIT_POSTS, ORBIT_POST, ORBIT_ROLLOVERS, GI_SPOTS_UPPER,
+  TARGETS, TARGET_GUIDES, TARGET_POSTS, TARGET_RUBBER, SAUCER,
 } from './layout.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MM, pf, extrude, extrudeLocal, place, lathe, tube, tubeLocal, densify, wall, roundedHull, ccw, arcPoints } from './geo.js';
 import { insertMaterial, lacquer } from './materials.js';
-import { insertList } from './art.js';
+import { insertList, rolloverInsert, drawInsertPrint } from './art.js';
 
 const DEG = Math.PI / 180;
 const PITCH = PF.pitch * DEG;
@@ -42,6 +43,20 @@ function texture(canvas, maxAniso = 8) {
   return t;
 }
 
+// A printed plastic's top, its print fitted to the part: the caps' UVs are shape coordinates in metres, so the
+// texture is scaled to the print's extent (`box`, playfield millimetres).
+function printMaterial({ canvas, box }) {
+  const tex = texture(canvas);
+  const [u0, v0, u1, v1] = [(box[0] - PF.w / 2) * MM, (box[1] - PF.l / 2) * MM, (box[2] - PF.w / 2) * MM, (box[3] - PF.l / 2) * MM];
+  tex.repeat.set(1 / (u1 - u0), 1 / (v1 - v0));
+  tex.offset.set(-u0 / (u1 - u0), -v0 / (v1 - v0));
+  return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
+}
+// A plastic's cut edge catches the light inside it.
+let edgeLitMat;
+const edgeLit = () => (edgeLitMat ||= new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.45 }));
+const nylon = new THREE.MeshPhysicalMaterial({ color: 0xece8dc, roughness: 0.45, clearcoat: 0.2 });
+
 export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   const root = new THREE.Group();
   const body = new THREE.Group(); // the cabinet, tilted to the playfield's pitch
@@ -49,7 +64,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   root.add(body);
   const playfield = new THREE.Group();
   body.add(playfield);
-  const handles = { root, body, playfield, inserts: new Map(), pops: [], drops: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [], flashers: [] };
+  const handles = { root, body, playfield, inserts: new Map(), pops: [], targets: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [], flashers: [] };
 
   // Converts playfield millimetres to world coordinates.
   handles.toWorld = (x, y, h = 0) => {
@@ -59,13 +74,14 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
 
   buildBoard(playfield, M, art, anisotropy);
   buildRails(playfield, M);
-  buildGuides(playfield, M, handles);
+  buildGuides(playfield, M, art, handles);
   buildSlings(playfield, M, art, handles);
   buildFlippers(playfield, M, handles);
   buildApron(playfield, M, art, anisotropy);
   buildTopLanes(playfield, M, handles);
+  buildSaucer(playfield, M, handles);
   buildPops(playfield, M, art, anisotropy, handles);
-  buildDrops(playfield, M, art, anisotropy, handles);
+  buildTargets(playfield, M, art, anisotropy, handles);
   buildRamps(playfield, M, handles);
   buildGate(playfield, M, handles);
   buildInserts(playfield, handles);
@@ -80,16 +96,19 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
 // --- Playfield ----------------------------------------------------------------------------------------------------
 
 // The board: 12.7 mm ply under a clear-coated print, notched at the front right where the shooter lane runs out to
-// the cabinet's front wall.
+// the cabinet's front wall, with the saucer's cup let into it.
 const BOARD_OUTLINE = [[0, 0], [SHOOTER.laneLeft, 0], [SHOOTER.laneLeft, 105.8], [PF.w, 105.8], [PF.w, PF.l], [0, PF.l]];
+const SAUCER_HOLE = Array.from({ length: 40 }, (_, i) => { const a = -(i / 40) * Math.PI * 2; return [SAUCER.x + Math.cos(a) * (SAUCER.r + 0.6), SAUCER.y + Math.sin(a) * (SAUCER.r + 0.6)]; });
 function buildBoard(group, M, art, anisotropy) {
   const top = lacquer(texture(art.playfield, anisotropy));
   // Built in UV space (0–1 across the board) so the art maps straight on, then scaled to metres.
-  const shape = new THREE.Shape(BOARD_OUTLINE.map(([x, y]) => new THREE.Vector2(x / PF.w, y / PF.l)));
-  const geo = new THREE.ShapeGeometry(shape).scale(PF.w * MM, PF.l * MM, 1).translate((-PF.w / 2) * MM, (-PF.l / 2) * MM, 0).rotateX(-Math.PI / 2);
+  const uv = ([x, y]) => new THREE.Vector2(x / PF.w, y / PF.l);
+  const shape = new THREE.Shape(BOARD_OUTLINE.map(uv));
+  shape.holes.push(new THREE.Path(SAUCER_HOLE.map(uv)));
+  const geo = new THREE.ShapeGeometry(shape, 24).scale(PF.w * MM, PF.l * MM, 1).translate((-PF.w / 2) * MM, (-PF.l / 2) * MM, 0).rotateX(-Math.PI / 2);
   const plane = mesh(geo, top, { cast: false });
   group.add(plane);
-  group.add(mesh(extrude(BOARD_OUTLINE, -PF.thick - 0.05, PF.thick), M.wood, { cast: false }));
+  group.add(mesh(extrude(BOARD_OUTLINE, -PF.thick - 0.05, PF.thick, { holes: [SAUCER_HOLE] }), M.wood, { cast: false }));
   return plane;
 }
 
@@ -114,46 +133,72 @@ function buildRails(group, M) {
 
 // Feet bent out of a guide's bottom edge every `spacing` mm on the side the ball can't reach, each held by a screw.
 function guideFeet(group, M, line, side, spacing = 120) {
-  const tabs = [], screws = [];
+  const at = [];
   let carry = spacing / 2;
   for (let i = 1; i < line.length; i++) {
     const [x0, y0] = line[i - 1], [x1, y1] = line[i];
     const len = Math.hypot(x1 - x0, y1 - y0);
     if (!len) continue;
-    const dx = (x1 - x0) / len, dy = (y1 - y0) / len;
-    const nx = -dy * side, ny = dx * side;
     let d = carry;
-    for (; d <= len; d += spacing) {
-      const x = x0 + dx * d + nx * 4.6, y = y0 + dy * d + ny * 4.6;
-      const angle = Math.atan2(dy, dx);
-      tabs.push(new THREE.BoxGeometry(9 * MM, 1.2 * MM, 6 * MM).rotateY(angle).translate(...pf(x, y, 0.6).toArray()));
-      screws.push(new THREE.CylinderGeometry(2.3 * MM, 2.3 * MM, 1.1 * MM, 12).translate(...pf(x + nx * 0.6, y + ny * 0.6, 1.75).toArray()));
-    }
+    for (; d <= len; d += spacing) at.push({ x: x0 + ((x1 - x0) * d) / len, y: y0 + ((y1 - y0) * d) / len, dx: (x1 - x0) / len, dy: (y1 - y0) / len, side });
     carry = d - len;
+  }
+  footMeshes(group, M, at);
+}
+// A formed guide's feet where the template mounts it: `at` (0–1 along its length) on `side` (1 left of its run).
+function mountFeet(group, M, line, mounts) {
+  const s = [0];
+  for (let i = 1; i < line.length; i++) s.push(s[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
+  const at = mounts.filter(m => Number.isFinite(m.at)).map(m => {
+    const d = m.at * s.at(-1);
+    let i = 1;
+    while (i < line.length - 1 && s[i] < d) i++;
+    const a = line[i - 1], b = line[i], l = s[i] - s[i - 1] || 1, k = (d - s[i - 1]) / l;
+    return { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k, dx: (b[0] - a[0]) / l, dy: (b[1] - a[1]) / l, side: m.side };
+  });
+  footMeshes(group, M, at);
+}
+function footMeshes(group, M, list) {
+  const tabs = [], screws = [];
+  for (const { x: px, y: py, dx, dy, side } of list) {
+    const nx = -dy * side, ny = dx * side, x = px + nx * 4.6, y = py + ny * 4.6, angle = Math.atan2(dy, dx);
+    tabs.push(new THREE.BoxGeometry(9 * MM, 1.2 * MM, 6 * MM).rotateY(angle).translate(...pf(x, y, 0.6).toArray()));
+    screws.push(new THREE.CylinderGeometry(2.3 * MM, 2.3 * MM, 1.1 * MM, 12).translate(...pf(x + nx * 0.6, y + ny * 0.6, 1.75).toArray()));
   }
   if (tabs.length) group.add(mesh(mergeGeometries(tabs), M.steel, { cast: false }), mesh(mergeGeometries(screws), M.darkSteel, { cast: false }));
 }
 
-function buildGuides(group, M, handles) {
-  for (const g of GUIDES) group.add(mesh(wall(g, BAND.t, BAND.h), M.steel));
+// The inlane guides, the orbits and the lower field's posts and rollovers.
+function buildGuides(group, M, art, handles) {
+  // Origin's return plastics: a 3 mm contact plate at the ball's equator and a 3 mm cover over it at 30.8 mm, each
+  // printed like the sling covers with its cut edge lit, on two stacks of nylon spacers with an M4 screw through
+  // them, the cover screwed to the top of the star post between the lanes.
+  INLANE_GUIDES.forEach((g, i) => {
+    const prints = art.inlane[i];
+    group.add(mesh(extrude(ccw(g.plate.outline), g.plate.z, g.thickness, { bevel: 0.3 }), [printMaterial(prints.plate), edgeLit()]));
+    group.add(mesh(extrude(ccw(g.cover.outline), g.cover.z, g.thickness, { bevel: 0.4 }), [printMaterial(prints.cover), edgeLit()]));
+    const top = g.cover.z + g.thickness;
+    for (const [x, y] of g.stacks) {
+      group.add(place(mesh(new THREE.CylinderGeometry(4 * MM, 4 * MM, (g.plate.z - 0.8) * MM, 16).translate(0, ((g.plate.z - 0.8) / 2) * MM, 0), nylon), x, y));
+      group.add(place(mesh(new THREE.CylinderGeometry(4 * MM, 4 * MM, 15 * MM, 16).translate(0, 7.5 * MM, 0), nylon), x, y, g.plate.z + g.thickness));
+    }
+    for (const [x, y] of [...g.stacks, g.post]) {
+      group.add(place(mesh(new THREE.CylinderGeometry(4.5 * MM, 4.5 * MM, 0.8 * MM, 16).translate(0, 0.4 * MM, 0), M.steel, { cast: false }), x, y, top));
+      group.add(place(mesh(lathe([[0, 0], [3.6, 0], [3.6, 1.2], [2.6, 2.6], [0, 2.8]], 16), M.darkSteel, { cast: false }), x, y, top + 0.8));
+    }
+    // A short spacer between the star post's nut and the cover.
+    group.add(place(mesh(new THREE.CylinderGeometry(3.6 * MM, 3.6 * MM, (g.cover.z - 29.8) * MM, 6).translate(0, ((g.cover.z - 29.8) / 2) * MM, 0), M.steel, { cast: false }), ...g.post, 29.8));
+  });
   for (const [x, y] of STAR_POSTS) group.add(starPost(M, x, y));
-  for (const [x, y] of RUBBER_POSTS) group.add(starPost(M, x, y));
-  // A rebound rubber, when the layout has one: one ring stretched round two star posts.
-  if (REBOUND.length) {
-    for (const [x, y] of REBOUND) group.add(starPost(M, x, y, { ring: false }));
-    const band = densify(roundedHull(ccw(REBOUND), 7.13, 10), 4);
-    group.add(mesh(tube(band.map(([x, y]) => [x, y, 13.5]), 2.38, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
-  }
-  // The orbits: formed steel inner guides up each side and round the top corners, and the wedges that close the
-  // space behind each throat's bend. Each inner guide ends at a post with a rubber ring, at its throat's mouth.
+  // The orbits: Origin's formed steel inner guides up each side and the wedges that close the space behind each
+  // throat's bend, each foot where the template mounts it. Each inner guide ends at an 11 mm rubber post at its
+  // throat's mouth.
   group.add(mesh(mergeGeometries([...ORBIT_GUIDES, ...ORBIT_WEDGES].map(g => wall(g.line, BAND.t, BAND.h))), M.steel));
-  for (const [x, y] of ORBIT_POSTS) {
-    group.add(post(M, x, y, { height: 27 }));
-    group.add(place(mesh(new THREE.TorusGeometry(7.1 * MM, 2.38 * MM, 10, 28).rotateX(Math.PI / 2).translate(0, 13.5 * MM, 0), M.rubber), x, y));
-  }
-  for (const [i, r] of ORBIT_ROLLOVERS.entries()) handles.rollovers.push(rollover(group, M, r.x, r.y, 'orbit' + i));
+  for (const g of ORBIT_GUIDES) mountFeet(group, M, g.line, g.mounts);
+  for (const [x, y] of ORBIT_POSTS) group.add(rubberPost(M, x, y, ORBIT_POST.d, ORBIT_POST.height));
+  for (const [i, r] of ORBIT_ROLLOVERS.entries()) handles.rollovers.push(rollover(group, M, r.x, r.y, rolloverInsert('orbit' + i)));
   // Return-lane rollovers.
-  for (const [i, l] of RETURN_LANES.entries()) handles.rollovers.push(rollover(group, M, l.x, l.y, 'return' + i));
+  for (const [i, l] of RETURN_LANES.entries()) handles.rollovers.push(rollover(group, M, l.x, l.y, rolloverInsert('return' + i)));
 }
 
 // A star post (03-8319): fluted plastic, 19 mm across and 27 mm tall, with a groove at ball height for its rubber
@@ -182,9 +227,14 @@ function starPost(M, x, y, { ring = true } = {}) {
   return place(g, x, y);
 }
 
-// A metal mini post (02-4036): 9.5 mm across and 30 mm tall.
-function miniPost(M, x, y) {
-  return place(mesh(lathe([[0, 0], [5.6, 0], [5.6, 1], [4.76, 1.8], [4.76, 28.6], [4.2, 30.16], [0, 30.16]], 20), M.steel), x, y);
+// A small post sleeved in rubber, `d` across at ball height, with a white cap: the orbit throats' mouth posts.
+function rubberPost(M, x, y, d, height) {
+  const g = new THREE.Group();
+  const r = d / 2;
+  g.add(mesh(lathe([[0, 0], [r - 0.6, 0], [r - 0.6, 6], [0, 6]], 20), M.postPlastic));
+  g.add(mesh(lathe([[r - 2.4, 6], [r, 6.6], [r, 20.4], [r - 2.4, 21]], 24), M.rubber));
+  g.add(mesh(lathe([[0, 6], [r - 2.4, 6], [r - 2.4, 21], [r - 0.6, 21], [r - 0.6, height - 1], [r - 1.6, height], [0, height]], 20), M.postPlastic));
+  return place(g, x, y);
 }
 
 // A narrow plastic post (03-9357) carrying a plastic: 9.5 mm across, with a spacer up to the plastic's underside.
@@ -221,19 +271,6 @@ function rollover(group, M, x, y, insert) {
 const SLING = { postR: 4.76, cord: 6.35, travel: 9 };
 
 function buildSlings(group, M, art, handles) {
-  // Each plastic's print is drawn on its own outline; the cover's UVs are its shape coordinates in metres, so the
-  // texture is fitted to the print's extent.
-  const coverMat = i => {
-    const { canvas, box } = art.plastics[i];
-    const tex = texture(canvas);
-    const [u0, v0, u1, v1] = [(box[0] - PF.w / 2) * MM, (box[1] - PF.l / 2) * MM, (box[2] - PF.w / 2) * MM, (box[3] - PF.l / 2) * MM];
-    tex.repeat.set(1 / (u1 - u0), 1 / (v1 - v0));
-    tex.offset.set(-u0 / (u1 - u0), -v0 / (v1 - v0));
-    return new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
-  };
-  // The plastic's cut edge catches the light inside it.
-  const edgeLit = new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.3, emissive: 0xff6a13, emissiveIntensity: 0.45 });
-  const nylon = new THREE.MeshPhysicalMaterial({ color: 0xece8dc, roughness: 0.45, clearcoat: 0.2 });
   for (const sling of SLINGS) {
     const g = new THREE.Group();
     const posts = sling.posts;
@@ -258,7 +295,7 @@ function buildSlings(group, M, art, handles) {
     g.add(rubber);
     // The plastic on its posts, held by a washer and nut on each.
     const cover = roundedHull(ccw(posts), 12, 8);
-    g.add(mesh(extrude(cover, 30.5, 2.2, { bevel: 0.4 }), [coverMat(SLINGS.indexOf(sling)), edgeLit]));
+    g.add(mesh(extrude(cover, 30.5, 2.2, { bevel: 0.4 }), [printMaterial(art.plastics[SLINGS.indexOf(sling)]), edgeLit()]));
     for (const [x, y] of posts) {
       g.add(place(mesh(new THREE.CylinderGeometry(3.5 * MM, 3.5 * MM, 0.55 * MM, 16).translate(0, 0.275 * MM, 0), M.steel), x, y, 32.7));
       g.add(place(mesh(new THREE.CylinderGeometry(3.67 * MM, 3.67 * MM, 2.8 * MM, 6).translate(0, 1.4 * MM, 0), M.steel), x, y, 33.25));
@@ -293,7 +330,7 @@ function buildSlings(group, M, art, handles) {
 }
 
 // The bat outline: a base circle of radius R and a tip circle of radius r, `d` apart, joined by their outer tangents.
-function batOutline(R, r, d = FLIPPER.length) {
+function batOutline(R, r, d) {
   const phi = Math.asin((R - r) / d);
   const pts = [];
   const steps = 18;
@@ -304,17 +341,17 @@ function batOutline(R, r, d = FLIPPER.length) {
   return pts;
 }
 
-// A flipper bat: a bottom flange just off the wood, a groove carrying the rubber at ball height, and a top cap.
+// A flipper bat: a bottom flange just off the wood, a groove carrying the rubber at ball height, and a top cap, each
+// sized to its own bat (Origin's 88.7 mm main bats and 61.7 mm upper bats). Each turns by its own id.
 function buildFlippers(group, M, handles) {
-  const F = FLIPPER;
-  const band = F.rubberTo - F.rubberFrom;
-  const flange = extrudeLocal(batOutline(...F.flange), F.rubberFrom - 0.6, { bevel: 0.5 });
-  const core = extrudeLocal(batOutline(...F.groove), band);
-  const rubber = extrudeLocal(batOutline(F.baseR - 2.6, F.tipR - 2.6), band, { bevel: 2.6 });
-  const cap = extrudeLocal(batOutline(...F.cap), F.height - F.rubberTo, { bevel: 0.9 });
   for (const f of FLIPPERS) {
+    const P = batParts(f), band = P.rubberTo - P.rubberFrom, d = f.length;
+    const flange = extrudeLocal(batOutline(...P.flange, d), P.rubberFrom - 0.6, { bevel: 0.5 });
+    const core = extrudeLocal(batOutline(...P.groove, d), band);
+    const rubber = extrudeLocal(batOutline(f.baseR - 2.6, f.tipR - 2.6, d), band, { bevel: 2.6 });
+    const cap = extrudeLocal(batOutline(...P.cap, d), f.height - P.rubberTo, { bevel: 0.9 });
     const pivot = new THREE.Group();
-    const parts = [[flange, M.whitePlastic, 0.6], [core, M.whitePlastic, F.rubberFrom], [rubber, M.rubberOrange, F.rubberFrom], [cap, M.whitePlastic, F.rubberTo]];
+    const parts = [[flange, M.whitePlastic, 0.6], [core, M.whitePlastic, P.rubberFrom], [rubber, M.rubberOrange, P.rubberFrom], [cap, M.whitePlastic, P.rubberTo]];
     for (const [geo, mat, h] of parts) {
       const m = mesh(geo, mat);
       m.position.y = h * MM;
@@ -322,9 +359,11 @@ function buildFlippers(group, M, handles) {
       pivot.add(m);
       handles.interactive.push(m);
     }
+    // The shaft's nut on the cap.
+    pivot.add(mesh(new THREE.CylinderGeometry(3.2 * MM, 3.2 * MM, 1 * MM, 6).translate(0, (f.height + 0.5) * MM, 0), M.steel, { cast: false }));
     place(pivot, f.x, f.y, 0, f.rest);
     group.add(pivot);
-    handles.flippers.push({ ...f, pivot, angle: f.rest, target: f.rest, velocity: 0 });
+    handles.flippers.push({ ...f, pivot });
   }
 }
 
@@ -354,9 +393,9 @@ function buildApron(group, M, art, anisotropy) {
     wall([[PF.cx - open, -3.35], [PF.cx + open, -3.35]], T, h - 38.1, 38.1),
   ];
   group.add(mesh(mergeGeometries(walls), apronMat));
-  // In its shadow: the drain and the two guides that steer a ball into it.
+  // In its shadow: the drain and Origin's two formed guides that steer a ball into it.
   group.add(mesh(extrude(ccw(outline), 0.08, 0.1), M.cabinetInner, { cast: false }));
-  group.add(mesh(mergeGeometries([wall([[167, 101], [128, 75]], 1.6, 20), wall([[307, 101], [232, 74]], 1.6, 20)]), M.steel));
+  group.add(mesh(mergeGeometries(DRAIN_GUIDES.map(g => wall(g, 1.6, 20))), M.steel));
   // The lip's rolled edge.
   const stripe = arcPoints(PF.cx, APRON.lipCy, APRON.lipR + 0.6, lipA0, lipA1, 36).map(([x, y]) => [x, y, top - 0.6]);
   group.add(mesh(tube(stripe, 0.8, { tension: 0 }), M.aluminium, { cast: false }));
@@ -371,13 +410,50 @@ function buildApron(group, M, art, anisotropy) {
   }
 }
 
-// Top lanes: steel guides with a metal mini post at each end, and a rollover in each lane.
+// Top lanes: six guides, each a 3/16-inch rubber ring round two narrow plastic posts, and a rollover in each lane.
 function buildTopLanes(group, M, handles) {
-  for (const x of TOP_LANES.guides) {
-    group.add(mesh(wall([[x, TOP_LANES.guideFrom], [x, TOP_LANES.guideTo]], BAND.t, BAND.h), M.steel));
-    group.add(miniPost(M, x, TOP_LANES.guideFrom), miniPost(M, x, TOP_LANES.guideTo));
+  const rings = [];
+  for (const r of TOP_LANES.rubbers) {
+    for (const [x, y] of r.posts) group.add(post(M, x, y, { height: 26 }));
+    const path = densify(roundedHull(ccw(r.posts), r.postR + r.cord / 2, 10), 3);
+    rings.push(tube(path.map(([x, y]) => [x, y, r.h]), r.cord / 2, { closed: true, tension: 0.1, radial: 8, segments: path.length * 2 }));
   }
-  for (const [i, x] of TOP_LANES.centers.entries()) handles.rollovers.push(rollover(group, M, x, TOP_LANES.y, 'lane' + i));
+  group.add(mesh(mergeGeometries(rings), M.rubber));
+  for (const [i, l] of TOP_LANES.lanes.entries()) handles.rollovers.push(rollover(group, M, l.x, l.y, rolloverInsert('lane' + i)));
+}
+
+// The saucer: a stamped steel cup let into the board, its flange on the wood held by two screws, with the kicker's
+// slot at its back (opposite the way it kicks) and the kicker's finger in it, which swings out to eject the ball.
+function buildSaucer(group, M, handles) {
+  const { r } = SAUCER, g = new THREE.Group();
+  const local = (dx, dy, h = 0) => new THREE.Vector3(dx * MM, h * MM, -dy * MM);
+  // The cup's floor follows the ball 0.6 mm under it as it sits 5 mm down, then flares to the lip; outside it, the
+  // flange. The profile runs out over the top and back in under it, so the sheet has a thickness.
+  const dish = [];
+  for (let k = 0; k <= 8; k++) { const x = (k / 8) * 10.5; dish.push([x, 8.5 - Math.sqrt(14.1 ** 2 - x * x)]); }
+  const under = dish.map(([x, y]) => [x, y - 0.9]);
+  const cup = lathe([...under, [r - 0.4, -0.9], [r, -0.1], [r + 4.4, 0.05], [r + 4.4, 0.85], [r + 3.8, 0.95], [r - 0.3, 0.95], [r - 1, 0.2], ...[...dish].reverse()], 48);
+  g.add(mesh(cup, M.steel, { cast: false }));
+  // The slot and the finger, at the back.
+  const back = (SAUCER.kickAngle + 180) * DEG;
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(3.6 * MM, 0.2 * MM, 9 * MM), slotMaterial);
+  slot.position.copy(local(Math.cos(back) * (r - 1), Math.sin(back) * (r - 1), 1.05));
+  slot.rotation.y = back + Math.PI / 2;
+  g.add(slot);
+  const finger = new THREE.Group();
+  finger.add(mesh(new THREE.BoxGeometry(2 * MM, 8 * MM, 6 * MM).translate(0, -3 * MM, 0), M.darkSteel, { cast: false }));
+  finger.position.copy(local(Math.cos(back) * (r - 2), Math.sin(back) * (r - 2), 0));
+  finger.rotation.y = back + Math.PI / 2;
+  g.add(finger);
+  // Two screws through the flange, either side of the slot.
+  for (const s of [-1, 1]) {
+    const a = back + s * (Math.PI / 2), screw = mesh(lathe([[0, 0], [2.7, 0], [2.7, 0.6], [1.8, 1.4], [0, 1.6]], 16), M.chrome, { cast: false });
+    screw.position.copy(local(Math.cos(a) * (r + 2.2), Math.sin(a) * (r + 2.2), 0.95));
+    g.add(screw);
+  }
+  place(g, SAUCER.x, SAUCER.y);
+  group.add(g);
+  handles.saucer = { group: g, finger, rest: finger.position.clone(), out: local(-Math.cos(back), -Math.sin(back)).normalize(), kicked: -1 };
 }
 
 // A pop bumper: a dark base, a plastic skirt the ball presses against, a lit body, the steel ring on its two rods,
@@ -433,85 +509,118 @@ function buildPops(group, M, art, anisotropy, handles) {
     group.add(g);
     g.traverse(o => { o.userData.action = 'pop-' + i; });
     handles.interactive.push(cap, bodyMesh, skirtMesh);
-    handles.pops.push({ group: g, parts, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y });
+    handles.pops.push({ group: g, parts, ring, skirt: skirtMesh, cap, capMat, bodyMat, fired: -1, axis: new THREE.Vector3(1, 0, 0), x: p.x, y: p.y, id: p.id });
   }
 }
 
-function buildDrops(group, M, art, anisotropy, handles) {
-  const span = DROPS.count * DROPS.pitch + 8;
-  const plateTex = texture(art.bankPlate, anisotropy);
-  const plateFace = new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.42, metalness: 0.5 });
-  const plate = mesh(new THREE.BoxGeometry(span * MM, 40 * MM, 3 * MM), [M.darkSteel, M.darkSteel, M.darkSteel, M.darkSteel, plateFace, M.darkSteel]);
-  plate.position.copy(pf(DROPS.cx, DROPS.y + 9, 20));
-  group.add(plate);
-  // Slots the targets drop into.
-  const slotMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-  for (let i = 0; i < DROPS.count; i++) {
-    const x = DROPS.cx + (i - (DROPS.count - 1) / 2) * DROPS.pitch;
-    const slot = new THREE.Mesh(new THREE.PlaneGeometry((DROPS.width + 1.6) * MM, (DROPS.thick + 2) * MM).rotateX(-Math.PI / 2), slotMat);
-    slot.position.copy(pf(x, DROPS.y, 0.15));
-    group.add(slot);
-    const tex = texture(art.targets[i], anisotropy);
-    const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45 });
-    const edge = M.whitePlastic;
-    const target = mesh(new THREE.BoxGeometry(DROPS.width * MM, DROPS.height * MM, DROPS.thick * MM), [edge, edge, edge, edge, face, edge]);
+// The standup bank: three one-inch targets, each a printed face on a leaf switch in a dark housing that stands on a
+// steel bracket, knocked back a little when hit. Behind them a rubber round three 18 mm posts, and Origin's steel
+// guides from the bank up along each ramp's inner wall to the top lanes.
+function buildTargets(group, M, art, anisotropy, handles) {
+  const T = TARGETS, faceT = 2.4, front = -T.depth / 2;
+  const faceMat = new THREE.MeshStandardMaterial({ map: texture(art.target, anisotropy), roughness: 0.42 });
+  const edge = M.whitePlastic;
+  for (const [i, t] of T.list.entries()) {
     const holder = new THREE.Group();
-    holder.position.copy(pf(x, DROPS.y, 0));
-    target.position.y = (DROPS.height / 2) * MM;
-    holder.add(target);
+    const face = mesh(new THREE.BoxGeometry(T.width * MM, T.height * MM, faceT * MM), [edge, edge, edge, edge, faceMat, edge]);
+    // BoxGeometry's +Z face (index 4) looks toward the player (-y on the playfield), where the ball comes from.
+    face.position.set(0, (T.height / 2 + 1.5) * MM, -(front + faceT / 2) * MM);
+    holder.add(face);
+    holder.add(mesh(new THREE.BoxGeometry(18 * MM, 22 * MM, (T.depth - faceT) * MM).translate(0, 12.5 * MM, -(front + faceT + (T.depth - faceT) / 2) * MM), M.graphitePlastic));
+    holder.add(mesh(new THREE.BoxGeometry(0.4 * MM, 24 * MM, 5 * MM).translate(-4 * MM, 14 * MM, -(T.depth / 2 + 1) * MM), M.steel, { cast: false }));
+    place(holder, t.x, t.y);
     group.add(holder);
-    target.userData.action = 'drop-' + i;
-    handles.interactive.push(target);
-    handles.drops.push({ holder, target, index: i, x, state: 'up', since: -1 });
+    group.add(place(mesh(new THREE.BoxGeometry(22 * MM, 1.5 * MM, (T.depth + 4) * MM).translate(0, 0.75 * MM, 0), M.darkSteel, { cast: false }), t.x, t.y + 1));
+    face.userData.action = 'target-' + i;
+    handles.interactive.push(face);
+    handles.targets.push({ holder, face, rest: holder.position.clone(), back: new THREE.Vector3(0, 0, -MM), hit: -1, index: i });
   }
+  // The posts the rubber wraps: 18 mm, grooved at the rubber's height.
+  for (const [k, p] of TARGET_POSTS.entries()) {
+    const r = p.d / 2, gr = TARGET_RUBBER.grooves[k], h = TARGET_RUBBER.h, c = TARGET_RUBBER.cord;
+    group.add(place(mesh(lathe([[0, 0], [r, 0], [r, h - c / 2 - 1.5], [gr, h - c / 2 - 0.5], [gr, h + c / 2 + 0.5], [r, h + c / 2 + 1.5], [r, p.height - 1.2], [r - 1.2, p.height], [0, p.height]], 28), M.postPlastic), p.x, p.y));
+    group.add(place(mesh(new THREE.CylinderGeometry(3.67 * MM, 3.67 * MM, 2.8 * MM, 6).translate(0, 1.4 * MM, 0), M.steel, { cast: false }), p.x, p.y, p.height));
+  }
+  const band = bandAround(TARGET_RUBBER.posts.map(([x, y], k) => ({ x, y, r: TARGET_RUBBER.grooves[k] + TARGET_RUBBER.cord / 2 })));
+  group.add(mesh(tube(densify(band, 3).map(([x, y]) => [x, y, TARGET_RUBBER.h]), TARGET_RUBBER.cord / 2, { closed: true, tension: 0.1, radial: 8 }), M.rubber));
+  group.add(mesh(mergeGeometries(TARGET_GUIDES.map(g => wall(g.line, g.thickness, BAND.h))), M.steel));
+  for (const g of TARGET_GUIDES) mountFeet(group, M, g.line, g.mounts);
+}
+// The outline round circles of different sizes ([{ x, y, r }], convex, counter-clockwise): tangent runs between arcs.
+function bandAround(circles) {
+  const c = ccw(circles.map(k => [k.x, k.y])).map(([x, y]) => circles.find(k => k.x === x && k.y === y));
+  const n = c.length, out = [];
+  const tangent = (a, b) => { const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); return Math.atan2(dy, dx) - Math.acos((a.r - b.r) / d); };
+  for (let i = 0; i < n; i++) {
+    const p = c[i], a0 = tangent(c[(i - 1 + n) % n], p), a1 = tangent(p, c[(i + 1) % n]);
+    let sweep = a1 - a0;
+    while (sweep < 0) sweep += Math.PI * 2;
+    const steps = Math.max(2, Math.ceil(sweep / (8 * DEG)));
+    for (let k = 0; k <= steps; k++) { const a = a0 + (sweep * k) / steps; out.push([p.x + Math.cos(a) * p.r, p.y + Math.sin(a) * p.r]); }
+  }
+  return out;
 }
 
-// Ramps and wireforms. Each ramp is swept along its centre line with real thickness, stands on hex standoffs with
-// tabs outside its walls, and hands the ball to a wireform at the top of its turn.
+// Ramps and wireforms, on Origin's centre lines. Each ramp is swept along its profile with real thickness, flared to
+// its mouth, stands on printed posts and hands the ball to a printed two-wire form at the top of its turn.
 function buildRamps(group, M, handles) {
   handles.ramps = [];
   const rampMat = M.clearPlastic;
   for (const ramp of RAMPS) {
-    const t = ramp.turn, dir = t.mirror ? -1 : 1;
-    const turnPts = [];
-    for (let k = 1; k <= 18; k++) {
-      const a = ((t.from + (t.to - t.from) * (k / 18)) * Math.PI) / 180;
-      turnPts.push([t.cx + dir * Math.cos(a) * t.r, t.cy + Math.sin(a) * t.r, t.h0 + (t.h1 - t.h0) * (k / 18)]);
-    }
-    const centre = [...ramp.path, ...turnPts, ...(t.exit ? [t.exit] : [])];
-    const curve = new THREE.CatmullRomCurve3(centre.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
-    let turnStart = 0;
-    for (let i = 1; i < ramp.path.length; i++) turnStart += Math.hypot(...ramp.path[i].map((v, k) => v - ramp.path[i - 1][k]));
-    const outer = dir; // the turn's outer wall: right of travel on the left ramp, left of travel on the right
+    const curve = new THREE.CatmullRomCurve3(ramp.profile.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
+    const width = widthAlong(ramp.profile);
     const g = new THREE.Group();
-    const body = mesh(sweepRamp(curve, turnStart, outer), rampMat, { cast: false, receive: false });
+    const body = mesh(sweepRamp(curve, width), rampMat, { cast: false, receive: false });
     body.renderOrder = 2;
     g.add(body);
-    g.add(rampSupports(curve, turnStart, outer, M, rampMat));
+    g.add(rampSupports(ramp, M, rampMat));
     for (const child of g.children) child.traverse(o => { o.userData.action = 'ramp-' + ramp.id; });
     group.add(g);
     handles.interactive.push(body);
 
-    // A flasher on the turn's outer wall, at the apex: it fires when the ramp is made.
-    handles.flashers.push(flasher(group, M, curve, turnStart, outer, ramp.id));
+    // A flasher on the turn's outer wall, at its apex: it fires when the ramp is made.
+    handles.flashers.push(flasher(group, M, curve, width, ramp));
 
     // The wireform carries on from the end of the turn.
     const wireCurve = new THREE.CatmullRomCurve3(ramp.wire.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
-    group.add(mesh(sweepWires(wireCurve), M.chrome));
+    group.add(mesh(sweepWires(wireCurve, ramp), M.chrome));
     group.add(wireSupports(wireCurve, ramp, M));
     handles.ramps.push({ id: ramp.id, side: ramp.side, curve, wireCurve, group: g });
   }
 }
+// A profile's width at a fraction u of its 3D length (as a curve's getPointAt measures it).
+function widthAlong(profile) {
+  const s = [0];
+  for (let i = 1; i < profile.length; i++) s.push(s[i - 1] + Math.hypot(...[0, 1, 2].map(k => profile[i][k] - profile[i - 1][k])));
+  return u => {
+    const d = u * s.at(-1);
+    let i = 1;
+    while (i < s.length - 1 && s[i] < d) i++;
+    const k = Math.max(0, Math.min(1, (d - s[i - 1]) / (s[i] - s[i - 1] || 1)));
+    return profile[i - 1][3] + (profile[i][3] - profile[i - 1][3]) * k;
+  };
+}
+// Where a ramp turns hardest: the fraction along it, and which side of travel is the turn's outside (1 left, -1 right).
+function apex(curve) {
+  let best = 0, at = 0.5, side = 1;
+  for (let i = 40; i <= 195; i++) {
+    const u = i / 200, a = curve.getTangentAt(u - 0.01).setY(0).normalize(), b = curve.getTangentAt(u + 0.01).setY(0).normalize();
+    const turn = a.x * b.z - a.z * b.x;
+    if (Math.abs(turn) > best) { best = Math.abs(turn); at = u; side = turn > 0 ? 1 : -1; }
+  }
+  return { at, outer: side };
+}
 
 // A flasher dome: a clear orange dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
 // light that throws its flash onto the playfield.
-function flasher(group, M, curve, turnStart, outer, id) {
-  const L = curve.getLength() / MM, u = (turnStart + (L - turnStart) * 0.5) / L;
+function flasher(group, M, curve, width, ramp) {
+  const { at: u, outer } = apex(curve);
   const p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
-  const side = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(outer);
+  // In the playfield group's frame (Z toward the player), the left of travel is up × tangent.
+  const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tan).normalize().multiplyScalar(outer);
   const g = new THREE.Group();
-  g.position.copy(p).addScaledVector(side, (RAMP.width / 2 + RAMP.side + 9) * MM);
-  g.position.y = p.y + (RAMP.outerWall - 4) * MM;
+  g.position.copy(p).addScaledVector(side, (width(u) / 2 + RAMP.side + 9) * MM);
+  g.position.y = p.y + (RAMP.wall - 4) * MM;
   g.add(mesh(new THREE.BoxGeometry(14 * MM, 2 * MM, 22 * MM).translate(0, -1 * MM, 6 * MM).applyMatrix4(new THREE.Matrix4().lookAt(new THREE.Vector3(), side, new THREE.Vector3(0, 1, 0))), M.darkSteel, { cast: false }));
   g.add(mesh(lathe([[0, 0], [15, 0], [15, 4], [13.5, 5], [0, 5]], 32), M.graphitePlastic, { cast: false }));
   const mat = new THREE.MeshPhysicalMaterial({ color: 0xff7a2a, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: 0xff5a10, emissiveIntensity: 0, transparent: true, opacity: 0.88 });
@@ -521,25 +630,22 @@ function flasher(group, M, curve, turnStart, outer, id) {
   light.position.y = 16 * MM;
   g.add(light);
   group.add(g);
-  return { id, mat, light, level: 0 };
+  return { id: ramp.id, mat, light, level: 0 };
 }
 
-// The ramp's body: a 3 mm floor and 2.4 mm walls swept along its centre line. The channel is 42 mm, flared to a
-// 52 mm mouth; the turn's outer wall stands taller; and low down, where the floor is under 30 mm, the walls carry on
-// down to the wood so no ball can get under the floor.
-function sweepRamp(curve, turnStart, outer) {
-  const R = RAMP, L = curve.getLength() / MM, steps = 200;
+// The ramp's body: a 3 mm floor and 2.4 mm walls 28 mm tall, swept along its centre line. The channel follows the
+// profile's width (52 mm at the mouth easing to 42 over 60 mm); low down, where the floor is under 30 mm, the walls
+// carry on down to the wood so no ball can get under the floor.
+function sweepRamp(curve, width) {
+  const R = RAMP, steps = 240;
   const up = new THREE.Vector3(0, 1, 0);
   const frames = [];
   for (let i = 0; i <= steps; i++) {
     const u = i / steps, p = curve.getPointAt(u), tan = curve.getTangentAt(u);
-    frames.push({ p, side: new THREE.Vector3().crossVectors(tan, up).normalize(), s: u * L, floor: p.y / MM });
+    frames.push({ p, side: new THREE.Vector3().crossVectors(tan, up).normalize(), w: width(u), floor: p.y / MM });
   }
-  const profile = ({ s, floor }) => {
-    const w = R.width + (R.mouth - R.width) * Math.max(0, 1 - s / R.flare);
-    const turn = THREE.MathUtils.smoothstep(s, turnStart - 40, turnStart + 30) * (R.outerWall - R.wall);
-    const hr = R.wall + (outer > 0 ? turn : 0), hl = R.wall + (outer < 0 ? turn : 0);
-    const a = w / 2, b = a + R.side, f = R.floor;
+  const profile = ({ w, floor }) => {
+    const a = w / 2, b = a + R.side, f = R.floor, hr = R.wall, hl = R.wall;
     const d = floor < 30 ? Math.max(0, floor - f) : 0;
     return [
       [[-b, -f], [b, -f], [b, hr], [a, hr], [a, 0], [-a, 0], [-a, hl], [-b, hl]],
@@ -567,111 +673,106 @@ function sweepRamp(curve, turnStart, outer) {
       geos.push(geo);
     }
   });
-  // The entrance: a feathered metal flap lying on the wood in front of the mouth.
+  // The entrance: a feathered flap lying on the wood in front of the mouth.
   const f0 = frames[0], tan0 = curve.getTangentAt(0);
-  const flap = new THREE.BoxGeometry(R.mouth * MM, 0.8 * MM, 28 * MM);
+  const flap = new THREE.BoxGeometry((f0.w + 2 * R.side) * MM, 0.8 * MM, 26 * MM);
   flap.applyMatrix4(new THREE.Matrix4().makeBasis(f0.side, up, tan0.clone().setY(0).normalize().negate()));
-  flap.translate(f0.p.x - tan0.x * 12 * MM, 0.4 * MM, f0.p.z - tan0.z * 12 * MM);
+  flap.translate(f0.p.x - tan0.x * 11 * MM, 0.4 * MM, f0.p.z - tan0.z * 11 * MM);
   flap.deleteAttribute('uv');
   geos.push(flap);
   return mergeGeometries(geos.map(g => (g.index ? g.toNonIndexed() : g)));
 }
 
-// Hex standoffs (5/16 inch) standing 6.5 mm outside a wall, each carrying a printed tab out from the floor.
-function rampSupports(curve, turnStart, outer, M, rampMat) {
-  const L = curve.getLength() / MM, up = new THREE.Vector3(0, 1, 0);
-  const turnLen = L - turnStart;
-  const spots = RAMP.stations({ turnStart, turnLen, length: L }).map(({ s, side }) => [s, side * outer]);
-  const posts = [], tabs = [], screws = [];
-  for (const [s, side] of spots) {
-    const u = Math.min(1, s / L), p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
-    const sv = new THREE.Vector3().crossVectors(tan, up).normalize().multiplyScalar(side);
-    const floor = p.y / MM;
-    if (floor < 30) continue;
-    const off = RAMP.width / 2 + RAMP.side + 6.5;
-    const base = p.clone().addScaledVector(sv, off * MM);
-    // Never on, or past, the rail.
-    const bx = base.x / MM + PF.w / 2, by = PF.l / 2 - base.z / MM;
-    if (bx < PF.rail + 4.62 || bx > SHOOTER.laneRight - 4.62 || by > ARCH.top - 4.62) continue;
-    const h = floor - RAMP.floor - 1.5;
-    posts.push(new THREE.CylinderGeometry(4.62 * MM, 4.62 * MM, h * MM, 6).translate(base.x, (h / 2) * MM, base.z));
-    const tab = new THREE.BoxGeometry(18 * MM, 1.5 * MM, (off - RAMP.width / 2 + 5) * MM);
-    tab.applyMatrix4(new THREE.Matrix4().makeBasis(tan, up, sv));
-    const mid = p.clone().addScaledVector(sv, ((off + RAMP.width / 2) / 2 + 1.5) * MM);
-    tab.translate(mid.x, (h + 0.75) * MM, mid.z);
-    tabs.push(tab);
-    screws.push(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 1.2 * MM, 12).translate(base.x, (h + 2.1) * MM, base.z));
+// The point of a centre line (playfield mm, [x, y, h, ...]) nearest (x, y) in plan, and the direction to it.
+function nearest(line, x, y) {
+  let best = line[0], bd = Infinity;
+  for (const q of line) { const d = Math.hypot(q[0] - x, q[1] - y); if (d < bd) { bd = d; best = q; } }
+  return { q: best, d: bd, dx: (best[0] - x) / (bd || 1), dy: (best[1] - y) / (bd || 1) };
+}
+
+// Origin's printed support posts (13 mm, on a foot screwed to the board), each under a printed ear on the ramp's
+// side wall.
+function rampSupports(ramp, M, rampMat) {
+  const posts = [], ears = [], feet = [];
+  for (const [x, y, z] of ramp.supports) {
+    const top = z - RAMP.floor - 0.5, n = nearest(ramp.profile, x, y), angle = Math.atan2(n.dy, n.dx);
+    posts.push(new THREE.CylinderGeometry(6.5 * MM, 6.5 * MM, top * MM, 20).translate(...pf(x, y, top / 2).toArray()));
+    feet.push(new THREE.BoxGeometry(32 * MM, 4 * MM, 11 * MM).rotateY(angle + Math.PI / 2).translate(...pf(x, y, 2).toArray()));
+    const len = n.d - n.q[3] / 2 + 1;
+    ears.push(new THREE.BoxGeometry(len * MM, 3 * MM, 18 * MM).rotateY(angle).translate(...pf(x + (n.dx * len) / 2, y + (n.dy * len) / 2, top + 1.5).toArray()));
   }
   const g = new THREE.Group();
   if (posts.length) {
-    g.add(mesh(mergeGeometries(posts), M.zinc));
-    const tabMesh = mesh(mergeGeometries(tabs), rampMat, { cast: false, receive: false });
-    tabMesh.renderOrder = 2;
-    g.add(tabMesh, mesh(mergeGeometries(screws), M.darkSteel, { cast: false }));
+    g.add(mesh(mergeGeometries(posts), M.whitePlastic), mesh(mergeGeometries(feet), M.whitePlastic, { cast: false }));
+    const earMesh = mesh(mergeGeometries(ears), rampMat, { cast: false, receive: false });
+    earMesh.renderOrder = 2;
+    g.add(earMesh);
   }
   return g;
 }
 
-// A steel wireform of 1/8-inch rod: two bottom rails 22 mm apart that the ball rides, two side rails above them, and
-// U-hoops passing under the bottom rails at most 50 mm apart. At the end the rails spread and a stop rail closes
-// the form, so the ball drops through onto the inlane.
-function sweepWires(curve) {
+// Origin's printed two-wire form: 5 mm rails ±11.2 mm either side of the path with their undersides on its height,
+// U-hoops under them every 55 mm, a side rail round the outside of the turn, and at the end a rounded dead end: the
+// rails spread over 40 mm into a U round the ball, a stop rail above it, and the ball drops through onto its inlane.
+function sweepWires(curve, ramp) {
   const L = curve.getLength() / MM, steps = Math.ceil(L / 3);
   const up = new THREE.Vector3(0, 1, 0);
   const frame = u => {
-    const p = curve.getPointAt(u), t = curve.getTangentAt(u);
+    const p = curve.getPointAt(Math.min(1, Math.max(0, u))), t = curve.getTangentAt(Math.min(1, Math.max(0, u)));
     return { p, t, s: new THREE.Vector3().crossVectors(t, up).normalize() };
   };
+  // `lat` is to the right of travel (crossVectors(t, up)); `vert` up from the path; `fwd` along it.
   const at = (f, lat, vert, fwd = 0) => f.p.clone().addScaledVector(f.s, lat * MM).addScaledVector(up, vert * MM).addScaledVector(f.t, fwd * MM);
-  const spread = s => THREE.MathUtils.smoothstep(s, L - 45, L - 6);
+  const W = WIRE, half = W.rail, r = W.rod, end = W.dropRadius, from = L - end - W.spread;
+  const ease = u => { const t = Math.max(0, Math.min(1, u)); return t * t * (3 - 2 * t); };
   const geos = [];
-  const rod = (pts, r = WIRE.rod, segs) => geos.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs || pts.length * 2, r * MM, 8));
-  const [ux, uy] = WIRE.upper;
-  for (const [lat, vert, end] of [[-WIRE.rail, 0, 21], [WIRE.rail, 0, 21], [-ux, uy, 22], [ux, uy, 22]]) {
+  const rod = (pts, rr = r, segs) => geos.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs || pts.length * 2, rr * MM, 8));
+  // Bottom rails, spreading into the U at the end.
+  for (const s of [-1, 1]) {
     const pts = [];
     for (let i = 0; i <= steps; i++) {
-      const u = i / steps, sp = spread(u * L);
-      pts.push(at(frame(u), Math.sign(lat) * (Math.abs(lat) + sp * (end - Math.abs(lat))), vert));
+      const d = (i / steps) * (L - end);
+      pts.push(at(frame(d / L), s * (half + (end - half) * ease((d - from) / W.spread)), r));
     }
-    rod(pts, WIRE.rod, steps);
+    rod(pts, r, steps);
   }
-  // The stop rail: a half hoop round the end, joining the side rails.
-  const fe = frame(1), stop = [];
-  for (let k = 0; k <= 14; k++) { const a = (k / 14) * Math.PI; stop.push(at(fe, -22 * Math.cos(a), uy - 6 * Math.sin(a), 16 * Math.sin(a))); }
+  const fe = frame((L - end) / L), u = [];
+  for (let k = 0; k <= 16; k++) { const a = (k / 16) * Math.PI; u.push(at(fe, -end * Math.cos(a), r, end * Math.sin(a))); }
+  rod(u);
+  // The side rails (Origin's: the outside of the turn; side 1 is the left of travel), and the stop rail over the U.
+  const { u: su, v: sv } = W.sideRail;
+  for (const rail of ramp.sideRails) {
+    const pts = [], n = Math.max(4, Math.ceil(((rail.to - rail.from) * L) / 3));
+    for (let i = 0; i <= n; i++) pts.push(at(frame(rail.from + ((rail.to - rail.from) * i) / n), -rail.side * su, sv));
+    rod(pts, r, n);
+  }
+  const stop = [];
+  for (let k = 0; k <= 16; k++) { const a = (k / 16) * Math.PI; stop.push(at(fe, -(end + 1) * Math.cos(a), sv, (end + 1) * Math.sin(a))); }
   rod(stop);
-  // Hoops.
-  const hoop = [[-ux, uy], [-15.6, 8], [-13, -3], [-6.5, -6.6], [0, -7.2], [6.5, -6.6], [13, -3], [15.6, 8], [ux, uy]];
-  for (let s = 22; s < L - 50; s += 48) { const f = frame(s / L); rod(hoop.map(([lat, vert]) => at(f, lat, vert)), 1.4, 24); }
+  for (const s of [-1, 1]) rod([at(fe, s * (end + 1), r), at(fe, s * (end + 1), sv)], r, 4);
+  // Hoops: a band under the rails, dipping clear of the ball between them and rising outside them.
+  const hoop = [[-half - 4, r + 3], [-half - 2.5, -0.5], [-half + 1, -2.8], [0, -4.2], [half - 1, -2.8], [half + 2.5, -0.5], [half + 4, r + 3]];
+  for (let s = 20; s < from; s += 55) { const f = frame(s / L); rod(hoop.map(([lat, vert]) => at(f, lat, vert)), 1.75, 24); }
   return mergeGeometries(geos);
 }
 
-// Wireform supports: hex posts inboard of the form with a strap up to it, and a bracket from the inlane's star post
-// to the dead end.
+// Wireform supports: Origin's printed posts, each up to an ear on the hoop above it.
 function wireSupports(curve, ramp, M) {
   const posts = [], straps = [];
-  const strap = (a, b, w = 6, t = 1.5) => {
+  const strap = (a, b, w = 7, t = 3) => {
     const d = b.clone().sub(a), len = d.length();
     const geo = new THREE.BoxGeometry(w * MM, t * MM, len);
     geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.normalize()));
     geo.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
     straps.push(geo);
   };
-  const near = (x, y) => {
-    let best = 0, bd = Infinity;
-    for (let i = 0; i <= 200; i++) { const p = curve.getPointAt(i / 200); const d = Math.hypot(p.x - pf(x, y).x, p.z - pf(x, y).z); if (d < bd) { bd = d; best = i / 200; } }
-    return curve.getPointAt(best);
-  };
-  for (const [x, y] of ramp.supports) {
-    const w = near(x, y);
-    const top = w.y / MM - 9;
-    const base = pf(x, y, top);
-    posts.push(new THREE.CylinderGeometry(4.62 * MM, 4.62 * MM, top * MM, 6).translate(base.x, (top / 2) * MM, base.z));
-    strap(base, w.clone().add(new THREE.Vector3(0, -7.6 * MM, 0)));
+  for (const [x, y, z] of ramp.wireSupports) {
+    const n = nearest(ramp.wire, x, y), top = z - 6;
+    posts.push(new THREE.CylinderGeometry(6.5 * MM, 6.5 * MM, top * MM, 20).translate(...pf(x, y, top / 2).toArray()));
+    strap(pf(x, y, top + 1.5), pf(n.q[0] - n.dx * (WIRE.rail - 2), n.q[1] - n.dy * (WIRE.rail - 2), n.q[2] - 2.5));
   }
-  const end = curve.getPointAt(1);
-  strap(pf(ramp.post[0], ramp.post[1], 30.2), end.clone().add(new THREE.Vector3(0, -6 * MM, 0)), 7, 2);
   const g = new THREE.Group();
-  g.add(mesh(mergeGeometries(posts), M.zinc), mesh(mergeGeometries(straps), M.zinc));
+  if (posts.length) g.add(mesh(mergeGeometries(posts), M.whitePlastic), mesh(mergeGeometries(straps), M.chrome));
   return g;
 }
 
@@ -694,15 +795,25 @@ function buildGate(group, M, handles) {
   handles.gate = { flap, open: 0, velocity: 0, at: pf((ax + bx) / 2, (ay + by) / 2, BALL_R) };
 }
 
+// Every insert, as Origin shapes it: plastic sanded flush with the wood, lit from beneath. A lens with a legend or an
+// icon carries it as ink on its underside: the print darkens the lens and masks its lamp.
 function buildInserts(group, handles) {
   for (const ins of insertList()) {
     const mat = insertMaterial(ins.color);
+    if (ins.legend || ins.icon) {
+      const tex = texture(drawInsertPrint(ins, 192));
+      // The cap's UVs are its shape coordinates in metres, centred on the insert.
+      tex.repeat.set(1 / (ins.w * MM), 1 / (ins.l * MM));
+      tex.offset.set(0.5, 0.5);
+      mat.map = tex;
+      mat.emissiveMap = tex;
+    }
     // Sanded flush with the wood: only a hair of the top stands above the board.
-    const m = new THREE.Mesh(extrudeLocal(ins.shape, 0.4, { curveSegments: 6 }), mat);
+    const m = new THREE.Mesh(extrudeLocal(ins.shape, 0.4, { curveSegments: 6 }), [mat, insertMaterial(ins.color)]);
     place(m, ins.x, ins.y, -0.34, ins.angle);
     m.renderOrder = 1;
     group.add(m);
-    handles.inserts.set(ins.id, { mesh: m, mat, group: ins.group, index: ins.index, level: 0.06, goal: 0.06, flash: 0 });
+    handles.inserts.set(ins.id, { mesh: m, mat, side: m.material[1], group: ins.group, index: ins.index, level: 0.06, goal: 0.06, flash: 0 });
   }
 }
 
@@ -963,9 +1074,10 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
 
 // --- Media plates ------------------------------------------------------------------------------------------------
 // A screenshot or photo printed on a plate in an aluminium frame, on two chrome standoffs, like a ramp sign. It is
-// hinged at its foot: `reveal` swings it up from lying flat on the playfield to standing, facing the camera.
+// hinged at its foot: `reveal` swings it up from lying flat on the playfield to standing, facing the camera. `feet`:
+// the standoffs' distance either side of the middle, as a fraction of the plate's width.
 
-export function buildPlate({ M, url, width, aspect, action, anisotropy }) {
+export function buildPlate({ M, url, width, aspect, action, anisotropy, feet = 0.32 }) {
   const height = width / aspect;
   const loader = new THREE.TextureLoader();
   const tex = loader.load(url);
@@ -996,7 +1108,7 @@ export function buildPlate({ M, url, width, aspect, action, anisotropy }) {
     hinge.add(bar);
   }
   // Standoffs from the wood to the plate's foot.
-  for (const x of [-width * 0.32, width * 0.32]) {
+  for (const x of [-width * feet, width * feet]) {
     const post = mesh(new THREE.CylinderGeometry(0.0028, 0.0034, lift, 12), M.chrome);
     post.position.set(x, lift / 2, 0);
     group.add(post);

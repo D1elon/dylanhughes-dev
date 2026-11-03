@@ -1,13 +1,15 @@
 // Everything that moves. The ball is simulated (physics.js): it rolls, bounces and is kicked by the parts it meets,
 // and the flippers are coils in the same simulation. An autopilot plays the machine for each section of the page:
 // ramp shots for the case studies, a soft plunge into the top lanes for the pop bumpers, the ball held on a flipper
-// elsewhere. This file animates the parts in step with the simulation and lights the inserts.
+// elsewhere. This file animates the parts in step with the simulation and lights the inserts: the lane inserts are
+// the Skills list and the top lanes' the Experience timeline, lit in turn as those sections scroll by.
 import * as THREE from 'three';
-import { BALL_R, FLIPPERS, FLIPPER, POP, SHOOTER, DROPS, PF } from './layout.js';
+import { BALL_R, FLIPPERS, POP, SHOOTER, PF, RAMPS } from './layout.js';
 import * as layout from './layout.js';
 import { MM, pf } from './geo.js';
 import { Physics } from './physics.js';
 import { buildColliders, KICKS } from './colliders.js';
+import { rolloverInsert } from './art.js';
 
 const DEG = Math.PI / 180;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -15,8 +17,10 @@ const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 // Shooter: 44.45 mm of pull; released, the spring drives the tip home in about 16 ms and it overtravels 5 mm into
 // its buffer before settling.
 const PULL = 44.45, SPRING_W = 99;
-// Launch speeds: a soft plunge drops into a top lane; a full one rounds the orbit.
-const PLUNGE = { soft: 1400, full: 2600 };
+// Launch speeds: a full plunge rounds the orbit; a soft one drops off the top into a top lane. At 1400 mm/s it drops
+// through the middle lane into the saucer, which kicks it away from the pops; 1300 drops through the fourth lane onto
+// them (every one of 12 seeded runs: 3 to 14 pop hits).
+const PLUNGE = { soft: 1300, full: 2600 };
 
 // What the machine plays at each section.
 const PLAYS = { hero: 'play', deadbounce: 'ramp-deadbounce', tiptop: 'ramp-tiptop', about: 'pops', skills: 'hold', experience: 'hold', contact: 'hold' };
@@ -28,12 +32,12 @@ export class Show {
     this.reduced = reduced;
     this.time = 0;
     this.power = 0; // 0 → 1 as the machine powers on
-    this.dropGoals = [0, 0, 0, 0];
-    this.ladder = -1;
+    this.skillsLit = [0, 0, 0, 0]; // the lane inserts, Web to Fab, lit as Skills scrolls by
+    this.rung = -1; // the top lane lit last as Experience scrolls by, -1 before the first
+    this.explodedPop = 0; // the pop the About section takes apart: pop_1, the back one
     this.station = null;
     this.play = 'play';
     this.exploded = 0;
-    for (const d of h.drops) d.rest = d.holder.position.clone();
     for (const r of h.rollovers) r.pos = pf(r.x, r.y, BALL_R);
     h.shooterBall.visible = false; // one ball, as in a real game
     h.ball.material = h.ball.material.clone();
@@ -54,7 +58,7 @@ export class Show {
 
   // Reduced motion: no play. The ball is set on the left flipper's cradle once and the scene stays still.
   settleForStill() {
-    const P = this.physics, f = FLIPPERS[0];
+    const P = this.physics, f = FLIPPERS.find(x => x.id === 'left');
     P.setFlipper('left', true);
     P.ball.place(f.x + 20, f.y + 70, 0, -200);
     P.run(2.5);
@@ -66,19 +70,20 @@ export class Show {
     P.on('kick', e => {
       if (e.kind === 'pop') this.firePop(+String(e.id).slice(3), pf(e.x, e.y));
       else if (e.kind === 'sling') this.kickSling(String(e.id).replace('sling-', ''));
+      else if (e.kind === 'saucer') this.kickSaucer();
     });
     P.on('hit', e => {
-      if (e.kind === 'drop') this.hitDrop(+String(e.id).slice(4));
+      if (e.kind === 'target') this.hitTarget(+String(e.id).slice(6), e.speed);
     });
     P.on('enter', e => {
       const id = String(e.id);
-      if (/^(lane|return)\d$/.test(id)) this.flash(id, 1.2);
-      else if (/^orbit\d$/.test(id)) this.flash(id, 1.4);
+      if (/^(lane|return)\d$/.test(id)) this.flash(rolloverInsert(id), 1.2);
+      else if (/^orbit\d$/.test(id)) this.flash(rolloverInsert(id), 1.4);
+      else if (id === 'saucer') { this.flash('saucer_arrow', 1.6); this.saucerAt = this.time; }
       else if (id === 'gate') this.swingGate();
       else if (id.endsWith('-made')) {
-        const ramp = id.slice(5, -5);
-        this.flash(ramp === 'deadbounce' ? 'ramp0' : 'ramp1', 1.4);
-        this.fireFlasher(ramp);
+        const ramp = RAMPS.find(r => id === `ramp-${r.id}-made`);
+        if (ramp) { this.flash(`${ramp.side}_ramp_arrow`, 1.4); this.fireFlasher(ramp.id); }
       }
     });
     P.on('drain', () => {
@@ -144,25 +149,20 @@ export class Show {
     g.open = Math.max(g.open, 1.25);
     g.velocity = 0;
   }
-  // A drop target is knocked down; hitting one that's already down resets the bank.
-  hitDrop(i) {
-    const d = this.h.drops[i];
-    if (!d) return;
-    if (d.state === 'up') {
-      d.state = 'falling';
-      d.since = this.time;
-      this.flash('drop' + i, 1.2);
-      this.physics.setEnabled('drop' + i, false);
-    } else if (d.state === 'down') this.resetBank();
+  // A standup is struck: its face knocks back on its leaf a little and springs back, and its insert flashes. `speed`
+  // (mm/s) sets how far it goes.
+  hitTarget(i, speed = 1500) {
+    const t = this.h.targets[i];
+    if (!t) return;
+    t.hit = this.time;
+    t.kick = Math.min(1, 0.35 + speed / 2500);
+    const ins = this.h.inserts.get(layout.TARGETS.list[i].insert);
+    if (ins) ins.flash = Math.max(ins.flash, 1.3);
   }
-  // The reset coil lifts every dropped target at once.
-  resetBank() {
-    for (const d of this.h.drops) {
-      if (d.state === 'up') continue;
-      d.state = 'rising';
-      d.since = this.time;
-      this.physics.setEnabled('drop' + d.index, true);
-    }
+  // The saucer's kicker finger swings out and the ball leaves.
+  kickSaucer() {
+    if (this.h.saucer) this.h.saucer.kicked = this.time;
+    this.flash('saucer_arrow', 1);
   }
   // The cabinet's start button, pressed: it flashes, and a ball waiting in the shooter lane is launched.
   pressStart() {
@@ -194,10 +194,10 @@ export class Show {
   // --- The autopilot ---------------------------------------------------------------------------------------
 
   near(side) {
-    const b = this.physics.ball, f = FLIPPERS[side === 'left' ? 0 : 1];
+    const b = this.physics.ball, f = FLIPPERS.find(x => x.id === side);
     if (!b.active || b.layer !== 0) return false;
     const onSide = side === 'left' ? b.x < PF.cx + 8 : b.x > PF.cx - 8;
-    return onSide && b.y < f.y + 95 && Math.hypot(b.x - f.x, b.y - f.y) < FLIPPER.length + 70;
+    return onSide && b.y < f.y + 95 && Math.hypot(b.x - f.x, b.y - f.y) < f.length + 70;
   }
   letGo() {
     for (const f of FLIPPERS) this.physics.setFlipper(f.side, false);
@@ -210,7 +210,7 @@ export class Show {
     if (this.auto.cache.has(key)) return this.auto.cache.get(key);
     let point = this.ids.aim[target.replace(/^ramp-/, '')];
     if (target === 'pass') {
-      const other = FLIPPERS[side === 'left' ? 1 : 0];
+      const other = FLIPPERS.find(x => x.id === (side === 'left' ? 'right' : 'left'));
       point = [other.x + (side === 'left' ? 14 : -14), other.y + 150];
     }
     const r = point ? this.physics.aimFlip(side, point[0], point[1], { minArrive: target.startsWith('ramp') ? 2000 : 0 }) : null;
@@ -253,10 +253,9 @@ export class Show {
     }
 
     // In play.
-    if (!b.active) return;
+    if (!b.active || P.held) return;
     const slow = b.speed < 30;
-    for (const f of FLIPPERS) {
-      const side = f.side;
+    for (const side of ['left', 'right']) {
       const close = this.near(side);
       if (A.state === 'play' && close && this.play !== 'pops' && t > A.shotUntil && b.vy < 40) {
         // Catch: hold the flipper up and let the ball roll into the cradle.
@@ -303,12 +302,13 @@ export class Show {
     const sim = this.physics;
 
     // The exploded bumper (About) doesn't kick while it's apart.
-    if (this.popColliders[2]) this.popColliders[2].kick = this.exploded > 0.05 ? 0 : KICKS.pop;
+    const apart = this.popColliders[this.explodedPop];
+    if (apart) apart.kick = this.exploded > 0.05 ? 0 : KICKS.pop;
     if (!this.reduced) {
       this.autopilot(dt);
       sim.step(dt);
     }
-    for (const f of h.flippers) f.pivot.rotation.y = sim.flipperAngle(f.side) * DEG;
+    for (const f of h.flippers) f.pivot.rotation.y = sim.flipperAngle(f.id) * DEG;
 
     // Pops: the skirt tilts toward the ball, the ring pulls down in 10 ms, holds through the pulse and springs back
     // by 75 ms; the cap and body flash with the lamp.
@@ -341,29 +341,19 @@ export class Show {
       }
     }
 
-    // Drop targets: knocked back 1.5 mm off the latch, then down in about 30 ms. The bank resets together: up past
-    // the latch, then settling back onto it.
-    for (const d of h.drops) {
-      const e = t - d.since;
-      let down = 0, back = 0;
-      if (d.state === 'falling') {
-        back = Math.min(1, e / 0.005) * 1.5;
-        const u = Math.max(0, (e - 0.005) / 0.03);
-        down = -(DROPS.height + 1) * Math.min(1, u * u);
-        if (u >= 1) d.state = 'down';
-      } else if (d.state === 'down') {
-        down = -(DROPS.height + 1); back = 1.5;
-      } else if (d.state === 'rising') {
-        const u = e / 0.03, v = (e - 0.03) / 0.045;
-        if (u < 1) down = -(DROPS.height + 1) + (DROPS.height + 3) * (1 - (1 - u) ** 2);
-        else if (v < 1) down = 2 * (0.5 + 0.5 * Math.cos(Math.PI * v));
-        else d.state = 'up';
-      }
-      if (this.reduced) { down = d.state === 'up' || d.state === 'rising' ? 0 : -(DROPS.height + 1); back = 0; }
-      d.holder.position.copy(d.rest);
-      d.holder.position.y += down * MM;
-      d.holder.position.z -= back * MM;
-      this.dropGoals[d.index] = d.state === 'falling' || d.state === 'down' ? 1 : 0;
+    // Standups: the face knocks back up to 2 mm on its leaf in 4 ms and rings back over about 70 ms.
+    for (const tg of h.targets) {
+      const e = tg.hit < 0 ? 9 : t - tg.hit;
+      let back = 0;
+      if (e < 0.004) back = e / 0.004;
+      else if (e < 0.09) back = Math.cos(((e - 0.004) / 0.086) * Math.PI * 1.5) * Math.exp(-(e - 0.004) * 30);
+      tg.holder.position.copy(tg.rest).addScaledVector(tg.back, this.reduced ? 0 : 2 * (tg.kick || 1) * back);
+    }
+    // The saucer's finger: out 6 mm through its slot in 8 ms and back by 60 ms.
+    if (h.saucer) {
+      const sc = h.saucer, e = sc.kicked < 0 ? 9 : t - sc.kicked;
+      const out = e < 0.008 ? e / 0.008 : e < 0.06 ? 1 - (e - 0.008) / 0.052 : 0;
+      sc.finger.position.copy(sc.rest).addScaledVector(sc.out, this.reduced ? 0 : 6 * MM * out);
     }
 
     this.updateShooter(dt);
@@ -460,35 +450,42 @@ export class Show {
     for (const [id, ins] of this.h.inserts) {
       let goal = OFF;
       switch (ins.group) {
-        case 'lanes': {
-          // A chase across the three lanes, then all three together.
-          const step = Math.floor(t * 3) % 5, lane = Number(id.slice(-1));
-          goal = step === lane || step === 4 ? 1.1 : 0.12;
+        case 'years': {
+          // Experience: the years light in turn, the latest blinking; elsewhere a chase across the five lanes, then
+          // all five together.
+          if (s === 'experience') goal = ins.index < this.rung ? 1.1 : ins.index === this.rung ? (Math.floor(t * 5) % 2 ? 1.7 : 0.8) : 0.08;
+          else { const step = Math.floor(t * 3) % 7; goal = step === ins.index || step === 5 ? 1.1 : 0.12; }
+          break;
+        }
+        case 'skills': {
+          if (s === 'skills') goal = this.skillsLit[ins.index] > 0.5 ? (ins.index === this.skillsLit.lastIndexOf(1) ? (Math.floor(t * 5) % 2 ? 1.7 : 0.9) : 1.2) : 0.08;
+          else goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18;
           break;
         }
         case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
         case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
-        case 'drops': goal = this.dropGoals[ins.index] > 0.5 ? 1.5 : 0.08; break;
-        case 'ladder': {
-          if (s === 'experience') goal = ins.index < this.ladder ? 1.1 : ins.index === this.ladder ? (Math.floor(t * 5) % 2 ? 1.7 : 0.8) : 0.08;
-          else goal = (Math.floor(t * 4) % 6) === ins.index ? 0.9 : 0.12;
-          break;
-        }
+        case 'ladder': goal = (Math.floor(t * 2.5) % 4) === ins.index ? 0.9 : 0.12; break;
+        case 'targets': goal = 0.14; break;
+        case 'saucer': goal = this.physics.held ? (Math.floor(t * 8) % 2 ? 1.6 : 0.4) : s === 'about' ? 0.7 : 0.25; break;
         case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.6 : 0.35) : 0.1; break;
         case 'orbit': goal = 0.1; break;
-        case 'return': goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18; break;
       }
       ins.flash = Math.max(0, ins.flash - dt * 3);
       ins.level += (goal - ins.level) * (1 - Math.exp(-dt * 18));
       ins.mat.emissiveIntensity = (ins.level + ins.flash * 2) * P * ins.mat.userData.gain;
+      ins.side.emissiveIntensity = ins.mat.emissiveIntensity;
     }
   }
 
-  // Scrolling through Skills knocks the targets down in turn; scrolling back above it resets the bank.
-  setDrops(progress) {
-    const goals = [0, 1, 2, 3].map(i => progress > 0.12 + i * 0.2);
-    goals.forEach((goal, i) => { if (goal && this.h.drops[i].state === 'up') this.hitDrop(i); });
-    if (!goals.some(Boolean) && this.h.drops.some(d => d.state === 'down' || d.state === 'falling')) this.resetBank();
+  // Scrolling through Skills lights the lane inserts in turn, Web to Fab, each flashing as it comes on; scrolling back
+  // up puts them out again.
+  setSkills(progress) {
+    this.skillsLit.forEach((lit, i) => {
+      const on = progress > 0.12 + i * 0.2 ? 1 : 0;
+      if (on && !lit) this.flash(layout.RETURN_LANES[i].insert, 1.2);
+      this.skillsLit[i] = on;
+    });
   }
-  setLadder(progress) { this.ladder = Math.min(4, Math.floor(progress * 5.2)); }
+  // Scrolling through Experience lights the top lanes' years in turn, 2025 first.
+  setTimeline(progress) { this.rung = Math.min(4, Math.floor(progress * 5.2)); }
 }

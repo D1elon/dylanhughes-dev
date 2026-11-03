@@ -53,9 +53,11 @@ export function lacquer(map) {
   return new THREE.MeshPhysicalMaterial({ map, roughness: 0.6, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06 });
 }
 
-// An insert: plastic sanded flush with the wood, lit from beneath. Its `emissiveIntensity` is the lamp.
+// An insert: plastic sanded flush with the wood, lit from beneath. Its `emissiveIntensity` is the lamp. Lamp colours:
+// plasma, a deeper ember, a pale amber, and aluminium white.
+const LAMPS = { plasma: 0xff6a13, ember: 0xe0480c, amber: 0xffb27a, alu: 0xe9ece9 };
 export function insertMaterial(color) {
-  const tint = new THREE.Color(color === 'plasma' ? 0xff6a13 : 0xe9ece9);
+  const tint = new THREE.Color(LAMPS[color] ?? LAMPS.alu);
   const m = new THREE.MeshPhysicalMaterial({
     color: tint.clone().multiplyScalar(0.12), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03,
     emissive: tint, emissiveIntensity: 0.06, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,

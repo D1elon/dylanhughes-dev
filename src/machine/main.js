@@ -5,13 +5,13 @@ import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
 import { buildMachine, buildPlate, BACKBOX, CABINET } from './machine.js';
-import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawApron, drawBankPlate, drawPopDecal, loadArtFonts } from './art.js';
+import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
 import { Hud } from './hud.js';
 import { Exploded } from './explode.js';
 import { pf } from './geo.js';
-import { SLINGS } from './layout.js';
+import { SLINGS, INLANE_GUIDES } from './layout.js';
 
 const root = document.documentElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -28,10 +28,9 @@ const ACTIONS = {
   'pop-0': { label: 'Fire the pop bumper' },
   'pop-1': { label: 'Fire the pop bumper' },
   'pop-2': { label: 'Fire the pop bumper' },
-  'drop-0': { label: 'Drop the target' },
-  'drop-1': { label: 'Drop the target' },
-  'drop-2': { label: 'Drop the target' },
-  'drop-3': { label: 'Drop the target' },
+  'target-0': { label: 'Hit the target' },
+  'target-1': { label: 'Hit the target' },
+  'target-2': { label: 'Hit the target' },
   'sling-left': { label: 'Kick the slingshot' },
   'sling-right': { label: 'Kick the slingshot' },
   'flip-left': { label: 'Flip' },
@@ -45,19 +44,27 @@ const ACTIONS = {
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
   hero: { az: -18, el: 5, fit: [0.84, 1.02], side: 'left', fov: 30 },
-  deadbounce: { at: [108, 882, 68], az: 30, el: 28, fit: [0.21, 0.245], side: 'right', lift: 18 },
-  tiptop: { at: [366.35, 882, 68], az: -30, el: 28, fit: [0.21, 0.245], side: 'left', lift: 10 },
-  about: { at: [237, 846, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
-  skills: { at: [237, 705, 17], az: 14, el: 19, fit: [0.13, 0.075], side: 'left', lift: 6 },
-  experience: { at: [237, 400, 0], az: -12, el: 58, fit: [0.11, 0.15], side: 'right', lift: 12 },
-  contact: { at: [248, 140, 26], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
+  // The case studies: each ramp's turn at the back, where it hands the ball to its wireform, with its plate beside it.
+  deadbounce: { at: [132, 902, 58], az: 30, el: 28, fit: [0.25, 0.24], side: 'right', lift: 18 },
+  tiptop: { at: [342.35, 902, 58], az: -30, el: 28, fit: [0.25, 0.24], side: 'left', lift: 10 },
+  // About: the back pop bumper, its parts lifting clear over the two in front.
+  about: { at: [240, 852, 92], az: -8, el: 30, fit: [0.3, 0.36], side: 'right', lift: 10 },
+  // Skills: the four lane inserts across the field above the slings, Web to Fab.
+  skills: { at: [237, 384, 0], az: 0, el: 50, fit: [0.47, 0.13], side: 'left', lift: 6 },
+  // Experience: the five top lanes and their years, from the player's end over the pops.
+  experience: { at: [235, 988, 8], az: -4, el: 52, fit: [0.38, 0.17], side: 'right', lift: 12 },
+  // Contact: the flippers and the shoot-again shield between them.
+  contact: { at: [237, 165, 22], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
 };
 
-// Plates that rise out of the playfield at a stop, carrying the stop's picture.
+// Plates that rise out of the playfield at a stop, carrying the stop's picture, each with its feet off every lane,
+// post and the saucer: the case studies' on the open wood between each ramp's turn and the saucer, clear of the target
+// guide, the saucer's flange and arrow, and the top lanes' rubbers; the portrait in the same open wood on the right,
+// behind the pops, clear of the exploded bumper, its callouts (on the left) and the ramp's flasher.
 const PLATES = {
-  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [100, 972], width: 0.13, aspect: 950 / 730, action: 'ramp-deadbounce' },
-  tiptop: { url: '/assets/img/tiptop.jpg', at: [374.35, 972], width: 0.13, aspect: 1600 / 1027, action: 'ramp-tiptop' },
-  about: { url: '/assets/img/dylan.jpg', at: [237.175, 944], width: 0.07, aspect: 512 / 640, action: 'portrait' },
+  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', at: [190, 915], width: 0.11, feet: 0.25, aspect: 950 / 730, action: 'ramp-deadbounce' },
+  tiptop: { url: '/assets/img/tiptop.jpg', at: [284.35, 915], width: 0.11, feet: 0.25, aspect: 1600 / 1027, action: 'ramp-tiptop' },
+  about: { url: '/assets/img/dylan.jpg', at: [314, 932], width: 0.06, aspect: 512 / 640, action: 'portrait' },
 };
 
 async function start() {
@@ -75,11 +82,11 @@ async function start() {
     backglass: drawBackglass(quality.low ? 1320 : 2048),
     cabinetSide: drawCabinetSide(2048, 768, { frontBottom: (CABINET.top - CABINET.bottom) / (CABINET.top - CABINET.bottom + (CABINET.front - CABINET.back) * Math.tan(6.5 * DEG)) }),
     plastics: SLINGS.map(sl => drawSlingPlastic(sl)),
+    inlane: INLANE_GUIDES.map(g => ({ plate: drawPlasticPrint(g.plate.outline), cover: drawPlasticPrint(g.cover.outline, { mark: true }) })),
     apron: drawApron(quality.low ? 1024 : 2048),
-    bankPlate: drawBankPlate(512, 160),
     popDecal: drawPopDecal(256),
     cards: { instructions: drawApronCard('instructions', 625), free: drawApronCard('free', 625) },
-    targets: ['Web', 'Game', 'Media', 'Fab'].map(n => drawTargetFace(n, 160)),
+    target: drawTargetFace(160),
   };
 
   // The dot-matrix display draws into an offscreen canvas that becomes the backbox's texture.
@@ -117,7 +124,7 @@ async function start() {
   const plates = {};
   for (const [name, cfg] of Object.entries(PLATES)) {
     if (!names.includes(name)) continue;
-    const plate = buildPlate({ M, url: cfg.url, width: cfg.width, aspect: cfg.aspect, action: cfg.action, anisotropy });
+    const plate = buildPlate({ M, url: cfg.url, width: cfg.width, aspect: cfg.aspect, action: cfg.action, feet: cfg.feet, anisotropy });
     plate.group.position.copy(pf(cfg.at[0], cfg.at[1], 0));
     plate.group.rotation.y = STOPS[name].az * DEG;
     plate.tilt = STOPS[name].el * 0.45 * DEG;
@@ -129,10 +136,10 @@ async function start() {
   // Callouts from parts to copy.
   const hud = new Hud($('[data-hud]'), stations, W);
 
-  // About ("I've always taken things apart"): the front pop bumper comes apart like a CAD drawing as the section
-  // scrolls by, holds there, then goes back together.
+  // About ("I've always taken things apart"): the back pop bumper, pop_1, comes apart like a CAD drawing as the
+  // section scrolls by, its parts lifting clear over the two in front, holds there, then goes back together.
   const iAbout = names.indexOf('about');
-  const exploded = iAbout >= 0 ? new Exploded(h.pops[2], document.body) : null;
+  const exploded = iAbout >= 0 ? new Exploded(h.pops[show.explodedPop], document.body) : null;
   const explodeAt = y => {
     const span = director.holds[iAbout] * 1.6, p = clamp((y - (director.anchors[iAbout] - span / 2)) / span);
     return p < 0.5 ? smooth(clamp(p / 0.36)) : smooth(clamp((1 - p) / 0.36));
@@ -215,7 +222,7 @@ async function start() {
     if (def && def.href) { location.href = def.href; return; }
     if (action.startsWith('pop-')) show.firePop(+action.slice(4));
     else if (action === 'portrait') [0, 1, 2].forEach((i, k) => setTimeout(() => show.firePop(i), k * 140));
-    else if (action.startsWith('drop-')) { show.hitDrop(+action.slice(5)); show.manualDrops = true; }
+    else if (action.startsWith('target-')) show.hitTarget(+action.slice(7));
     else if (action.startsWith('sling-')) show.kickSling(action.slice(6));
     else if (action === 'flip-left' || action === 'flip-right') playFlip(action.slice(5));
     else if (action === 'plunger') launch();
@@ -310,19 +317,19 @@ async function start() {
     }
   }
 
-  // The skill rows light with their drop targets; the timeline lights with the insert ladder.
+  // The skill rows light with their lane inserts; the timeline with the top lanes' years.
   const skillRows = $$('[data-skill]'), rungs = $$('[data-rung]');
   let listState = '';
   function syncLists(station) {
-    const state = show.dropGoals.join('') + '|' + (station === 'experience' ? show.ladder : -1);
+    const state = show.skillsLit.join('') + '|' + (station === 'experience' ? show.rung : -1);
     if (state === listState) return;
     listState = state;
-    skillRows.forEach((li, i) => li.classList.toggle('lit', show.dropGoals[i] > 0.5));
-    rungs.forEach((li, i) => li.classList.toggle('lit', station === 'experience' && i <= show.ladder));
-    // The current entry: the target that dropped last while the bank is part-way down, and the rung being lit.
-    const down = show.dropGoals.filter(g => g > 0.5).length;
-    const skill = station === 'skills' && down > 0 && down < skillRows.length ? show.dropGoals.lastIndexOf(1) : -1;
-    const rung = station === 'experience' ? show.ladder : -1;
+    skillRows.forEach((li, i) => li.classList.toggle('lit', show.skillsLit[i] > 0.5));
+    rungs.forEach((li, i) => li.classList.toggle('lit', station === 'experience' && i <= show.rung));
+    // The current entry: the insert lit last while the row is part-way lit, and the year being lit.
+    const lit = show.skillsLit.filter(g => g > 0.5).length;
+    const skill = station === 'skills' && lit > 0 && lit < skillRows.length ? show.skillsLit.lastIndexOf(1) : -1;
+    const rung = station === 'experience' ? show.rung : -1;
     for (const [rows, current] of [[skillRows, skill], [rungs, rung]]) {
       rows.forEach((li, i) => li.classList.toggle('current', i === current));
       if (rows[0]) rows[0].parentElement.classList.toggle('has-current', current >= 0);
@@ -373,9 +380,8 @@ async function start() {
     const station = Math.abs(f - at) < 0.36 ? names[at] : null;
     if (station !== lastStation) { lastStation = station; show.setStation(station || show.station); root.dataset.station = station || ''; }
     const iSkills = names.indexOf('skills'), iExp = names.indexOf('experience');
-    if (station === 'skills') { if (!show.manualDrops) show.setDrops(director.holdProgress(iSkills, y)); }
-    else { show.manualDrops = false; show.setDrops(iSkills >= 0 && f > iSkills ? 1 : 0); }
-    if (iExp >= 0) show.setLadder(director.holdProgress(iExp, y));
+    if (iSkills >= 0) show.setSkills(station === 'skills' ? director.holdProgress(iSkills, y) : f > iSkills ? 1 : 0);
+    if (iExp >= 0) show.setTimeline(director.holdProgress(iExp, y));
 
     // Camera.
     let goal = director.at(reduced ? at : f);
