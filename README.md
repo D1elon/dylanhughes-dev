@@ -23,9 +23,21 @@ Only original work and client work is published here. Retheme projects built on 
 
 ## Design
 
-Brushed-aluminium greys and graphite, cabinet-black bands for work and contact, and a single plasma orange taken from the dot-matrix display. Headlines are expanded Archivo, body text is Instrument Sans, and small spec labels are Martian Mono.
+Black and white, with one accent: royal blue, the colour of the machine's lamps. Every token is at the top of `css/site.css`.
 
-The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball, Richmond and the local time) with plasma persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
+- **Royal blue** `#2B59FF` (`--royal`) fills: LEDs, the focus ring, selection, primary buttons, lit and active states. White text on it passes AA (5.3:1). As text, blue takes `#6E8CFF` (`--royal-soft`) on black and `#1F46E0` (`--royal-deep`) on white, so small blue text always passes.
+- **Black**: room `#06070A`, cabinet `#0B0C0F`, raised `#14161A`, rules `#262A31`; text `#F4F5F7` (`--chalk`), muted `#9AA1AB`.
+- **White**: page `#FFFFFF`, bands `#F5F6F8`, ink `#0D0F12`, muted `#5A616B`, rules `#D9DCE1`.
+
+Type is three self-hosted families, one job each:
+
+- **Archivo** for display, in one style (108% width, weight 650, −0.03em) at five sizes: `--d-xl` case-study and contact titles, `--d-l` the hero and case-study section titles, `--d-m` the home page's section titles, `--d-s` sub-heads and the email address, `--d-xs` list entries.
+- **Instrument Sans** for text: `--t-lede` (18–19.5px, 1.5), `--t-body` (16px, 1.6) and `--t-small` (14px, 1.5).
+- **Martian Mono** only for small technical labels: 11px (`--t-label`), 10.5px for tool lists, uppercase, 0.08em tracking.
+
+Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page the label row moves into a left column and holds still while its section scrolls by.
+
+The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball, Richmond and the local time) with lamp persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
 
 ## The 3D machine
 
@@ -38,7 +50,7 @@ npm run build     # or: npm run watch
 
 - `layout.js`: every playfield measurement, in millimetres from the left rail and the front edge. The playfield is Deadbounce's Origin table, part for part: `origin.js` is generated from its template by `tools/origin-layout.mjs` (`node tools/origin-layout.mjs <deadbounce>/studio/src/templates/twin-ramps.json`), and `layout.js` builds its exports from it.
 - The inlane guides' outline is Origin's: an original adaptation inspired by "pinball flipper ball guide" by Tinkot, CC BY 4.0 (https://www.thingiverse.com/thing:3563020, https://creativecommons.org/licenses/by/4.0/).
-- `art.js`: the playfield, translite, apron, cards, plastics and cabinet art, drawn on canvases at load in the style of Deadbounce's Origin table: a stage-lit graphite field, beams from the flippers to each shot, inserts in pools of their own light and edge-lit plastics, in plasma orange
+- `art.js`: the playfield, translite, apron, cards, plastics and cabinet art, drawn on canvases at load in the style of Deadbounce's Origin table: a stage-lit graphite field, beams from the flippers to each shot, inserts in pools of their own light and edge-lit plastics, in royal blue, white and black
 - `machine.js`: the cabinet, backbox and every playfield part
 - `materials.js` and `stage.js`: materials, lights, environment and post-processing, with lighter settings for phones
 - `physics.js` and `colliders.js`: the ball's simulation, after the engine in Deadbounce. One steel ball rolls, spins and bounces in playfield millimetres, with the flippers as coils (each button works its side's main and upper flipper), the pops and slings kicking, the standups reporting hits, the saucer catching and kicking the ball back out, and the ramps and wireforms as raised tracks. `colliders.js` builds every surface from `layout.js`.

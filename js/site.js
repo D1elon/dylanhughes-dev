@@ -20,7 +20,7 @@
   // Small dot-matrix icons, drawn from row patterns like "0110/1001".
   $$('[data-dots]').forEach(el => {
     const rows = el.dataset.dots.split('/');
-    const cells = rows.flatMap((row, y) => [...row].map((on, x) => `<circle cx="${x + .5}" cy="${y + .5}" r=".36" fill="${on === '1' ? '#ff6a13' : '#16181a'}" fill-opacity="${on === '1' ? 1 : .12}"/>`));
+    const cells = rows.flatMap((row, y) => [...row].map((on, x) => `<circle cx="${x + .5}" cy="${y + .5}" r=".36" fill="${on === '1' ? '#2B59FF' : 'currentColor'}" fill-opacity="${on === '1' ? 1 : .14}"/>`));
     el.innerHTML = `<svg viewBox="0 0 ${rows[0].length} ${rows.length}">${cells.join('')}</svg>`;
   });
 
