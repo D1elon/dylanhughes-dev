@@ -11,6 +11,9 @@
 //   resting ball settles) and Coulomb friction. A flipper takes part in the impulse as a body turning about its pivot.
 // - Colliders sit on layers. Layer 0 is the wood; a ramp is a track on its own layer, with a height along its centre
 //   line that slows a ball climbing it. Colliders with layer '*' (a ramp's low walls) belong to every layer.
+// - A side can have several flippers (a main flipper and an upper one on the same button): setFlipper(side) energises
+//   them all, and each is drawn by its own id.
+// - A saucer catches a slow ball, holds it on its switch and kicks it back out.
 
 const DEG = Math.PI / 180;
 const MAX_SUB = 24;
@@ -96,12 +99,14 @@ class Ball {
     this.ox = x; this.oy = y; this.oz = this.z;
     Object.assign(this.view, { x, y, z: this.z });
     for (const t of p.triggers) t.inside = false;
+    for (const s of p.saucers) s.holding = false;
     return this;
   }
   remove() {
     this.active = false;
     this.serial++;
     for (const t of this.p.triggers) t.inside = false;
+    for (const s of this.p.saucers) s.holding = false;
   }
 }
 
@@ -181,6 +186,7 @@ export class Physics {
     this.bounds = o.bounds || null; // [x0, y0, x1, y1]: a ball outside it has left the machine
     this.colliders = [];
     this.flippers = [];
+    this.saucers = [];
     this.triggers = [];
     this.tracks = [];
     this.handlers = {};
@@ -229,6 +235,15 @@ export class Physics {
     const f = new Flipper(o);
     this.flippers.push(f);
     return f.id;
+  }
+  // A saucer at (x, y): a ball on the wood within `reach` of its middle and slower than `maxSpeed` (mm/s) drops into
+  // the cup and is held there `hold` seconds, then kicked out at `kick` mm/s heading `angle` degrees (0 right, 90 up the
+  // table). It catches nothing for `rearm` seconds after a kick, so the ball it kicked can leave.
+  addSaucer(x, y, o = {}) {
+    const s = { id: o.id || 'saucer' + this.saucers.length, kind: 'saucer', x, y, reach: o.reach ?? 10.5, maxSpeed: o.maxSpeed ?? 900, hold: o.hold ?? 1, kick: o.kick ?? 1600,
+      angle: (o.angle ?? -90) * DEG, sink: o.sink ?? 5, rearm: o.rearm ?? 0.3, holding: false, releaseAt: 0, armedAt: 0, enabled: true };
+    this.saucers.push(s);
+    return s.id;
   }
   // shape: { x, y, r } or a polygon [[x, y], ...]. o: { kind, layer (0; '*' any), drain (true: the ball leaves play) }
   addTrigger(shape, id, o = {}) {
@@ -281,23 +296,29 @@ export class Physics {
 
   // --- Inputs ------------------------------------------------------------------------------------------------
 
-  flipper(side) { return this.flippers.find(f => f.side === side || f.id === side); }
-  // Energise or release a flipper now, or `delay` seconds from now (in step time, so a scheduled flip lands on the
-  // exact millisecond). A command for now cancels anything scheduled for that flipper.
+  // A flipper by its id, or the first (main) flipper on a side.
+  flipper(key) { return this.flippers.find(f => f.id === key) || this.flippers.find(f => f.side === key); }
+  // Every flipper a button works: all of a side's, or the one with that id.
+  flippersFor(key) {
+    const side = this.flippers.filter(f => f.side === key);
+    return side.length ? side : this.flippers.filter(f => f.id === key);
+  }
+  // Energise or release a side's flippers now, or `delay` seconds from now (in step time, so a scheduled flip lands on
+  // the exact millisecond). A command for now cancels anything scheduled for them.
   setFlipper(side, energised, delay = 0) {
-    const f = this.flipper(side);
-    if (!f) return;
-    if (delay > 0) {
-      f.queue.push({ at: this.time + delay, on: !!energised });
-      f.queue.sort((a, b) => a.at - b.at);
-    } else {
-      f.queue.length = 0;
-      f.on = !!energised;
+    for (const f of this.flippersFor(side)) {
+      if (delay > 0) {
+        f.queue.push({ at: this.time + delay, on: !!energised });
+        f.queue.sort((a, b) => a.at - b.at);
+      } else {
+        f.queue.length = 0;
+        f.on = !!energised;
+      }
     }
   }
-  // Degrees, interpolated to the caller's clock like ball.view.
-  flipperAngle(side) {
-    const f = this.flipper(side);
+  // Degrees, interpolated to the caller's clock like ball.view. `key`: a flipper's id (or a side, for its main one).
+  flipperAngle(key) {
+    const f = this.flipper(key);
     if (!f) return 0;
     const k = this.acc / this.dt, a = f.oa + (f.a - f.oa) * k;
     return f.rest + (f.dir * a) / DEG;
@@ -355,6 +376,7 @@ export class Physics {
     for (const f of this.flippers) f.update(h);
     const b = this.ball;
     if (!b.active) return;
+    if (this.saucers.length && this.saucer(b, now)) return;
     const serial = b.serial, R = this.R;
     const tr = b.layer !== 0 ? this.trackOf(b.layer) : null;
     let ay = this.gy, ax = 0;
@@ -559,6 +581,34 @@ export class Physics {
     }
   }
 
+  // --- Saucers ----------------------------------------------------------------------------------------------
+
+  // Catches the ball, holds it, kicks it out. True while the ball is held (nothing else moves it then).
+  saucer(b, now) {
+    for (const s of this.saucers) {
+      if (s.holding) {
+        if (now < s.releaseAt) { b.vx = b.vy = b.wx = b.wy = b.wz = 0; return true; }
+        s.holding = false;
+        s.armedAt = now + s.rearm;
+        b.z = this.R;
+        b.vx = Math.cos(s.angle) * s.kick; b.vy = Math.sin(s.angle) * s.kick;
+        b.wx = -b.vy / this.R; b.wy = b.vx / this.R; // it leaves rolling, off the cup's lip
+        this.emit('kick', { id: s.id, kind: 'saucer', speed: s.kick, x: s.x, y: s.y, nx: Math.cos(s.angle), ny: Math.sin(s.angle) });
+        return false;
+      }
+      if (!s.enabled || now < s.armedAt || b.layer !== 0 || b.z > this.R + 0.5) continue;
+      if (Math.hypot(b.x - s.x, b.y - s.y) > s.reach || Math.hypot(b.vx, b.vy) > s.maxSpeed) continue;
+      s.holding = true;
+      s.releaseAt = now + s.hold;
+      Object.assign(b, { x: s.x, y: s.y, z: this.R - s.sink, vx: 0, vy: 0, vz: 0, wx: 0, wy: 0, wz: 0 });
+      this.emit('enter', { id: s.id, kind: 'saucer', x: s.x, y: s.y, vx: 0, vy: 0, speed: 0 });
+      return true;
+    }
+    return false;
+  }
+  // The saucer holding the ball, if any.
+  get held() { return this.saucers.find(s => s.holding) || null; }
+
   // --- Triggers ----------------------------------------------------------------------------------------------
 
   sense(b) {
@@ -608,6 +658,7 @@ export class Physics {
       colliders: this.colliders.map(c => [c.enabled, c.lastKick, c.solid]),
       triggers: this.triggers.map(t => [t.enabled, t.inside]),
       tracks: this.tracks.map(t => t.cursor),
+      saucers: this.saucers.map(s => [s.holding, s.releaseAt, s.armedAt]),
     };
   }
   loadState(s) {
@@ -619,6 +670,7 @@ export class Physics {
     s.colliders.forEach(([enabled, lastKick, solid], i) => Object.assign(this.colliders[i], { enabled, lastKick, solid }));
     s.triggers.forEach(([enabled, inside], i) => Object.assign(this.triggers[i], { enabled, inside }));
     s.tracks.forEach((cursor, i) => { this.tracks[i].cursor = cursor; });
+    (s.saucers || []).forEach(([holding, releaseAt, armedAt], i) => Object.assign(this.saucers[i], { holding, releaseAt, armedAt }));
   }
 
   // --- Aiming ------------------------------------------------------------------------------------------------
@@ -635,13 +687,15 @@ export class Physics {
   // Use: setFlipper(side, false); setFlipper(side, true, r.delay); setFlipper(side, false, r.delay + 0.25).
   aimFlip(side, tx, ty, { horizon = 1.2, coarse = 0.008, follow = 0.6, hold = 0.3, reach = 12, minArrive = 0 } = {}) {
     const f = this.flipper(side), b = this.ball;
-    if (!f || !b.active || b.layer !== 0) return null;
+    if (!f || !b.active || b.layer !== 0 || this.held) return null;
     const start = this.saveState(), muted = this.muted;
     this.muted = true;
+    // The button works every flipper on its side; the shot is off the one asked for (the main one, given a side).
     const fi = this.flippers.indexOf(f), every = Math.max(1, Math.round(coarse / this.dt));
+    const button = this.flippersFor(side).map(x => this.flippers.indexOf(x));
     const onBat = () => b.active && b.layer === 0 && !!this.flippers[fi].test(b.x, b.y, this.R + reach);
-    // The ball's run with the flipper let down, kept every `coarse` seconds while it is within reach of the bat.
-    f.queue = []; f.on = false;
+    // The ball's run with the flippers let down, kept every `coarse` seconds while it is within reach of the bat.
+    for (const i of button) { this.flippers[i].queue = []; this.flippers[i].on = false; }
     const marks = [];
     for (let k = 0; k * every * this.dt <= horizon + 1e-9 && b.active; k++) {
       if (onBat()) marks.push({ st: this.saveState(), delay: k * every * this.dt, k });
@@ -651,7 +705,7 @@ export class Physics {
       this.loadState(st);
       const fl = this.flippers[fi], c = Math.cos(fl.theta), s = Math.sin(fl.theta);
       const r = { delay, miss: Math.hypot(b.x - tx, b.y - ty), arrive: b.speed, speed: 0, angle: 0, x: b.x, y: b.y, u: (b.x - fl.x) * c + (b.y - fl.y) * s };
-      fl.queue = [{ at: this.time + hold, on: false }]; fl.on = true;
+      for (const i of button) { this.flippers[i].queue = [{ at: this.time + hold, on: false }]; this.flippers[i].on = true; }
       let left = false;
       for (let i = Math.round(follow / this.dt); i > 0 && b.active; i--) {
         this.fixedStep();

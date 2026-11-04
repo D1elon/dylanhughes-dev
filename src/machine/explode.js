@@ -23,7 +23,7 @@ export class Exploded {
     const n = this.parts.length;
     const top = this.parts[n - 1];
     const line = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -8 * MM, 0), new THREE.Vector3(0, top.mid.y + (top.lift + 18) * MM, 0)]);
-    this.axis = new THREE.Line(line, new THREE.LineDashedMaterial({ color: 0xff8a4a, dashSize: 7 * MM, gapSize: 2 * MM, transparent: true, opacity: 0, depthWrite: false }));
+    this.axis = new THREE.Line(line, new THREE.LineDashedMaterial({ color: 0x6e8cff, dashSize: 7 * MM, gapSize: 2 * MM, transparent: true, opacity: 0, depthWrite: false }));
     this.axis.computeLineDistances();
     this.axis.visible = false;
     group.add(this.axis);

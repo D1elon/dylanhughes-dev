@@ -8,8 +8,8 @@ import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { CABINET } from './machine.js';
 
-// Khronos PBR Neutral keeps base colours true (ACES pushes the plasma orange toward yellow), with a one-step dither in
-// display space so the near-black backdrop doesn't band.
+// Khronos PBR Neutral keeps base colours true (ACES shifts saturated blues toward violet and cyan), with a one-step
+// dither in display space so the near-black backdrop doesn't band.
 THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(
   'vec3 CustomToneMapping( vec3 color ) { return color; }',
   `vec3 CustomToneMapping( vec3 color ) {
@@ -19,6 +19,27 @@ THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars
     return mix( s / 12.92, pow( ( s + 0.055 ) / 1.055, vec3( 2.4 ) ), step( 0.04045, s ) );
   }`,
 );
+
+// Highlights stop short of the bloom threshold, so only the lamps glow. The key is a point, and its reflection in
+// chrome, the clear coat or a cover glass is otherwise bright enough to flare; capped, it stays a crisp white glint.
+// The cap scales a pixel's whole specular (direct and reflected) together, so its colour holds.
+const SPECULAR_CAP = '1.35';
+THREE.ShaderChunk.lights_fragment_end += `
+#if defined( STANDARD )
+	{
+		vec3 s = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
+		float k = min( 1.0, ${SPECULAR_CAP} / max( max( max( s.r, s.g ), s.b ), 1e-4 ) );
+		reflectedLight.directSpecular *= k;
+		reflectedLight.indirectSpecular *= k;
+		#ifdef USE_CLEARCOAT
+			vec3 c = clearcoatSpecularDirect + clearcoatSpecularIndirect;
+			float kc = min( 1.0, ${SPECULAR_CAP} / max( max( max( c.r, c.g ), c.b ), 1e-4 ) );
+			clearcoatSpecularDirect *= kc;
+			clearcoatSpecularIndirect *= kc;
+		#endif
+	}
+#endif
+`;
 
 // Ambient occlusion at half resolution. Glass and clear plastic stay out of its depth buffer, so the parts under
 // them are still grounded.
@@ -36,11 +57,13 @@ class SoftBloom extends UnrealBloomPass {
 }
 
 // A dark cove with a few softboxes, placed where the playfield, chrome and cabinet reflect them from the stations'
-// camera angles: one big overhead card behind the machine, two strips at the sides and a hot card on the key.
+// camera angles: one big overhead card behind the machine, two strips at the sides, a hot card on the key, and a low
+// royal-blue strip behind, which the chrome, glass and clear plastics pick up as a blue edge. All neutral white but
+// the key's card, which is a touch warm so the whites don't read clinical.
 function studioEnvironment(renderer, size) {
   const env = new THREE.Scene();
-  env.background = new THREE.Color(0.004, 0.0045, 0.005);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.018, 0.018, 0.02) }));
+  env.background = new THREE.Color(0.0036, 0.0042, 0.0058);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.016, 0.017, 0.021) }));
   ground.position.y = -2;
   env.add(ground);
   const card = (w, h, nits, hex, x, y, z) => {
@@ -49,12 +72,13 @@ function studioEnvironment(renderer, size) {
     m.lookAt(0, 0, 0);
     env.add(m);
   };
-  card(12, 12, 0.22, 0xf2f0ee, 0, 7, 0);
-  card(6, 3, 3, 0xfff6ec, 0, 5, -3.5);
+  card(12, 12, 0.22, 0xf1f3f7, 0, 7, 0);
+  card(6, 3, 3, 0xf6f7fa, 0, 5, -3.5);
   card(0.7, 5, 2.4, 0xffffff, -5, 2, -1);
-  card(0.7, 5, 2.5, 0xdfe7ff, 5, 2, -1.5);
-  card(1.6, 1.6, 5, 0xfff1e2, 2, 6, 3.5);
-  card(6, 2, 1.2, 0xffe6cc, 0, 1.2, 6);
+  card(0.7, 5, 2.5, 0xe4eaff, 5, 2, -1.5);
+  card(1.6, 1.6, 5, 0xfff8f1, 2, 6, 3.5);
+  card(6, 2, 1.2, 0xf3f4f7, 0, 1.2, 6);
+  card(9, 0.4, 0.32, 0x2b59ff, 0, 0.35, -5);
   const pmrem = new THREE.PMREMGenerator(renderer);
   const target = pmrem.fromScene(env, 0.015, 0.1, 50, { size });
   pmrem.dispose();
@@ -77,18 +101,18 @@ export function createStage(canvas, quality) {
   renderer.shadowMap.autoUpdate = false;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x07080a);
-  scene.fog = new THREE.Fog(0x07080a, 3.2, 7.5);
+  scene.background = new THREE.Color(0x06070a);
+  scene.fog = new THREE.Fog(0x06070a, 3.2, 7.5);
   const envMap = studioEnvironment(renderer, quality.low ? 256 : 512);
   scene.environment = envMap;
   scene.environmentIntensity = 0.6;
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.02, 20);
 
-  // Lights, in physical units: a warm key over the playfield, aimed for about 2 lux of the studio's scale on the
-  // wood, and a cool rim from behind. The environment does the fill.
+  // Lights, in physical units: a clean, slightly warm white key over the playfield, aimed for about 2 lux of the
+  // studio's scale on the wood, and a cool rim from behind. The environment does the fill.
   const lights = {};
-  lights.key = new THREE.SpotLight(0xfff3e6, 14, 0, 0.45, 0.7, 2);
+  lights.key = new THREE.SpotLight(0xfff7ef, 14, 0, 0.45, 0.7, 2);
   lights.key.position.set(0.55, 2.3, 1.1);
   lights.key.target.position.set(0, -0.1, 0);
   lights.key.castShadow = quality.shadows;
@@ -97,15 +121,15 @@ export function createStage(canvas, quality) {
   lights.key.shadow.camera.near = 1.2;
   lights.key.shadow.camera.far = 4.2;
   scene.add(lights.key, lights.key.target);
-  lights.rim = new THREE.DirectionalLight(0xbfd0ff, 1.4);
+  lights.rim = new THREE.DirectionalLight(0xdde4ff, 1.15);
   lights.rim.position.set(-1.2, 1.6, -2.4);
   scene.add(lights.rim);
   // The focus light: a soft spot that follows the camera to each part, the way a product shot lights its subject.
-  lights.focus = new THREE.SpotLight(0xfff0e0, 0, 0, 0.42, 1, 2);
+  lights.focus = new THREE.SpotLight(0xfff8f2, 0, 0, 0.42, 1, 2);
   scene.add(lights.focus, lights.focus.target);
 
-  // The floor: mid charcoal, so the key's cone and the machine's shadow make the pool of light.
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.85 }));
+  // The floor: a cool mid charcoal, so the key's cone and the machine's shadow make the pool of light.
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x363a42, roughness: 0.85 }));
   floor.position.y = CABINET.floor;
   floor.receiveShadow = quality.shadows;
   scene.add(floor);
