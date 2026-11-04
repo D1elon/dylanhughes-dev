@@ -47,11 +47,12 @@ const STOPS = {
   // top of that ramp, where it hands the ball to its wireform, along the bottom of the frame. `glass` places the
   // target from the glass's middle ([across, up] in metres).
   // On tall screens, where the scene has only the top of the screen, the screen fills it on its own.
-  deadbounce: { glass: [-0.05, -0.25], az: -18, el: 18, fit: [0.7, 0.96], side: 'right', lift: 6, tall: { glass: [0, -0.03], az: -12, el: 8, fit: [0.64, 0.5] } },
-  tiptop: { glass: [0.05, -0.25], az: 18, el: 18, fit: [0.7, 0.96], side: 'left', lift: 6, tall: { glass: [0, -0.03], az: 12, el: 8, fit: [0.64, 0.5] } },
+  // `sharp` holds the whole screen in focus.
+  deadbounce: { glass: [-0.05, -0.25], az: -18, el: 18, fit: [0.7, 0.96], side: 'right', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: -12, el: 8, fit: [0.64, 0.5] } },
+  tiptop: { glass: [0.05, -0.25], az: 18, el: 18, fit: [0.7, 0.96], side: 'left', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: 12, el: 8, fit: [0.64, 0.5] } },
   // About: the back pop bumper, its parts lifting clear in front of the speaker panel, under the player card on the
   // LCD. A long lens keeps the bumper and the screen behind it close in size.
-  about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10 },
+  about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10, sharp: 1 },
   // Skills: the four lane inserts across the field above the slings, Web to Fab. The camera arrives on all four, then
   // tours them (SKILL_TOUR).
   skills: { at: [237, 384, 0], az: 0, el: 50, fit: [0.47, 0.13], side: 'left', lift: 6 },
@@ -129,7 +130,7 @@ async function start() {
   const stage = createStage(canvas, quality);
   const M = makeMaterials(stage.envMap);
   const anisotropy = Math.min(quality.anisotropy, stage.renderer.capabilities.getMaxAnisotropy());
-  const h = buildMachine({ M, art, dmdCanvas, anisotropy });
+  const h = buildMachine({ M, art, dmdCanvas, anisotropy, maxAnisotropy: stage.renderer.capabilities.getMaxAnisotropy() });
   stage.scene.add(h.root);
   if (stage.ao) stage.ao.setSceneClipBox(new THREE.Box3().setFromObject(h.root).expandByScalar(0.03));
   dmd.onPaint = () => { h.dmd.texture.needsUpdate = true; };
@@ -158,7 +159,7 @@ async function start() {
     const img = new Image();
     img.decoding = 'async';
     img.src = cfg.url;
-    img.decode().then(() => lcd.add(name, cfg.card ? drawPlayerCard(img, 1320) : drawScreenPhoto(img, quality.low ? 1024 : 1320, cfg.focus), cfg.action)).catch(() => {});
+    img.decode().then(() => lcd.add(name, cfg.card ? drawPlayerCard(img, 1600) : drawScreenPhoto(img, quality.low ? 1280 : 1600, cfg.focus), cfg.action)).catch(() => {});
   }
 
   // Callouts from parts to copy.
@@ -247,7 +248,7 @@ async function start() {
     const action = pick();
     if (!action) return;
     const def = ACTIONS[action];
-    if (def && def.href) { location.href = def.href; return; }
+    if (def && def.href) { if (window.pixelsTo) window.pixelsTo(def.href, { x: e.clientX, y: e.clientY }); else location.href = def.href; return; }
     if (action.startsWith('pop-')) show.firePop(+action.slice(4));
     else if (action === 'portrait') [0, 1, 2].forEach((i, k) => setTimeout(() => show.firePop(i), k * 140));
     else if (action.startsWith('target-')) show.hitTarget(+action.slice(7));
@@ -431,7 +432,7 @@ async function start() {
     director.apply(goal, dt, { instant: reduced, damping: 6.5 });
     // Light and focus close in on the part as the camera settles at its station.
     const settled = at > 0 ? clamp(1 - Math.abs(f - at) * 2.4) : 0;
-    stage.focusOn(director.current.target, director.current.d, settled * intro.blend);
+    stage.focusOn(director.current.target, director.current.d, settled * intro.blend, director.current.sharp);
 
     show.skillFocus = skillFocus;
     show.update(dt, { f });

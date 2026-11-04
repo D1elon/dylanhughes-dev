@@ -173,7 +173,13 @@
 
     // Intro: header, headline lines, then the display powers on.
     const introLines = $('[data-intro-lines]');
-    const intro = gsap.timeline({ defaults: { ease } });
+    // Arriving through the pixel transition, the intro waits until the page has begun to open (js/pixels.js).
+    const intro = gsap.timeline({ defaults: { ease }, paused: true });
+    (window.__pixelsIntro || Promise.resolve()).then(() => {
+      intro.play();
+      // A product's mark plays once, as its title rises.
+      $$('[data-mark]').forEach(el => setTimeout(() => el.classList.add('is-playing'), 250));
+    });
     const introParts = $$('[data-intro]');
     if (introParts.length) intro.fromTo(introParts, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 1, stagger: .06 }, 0);
     if (introLines) intro.add(riseLines(introLines, { duration: 1.25, stagger: .09 }), .1);

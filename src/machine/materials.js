@@ -54,6 +54,8 @@ export function makeMaterials(envMap) {
     transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false,
   });
   M.glass = reflectOnly(envMap, 0.45, 0.02);
+  // The LCD's cover glass: less glare than a translite's, so the picture under it stays clear.
+  M.screenGlass = reflectOnly(envMap, 0.2, 0.03);
   M.wood = new THREE.MeshStandardMaterial({ color: 0xc4a174, roughness: 0.78 }); // the ply's cut edge, left natural
   M.cardPaper = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75 });
   // Pop caps: royal-blue plastic, lit from inside by the bumper's lamp.
