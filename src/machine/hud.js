@@ -32,12 +32,14 @@ export class Hud {
     this.p = null;
   }
 
-  // reveal[i]: 0–1 for each station. Draws visible links; hides the rest.
-  update(camera, width, height, reveal, tall) {
+  // reveal[i]: 0–1 for each station; `view`, the director's view (its layout and, in the panel layouts, where the
+  // copy's panel starts). Draws visible links; hides the rest.
+  update(camera, width, height, reveal, view) {
+    const layout = view.layout, tall = layout === 'tall', side = layout === 'side';
     for (const link of this.links) {
       let r = reveal[link.index] || 0;
-      // One line per section, plus one to the list entry its part is showing now.
-      if (!link.primary && (tall || !link.el.classList.contains('current'))) r = 0;
+      // One line per section, plus, beside the copy, one to the list entry its part is showing now.
+      if (!link.primary && (layout !== 'wide' || !link.el.classList.contains('current'))) r = 0;
       if (r < 0.01) {
         if (link.shown !== 0) { link.g.style.display = 'none'; link.shown = 0; }
         continue;
@@ -47,16 +49,23 @@ export class Hud {
       if (v.z > 1 || rect.height === 0) { link.g.style.display = 'none'; link.shown = 0; continue; }
       if (link.shown === 0) link.g.style.display = '';
       const ax = (v.x + 1) / 2 * width, ay = (1 - v.y) / 2 * height;
-      // The line meets the copy at the side facing the part, level with its first line of text.
-      const right = rect.left > ax;
-      const tx = right ? rect.left - 14 : rect.right + 14;
-      const ty = rect.top + Math.min(rect.height / 2, 16);
+      // In the panel layouts only a part well inside the scene's share of the screen gets a line: one near its edge
+      // would run along the edge, or across the copy.
+      const inScene = !(tall || side) || (ax > 24 && ay > view.header + 24 && (tall ? ax < width - 24 && ay < view.panelTop - 40 : ax < view.panelLeft - 40 && ay < height - 24));
+      if (!inScene) { if (link.shown !== 0) { link.g.style.display = 'none'; link.shown = 0; } continue; }
+      // The line meets the copy at the side facing the part, level with its first line of text. Under a tall
+      // screen's panel it drops to the panel's edge; beside a side panel it meets the panel's edge, level with the
+      // heading while that's in view.
+      const right = side || rect.left > ax;
+      const tx = side ? view.panelLeft - 14 : right ? rect.left - 14 : rect.right + 14;
+      const ty = side ? Math.min(height - 24, Math.max(view.header + 24, rect.top + Math.min(rect.height / 2, 16))) : rect.top + Math.min(rect.height / 2, 16);
       const knee = right ? tx - 36 : tx + 36;
+      const drop = view.panelTop - 14;
       const d = tall
-        ? `M${ax.toFixed(1)},${ay.toFixed(1)}L${ax.toFixed(1)},${(rect.top - 18).toFixed(1)}`
+        ? `M${ax.toFixed(1)},${ay.toFixed(1)}L${ax.toFixed(1)},${drop.toFixed(1)}`
         : `M${ax.toFixed(1)},${ay.toFixed(1)}L${knee.toFixed(1)},${ty.toFixed(1)}L${tx.toFixed(1)},${ty.toFixed(1)}`;
       if (d !== link.d) { link.path.setAttribute('d', d); link.d = d; }
-      const end = tall ? [ax, rect.top - 18] : [tx, ty];
+      const end = tall ? [ax, drop] : [tx, ty];
       link.ring.setAttribute('cx', ax.toFixed(1)); link.ring.setAttribute('cy', ay.toFixed(1));
       link.dot.setAttribute('cx', ax.toFixed(1)); link.dot.setAttribute('cy', ay.toFixed(1));
       link.tick.setAttribute('cx', end[0].toFixed(1)); link.tick.setAttribute('cy', end[1].toFixed(1));

@@ -73,8 +73,8 @@ export function circleShape(d, steps = 40) {
   return Array.from({ length: steps }, (_, i) => { const a = (i / steps) * Math.PI * 2; return [Math.cos(a) * d / 2, Math.sin(a) * d / 2]; });
 }
 export function arrowShape(w, l) {
-  const shaft = w * 0.44, head = l * 0.48;
-  return [[-shaft / 2, -l / 2], [shaft / 2, -l / 2], [shaft / 2, l / 2 - head], [w / 2, l / 2 - head], [0, l / 2], [-w / 2, l / 2 - head], [-shaft / 2, l / 2 - head]];
+  const shaft = w * 0.4, head = l * 0.44, notch = shaft * 0.42;
+  return [[-shaft / 2, -l / 2], [0, -l / 2 + notch], [shaft / 2, -l / 2], [shaft / 2, l / 2 - head], [w / 2, l / 2 - head], [0, l / 2], [-w / 2, l / 2 - head], [-shaft / 2, l / 2 - head]];
 }
 export function hexagonShape(w, l) {
   return Array.from({ length: 6 }, (_, i) => [Math.cos((i * Math.PI) / 3) * w / 2, Math.sin((i * Math.PI) / 3) * l / 2]);
@@ -184,15 +184,46 @@ export function drawPlayfield(scale) {
   radial(PF.cx, 520, 640, [[0, PALETTE.black3], [0.55, '#1a1d22'], [1, 'rgba(20, 22, 26, 0)']]);
   radial(PF.cx, 820, 230, [[0, ROYAL(0.2)], [1, ROYAL(0)]]);
 
-  // 2. A half-inch dot grid, brightest under the middle of the field.
+  // 2. A drawing's grid, brightest under the middle of the field where the light falls: quarter-inch points, and a
+  // registration cross every two inches.
+  const fall = (x, y) => Math.max(0, 1 - Math.hypot((x - PF.cx) / 1.1, (y - 560) / 1.6) / 480);
   g.fillStyle = WHITE(1);
-  for (let y = 6.35; y < PF.l; y += 12.7) for (let x = 6.35; x < PF.w; x += 12.7) {
-    const d = Math.hypot((x - PF.cx) / 1.1, (y - 560) / 1.6), a = 0.13 * Math.max(0, 1 - d / 470);
+  for (let y = 6.35; y < PF.l; y += 6.35) for (let x = 6.35; x < PF.w; x += 6.35) {
+    const a = 0.085 * fall(x, y);
     if (a < 0.01) continue;
     g.globalAlpha = a;
-    g.beginPath(); g.arc(X(x), Y(y), S(0.62), 0, Math.PI * 2); g.fill();
+    g.fillRect(X(x) - S(0.28), Y(y) - S(0.28), S(0.56), S(0.56));
+  }
+  g.strokeStyle = WHITE(1); g.lineWidth = S(0.32);
+  for (let y = 50.8; y < PF.l; y += 50.8) for (let x = PF.cx % 50.8; x < PF.w; x += 50.8) {
+    const a = 0.3 * fall(x, y);
+    if (a < 0.02) continue;
+    g.globalAlpha = a;
+    g.beginPath(); g.moveTo(X(x - 2.2), Y(y)); g.lineTo(X(x + 2.2), Y(y)); g.moveTo(X(x), Y(y - 2.2)); g.lineTo(X(x), Y(y + 2.2)); g.stroke();
   }
   g.globalAlpha = 1;
+
+  // 2b. About's dial round the pops: datum circles like a drawing's, one ticked every 5° and numbered every 30°, over
+  // a halftone of royal dots falling away from the pops, the way the display's light would.
+  const [pcx, pcy] = POPS.reduce((m, p) => [m[0] + p.x / POPS.length, m[1] + p.y / POPS.length], [0, 0]);
+  for (let y = pcy - 176; y < pcy + 176; y += 5.08) for (let x = pcx - 176; x < pcx + 176; x += 5.08) {
+    const t = 1 - Math.hypot(x - pcx, y - pcy) / 176;
+    if (t <= 0.04) continue;
+    g.fillStyle = ROYAL(0.1 + 0.36 * t);
+    g.beginPath(); g.arc(X(x), Y(y), S(0.22 + 1.1 * t * t), 0, Math.PI * 2); g.fill();
+  }
+  const ring = (r, alpha, width = 0.4, dash = null) => {
+    g.save(); g.strokeStyle = LIGHT(alpha); g.lineWidth = S(width); if (dash) g.setLineDash(dash.map(S));
+    g.beginPath(); g.arc(X(pcx), Y(pcy), S(r), 0, Math.PI * 2); g.stroke(); g.restore();
+  };
+  ring(70, 0.5, 0.5); ring(98, 0.28, 0.35, [3, 2]); ring(128, 0.42, 0.45); ring(162, 0.18, 0.35);
+  g.strokeStyle = LIGHT(0.5); g.lineCap = 'butt';
+  for (let deg = 0; deg < 360; deg += 5) {
+    const a = (deg * Math.PI) / 180, long = deg % 30 === 0, r0 = 128, r1 = 128 + (long ? 5 : 2.2);
+    g.lineWidth = S(long ? 0.5 : 0.3);
+    g.beginPath(); g.moveTo(X(pcx + Math.sin(a) * r0), Y(pcy + Math.cos(a) * r0)); g.lineTo(X(pcx + Math.sin(a) * r1), Y(pcy + Math.cos(a) * r1)); g.stroke();
+    if (long) label(g, X(pcx + Math.sin(a) * 138), Y(pcy + Math.cos(a) * 138), String(deg).padStart(3, '0'), S(2.4), LIGHT(0.62), 'mono');
+  }
 
   // 3. Light running up each lane: the in- and outlanes, the orbits, the top lanes, and the shooter lane's channel
   // with chevrons pointing up it.
@@ -203,7 +234,14 @@ export function drawPlayfield(scale) {
     g.beginPath(); g.roundRect(X(x - width / 2), Y(y1), S(width), S(y1 - y0), S(width / 2)); g.fill();
   };
   for (const l of RETURN_LANES) laneLight(l.x, 220, 420, 20, 0.14);
-  for (const o of ORBIT_ROLLOVERS) laneLight(o.x, 640, 900, 22, 0.12);
+  for (const o of ORBIT_ROLLOVERS) {
+    laneLight(o.x, 640, 900, 22, 0.12);
+    g.lineWidth = S(1.4); g.lineJoin = 'round'; g.lineCap = 'round';
+    for (let y = 660, i = 0; y < 880; y += 34, i++) {
+      g.strokeStyle = LIGHT(0.12 + i * 0.025);
+      g.beginPath(); g.moveTo(X(o.x - 6), Y(y)); g.lineTo(X(o.x), Y(y + 6)); g.lineTo(X(o.x + 6), Y(y)); g.stroke();
+    }
+  }
   for (const l of TOP_LANES.lanes) laneLight(l.x, l.y - 40, l.y + 70, 20, 0.18);
   {
     const x0 = SHOOTER.laneLeft, x1 = SHOOTER.laneRight;
@@ -217,6 +255,17 @@ export function drawPlayfield(scale) {
       g.strokeStyle = LIGHT(0.34 + i * 0.03);
       g.beginPath(); g.moveTo(X(mid - 9), Y(y)); g.lineTo(X(mid), Y(y + 9)); g.lineTo(X(mid + 9), Y(y)); g.stroke();
     }
+    // A ruler down the lane's inner edge, in centimetres from the plunger, as a drawing would dimension it.
+    g.lineCap = 'butt';
+    for (let mm = 0; mm <= SHOOTER.dividerTop - 160; mm += 10) {
+      const y = 120 + mm, major = mm % 50 === 0;
+      g.strokeStyle = WHITE(major ? 0.42 : 0.22); g.lineWidth = S(major ? 0.45 : 0.3);
+      g.beginPath(); g.moveTo(X(x0 + 1.2), Y(y)); g.lineTo(X(x0 + 1.2 + (major ? 4.5 : 2.2)), Y(y)); g.stroke();
+      if (mm % 100 === 0 && mm) label(g, X(x0 + 9.5), Y(y), String(mm / 10), S(2.3), WHITE(0.45), 'mono');
+    }
+    g.save(); g.translate(X(mid), Y(860)); g.rotate(-Math.PI / 2);
+    label(g, 0, 0, 'Launch', S(3), LIGHT(0.7), 'mono');
+    g.restore();
   }
 
   // 4. The shots: a beam from each flipper to the opposite ramp's mouth, crossing on the centre line; the orbits'
@@ -250,60 +299,96 @@ export function drawPlayfield(scale) {
 
   // 5. Every insert sits in a pool of its own light, in a printed bezel traced from its own outline.
   for (const ins of inserts) {
-    const tint = TINTS[ins.color] || WHITE, r = Math.max(ins.w, ins.l) * 1.15;
+    const tint = TINTS[ins.color] || WHITE, r = Math.max(ins.w, ins.l) * 1.15, k = ins.color === 'white' ? 0.55 : 1;
     const grad = g.createRadialGradient(X(ins.x), Y(ins.y), 0, X(ins.x), Y(ins.y), S(r));
-    grad.addColorStop(0, tint(0.4)); grad.addColorStop(0.55, tint(0.13)); grad.addColorStop(1, tint(0));
+    grad.addColorStop(0, tint(0.4 * k)); grad.addColorStop(0.55, tint(0.13 * k)); grad.addColorStop(1, tint(0));
     g.fillStyle = grad;
     g.beginPath(); g.arc(X(ins.x), Y(ins.y), S(r), 0, Math.PI * 2); g.fill();
   }
-  for (const ins of inserts) {
-    const a = (ins.angle * Math.PI) / 180, sx = (ins.w / 2 + 2.6) / (ins.w / 2), sy = (ins.l / 2 + 2.6) / (ins.l / 2);
-    g.save();
-    g.lineJoin = 'round';
+  const trace = (ins, grow) => {
+    const a = (ins.angle * Math.PI) / 180, sx = (ins.w / 2 + grow) / (ins.w / 2), sy = (ins.l / 2 + grow) / (ins.l / 2);
     g.beginPath();
     ins.shape.forEach(([px, py], k) => {
       const qx = px * sx, qy = py * sy, rx = qx * Math.cos(a) - qy * Math.sin(a), ry = qx * Math.sin(a) + qy * Math.cos(a);
       k ? g.lineTo(X(ins.x + rx), Y(ins.y + ry)) : g.moveTo(X(ins.x + rx), Y(ins.y + ry));
     });
     g.closePath();
-    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = S(3.4); g.stroke();
-    g.strokeStyle = (TINTS[ins.color] || WHITE)(ins.color === 'white' ? 0.5 : 0.7); g.lineWidth = S(0.8); g.stroke();
-    g.restore();
+  };
+  g.lineJoin = 'round';
+  for (const ins of inserts) {
+    const tint = TINTS[ins.color] || WHITE;
+    trace(ins, 2.4); g.strokeStyle = 'rgba(0, 0, 0, 0.55)'; g.lineWidth = S(3.2); g.stroke();
+    trace(ins, 1.3); g.strokeStyle = WHITE(0.42); g.lineWidth = S(0.3); g.stroke();
+    trace(ins, 3.4); g.strokeStyle = tint(ins.color === 'white' ? 0.45 : 0.75); g.lineWidth = S(0.55); g.stroke();
+  }
+  // The middle stack, Extra ball to Wizard, on a plate of its own with each insert's name beside it.
+  {
+    const stack = ['extra_ball_insert', 'lock_insert', 'wizard_insert'].map(id => byId[id]);
+    const top = stack[2].y + stack[2].l / 2 + 7, bottom = stack[0].y - stack[0].l / 2 - 7, half = 27;
+    g.fillStyle = ROYAL(0.06); g.strokeStyle = LIGHT(0.42); g.lineWidth = S(0.4);
+    g.beginPath(); g.roundRect(X(PF.cx - half), Y(top), S(half * 2), S(top - bottom), S(half)); g.fill(); g.stroke();
+    ['Extra ball', 'Lock', 'Wizard'].forEach((name, i) => {
+      const ins = stack[i], y = ins.y;
+      g.strokeStyle = WHITE(0.3); g.lineWidth = S(0.3);
+      g.beginPath(); g.moveTo(X(PF.cx + half + 1.5), Y(y)); g.lineTo(X(PF.cx + half + 6), Y(y)); g.stroke();
+      label(g, X(PF.cx + half + 8), Y(y), name, S(2.6), WHITE(0.6), 'mono', 'left');
+    });
   }
 
-  // 6. Names, in small spaced capitals: the site's sections are the shots. Behind an arrow, along its axis.
-  const behind = (ins, text, size, color, gap = 6.5) => {
-    const r = (ins.angle * Math.PI) / 180, back = ins.l / 2 + gap;
+  // 6. Names, in small spaced capitals: the site's sections are the shots, numbered as the site numbers them, the
+  // number in blue. Behind an arrow, along its axis, after a short leader from its notch.
+  const section = (x, y, num, text, size, angle = 0, alpha = 0.92) => {
     g.save();
-    g.translate(X(ins.x + Math.sin(r) * back), Y(ins.y - Math.cos(r) * back));
-    g.rotate(-r);
-    label(g, 0, 0, text, size, color, 'mono');
+    g.translate(x, y); g.rotate(angle);
+    setType(g, 'mono', size);
+    const wn = num ? g.measureText(num).width : 0, gap = num ? size * 0.9 : 0;
+    const wt = g.measureText(text.toUpperCase()).width, x0 = -(wn + gap + wt) / 2;
+    if (num) label(g, x0, 0, num, size, LIGHT(1), 'mono', 'left');
+    label(g, x0 + wn + gap, 0, text, size, WHITE(alpha), 'mono', 'left');
     g.restore();
   };
-  behind(byId.left_ramp_arrow, 'Deadbounce', S(4.4), WHITE(0.9));
-  behind(byId.right_ramp_arrow, 'Tip Top', S(4.4), WHITE(0.9));
-  behind(byId.left_orbit_arrow, 'Orbit', S(3.6), WHITE(0.62));
-  behind(byId.right_orbit_arrow, 'Orbit', S(3.6), WHITE(0.62));
-  behind(saucerArrow, 'Mystery', S(3.4), WHITE(0.7), 5.5);
-  // Skills: the row of lane inserts across the field. About: between the three pops. Experience: over the top
-  // lanes' years. Contact: under the shoot-again shield, where Origin prints SHOOT AGAIN.
+  const behind = (ins, num, text, size, alpha = 0.92, gap = 8.5) => {
+    const r = (ins.angle * Math.PI) / 180, back = ins.l / 2 + gap, ux = Math.sin(r), uy = -Math.cos(r);
+    g.strokeStyle = WHITE(0.32); g.lineWidth = S(0.3);
+    g.beginPath(); g.moveTo(X(ins.x + ux * (ins.l / 2 + 1)), Y(ins.y + uy * (ins.l / 2 + 1))); g.lineTo(X(ins.x + ux * (back - 3)), Y(ins.y + uy * (back - 3))); g.stroke();
+    section(X(ins.x + ux * back), Y(ins.y + uy * back), num, text, size, -r, alpha);
+  };
+  behind(byId.left_ramp_arrow, '01', 'Deadbounce', S(4.2));
+  behind(byId.right_ramp_arrow, '02', 'Tip Top', S(4.2));
+  behind(byId.left_orbit_arrow, '', 'Orbit', S(3.2), 0.6, 7);
+  behind(byId.right_orbit_arrow, '', 'Orbit', S(3.2), 0.6, 7);
+  behind(saucerArrow, '', 'Mystery', S(3.1), 0.68, 6.5);
+  // About: in the dial's middle, between the pops. Skills: across the field between the lane inserts. Experience:
+  // over the top lanes' years. Contact: under the shoot-again shield, where Origin prints SHOOT AGAIN.
+  section(X(pcx), Y(pcy + 1), '03', 'About', S(3.8));
   const laneY = RETURN_LANES[0].insertY;
-  label(g, X(PF.cx), Y(laneY), 'Skills', S(4.4), WHITE(0.85), 'mono');
+  section(X(PF.cx), Y(laneY), '04', 'Skills', S(4.2));
   for (const k of [-1, 1]) {
-    g.strokeStyle = WHITE(0.25); g.lineWidth = S(0.5);
-    g.beginPath(); g.moveTo(X(PF.cx + k * 22), Y(laneY)); g.lineTo(X(PF.cx + k * 120), Y(laneY)); g.stroke();
+    g.strokeStyle = WHITE(0.25); g.lineWidth = S(0.4);
+    g.beginPath(); g.moveTo(X(PF.cx + k * 26), Y(laneY)); g.lineTo(X(PF.cx + k * 120), Y(laneY)); g.stroke();
+    g.fillStyle = ROYAL(1); g.fillRect(X(PF.cx + k * 120) - (k > 0 ? S(4) : 0), Y(laneY) - S(0.6), S(4), S(1.2));
   }
-  const pop = POPS.reduce((m, p) => [m[0] + p.x / POPS.length, m[1] + p.y / POPS.length], [0, 0]);
-  label(g, X(pop[0]), Y(pop[1] + 1), 'About', S(3.8), WHITE(0.85), 'mono');
   const lane3 = TOP_LANES.lanes[2];
-  label(g, X(lane3.insertX), Y(lane3.insertY + 18.5), 'Experience', S(3.8), WHITE(0.85), 'mono');
+  section(X(lane3.insertX), Y(lane3.insertY + 18.5), '05', 'Experience', S(3.8));
   const again = byId.shoot_again;
-  label(g, X(again.x), Y(again.y - again.l / 2 - 6), 'Contact', S(4), WHITE(0.85), 'mono');
+  section(X(again.x), Y(again.y - again.l / 2 - 6.5), '06', 'Contact', S(3.8));
 
-  // 7. The lockup between the slings: the dot-matrix DH, the name, and the model under it.
-  dotMark(g, X(PF.cx), Y(276), S(2.2), ROYAL(1), WHITE(0.06));
-  label(g, X(PF.cx), Y(258), 'Dylan Hughes', S(8.4), WHITE(0.95), 'display');
-  label(g, X(PF.cx), Y(248), 'DH-26 · Richmond, Virginia', S(3), LIGHT(0.9), 'mono');
+  // 7. The lockup between the slings, set as a drawing's title block: a hairline frame with the lit tab at its
+  // corner, the dot-matrix DH and the name, and a row of cells under them.
+  {
+    const x0 = PF.cx - 46, x1 = PF.cx + 46, y0 = 234, y1 = 292, row = 243;
+    g.fillStyle = 'rgba(6, 7, 10, 0.55)'; g.fillRect(X(x0), Y(y1), S(x1 - x0), S(y1 - y0));
+    g.strokeStyle = WHITE(0.34); g.lineWidth = S(0.35);
+    g.strokeRect(X(x0), Y(y1), S(x1 - x0), S(y1 - y0));
+    g.beginPath(); g.moveTo(X(x0), Y(row + 4.5)); g.lineTo(X(x1), Y(row + 4.5)); g.stroke();
+    for (const x of [PF.cx - 15, PF.cx + 17]) { g.beginPath(); g.moveTo(X(x), Y(row + 4.5)); g.lineTo(X(x), Y(y0)); g.stroke(); }
+    g.fillStyle = ROYAL(1); g.fillRect(X(x0), Y(y1) - S(0.6), S(9), S(1.2));
+    dotMark(g, X(PF.cx), Y(277), S(2.1), ROYAL(1), WHITE(0.06));
+    label(g, X(PF.cx), Y(259), 'Dylan Hughes', S(7.6), WHITE(0.95), 'display');
+    label(g, X((x0 + PF.cx - 15) / 2), Y(row - 0.2), 'DH-26', S(2.4), LIGHT(1), 'mono');
+    label(g, X((PF.cx - 15 + PF.cx + 17) / 2), Y(row - 0.2), 'Richmond, VA', S(2.4), WHITE(0.6), 'mono');
+    label(g, X((PF.cx + 17 + x1) / 2), Y(row - 0.2), 'Sheet 1/1', S(2.4), WHITE(0.6), 'mono');
+  }
 
   return c;
 }
@@ -448,18 +533,57 @@ export function drawCabinetSide(width, height, { frontBottom = 0.77 } = {}) {
   const at = (along, z) => { const x = width * (1 - along); return [x, bottomAt(x) - z]; };
   g.fillStyle = PALETTE.black1;
   g.fillRect(0, 0, width, height);
+  // A drawing's grid across the black, faint: registration crosses.
+  const u = height / 768;
+  g.strokeStyle = WHITE(0.07); g.lineWidth = 1.4 * u;
+  for (let y = 40 * u; y < height; y += 64 * u) for (let x = 40 * u; x < width; x += 64 * u) {
+    g.beginPath(); g.moveTo(x - 5 * u, y); g.lineTo(x + 5 * u, y); g.moveTo(x, y - 5 * u); g.lineTo(x, y + 5 * u); g.stroke();
+  }
   const low = height * 0.08, back = height * 0.56;
   const edge = [[0, low], [0.45, low * 0.8], [0.72, back * 0.55], [1, back]];
   const curve = (lift = 0) => {
     g.moveTo(...at(0, low + lift));
     g.bezierCurveTo(...edge.slice(1).flatMap(([a, z]) => at(a, z + lift)));
   };
+  // The sweep's top edge, sampled, for the pixels that dissolve off it.
+  const p0 = at(0, low), [p1, p2, p3] = edge.slice(1).map(([a, z]) => at(a, z)), top = [];
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200, m = 1 - t;
+    top.push([m * m * m * p0[0] + 3 * m * m * t * p1[0] + 3 * m * t * t * p2[0] + t * t * t * p3[0], m * m * m * p0[1] + 3 * m * m * t * p1[1] + 3 * m * t * t * p2[1] + t * t * t * p3[1]]);
+  }
+  const edgeY = x => { let best = top[0]; for (const q of top) if (Math.abs(q[0] - x) < Math.abs(best[0] - x)) best = q; return best[1]; };
+  // A large dot-matrix DH in the black over the sweep's tall end, printed in faint rings.
+  {
+    const dot = height * 0.07, [mx] = at(0.78, 0), my = height * 0.25;
+    const x0 = mx - (9 * dot) / 2, y0 = my - (5 * dot) / 2;
+    g.lineWidth = 2 * u;
+    DH_GLYPHS.forEach((glyph, k) => glyph.forEach((row, j) => [...row].forEach((lit, i) => {
+      g.strokeStyle = lit === '1' ? ROYAL(0.32) : WHITE(0.05);
+      g.beginPath(); g.arc(x0 + (k * 5 + i + 0.5) * dot, y0 + (j + 0.5) * dot, dot * 0.34, 0, Math.PI * 2); g.stroke();
+    })));
+  }
   const fill = g.createLinearGradient(width, 0, 0, 0);
   fill.addColorStop(0, PALETTE.deep); fill.addColorStop(0.55, PALETTE.royal); fill.addColorStop(1, '#4a72ff');
   g.beginPath(); g.moveTo(width, height); g.lineTo(...at(0, low)); curve(); g.lineTo(0, height); g.closePath();
   g.fillStyle = fill; g.fill();
+  // Pixels dissolving off the sweep's edge, as the site's page change does: royal dots shrinking away from it,
+  // over the white pinstripe that rides above it.
+  {
+    const pitch = 15 * u, reach = height * 0.16;
+    for (let x = pitch / 2; x < width; x += pitch) {
+      const ey = edgeY(x);
+      for (let y = ey - pitch * 0.6; y > ey - reach; y -= pitch) {
+        const t = 1 - (ey - y) / reach;
+        const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453, jitter = h - Math.floor(h);
+        if (jitter > t * 1.15) continue;
+        g.fillStyle = ROYAL(0.35 + 0.6 * t);
+        g.beginPath(); g.arc(x, Math.round(y / pitch) * pitch, pitch * 0.36 * (0.35 + 0.65 * t), 0, Math.PI * 2); g.fill();
+      }
+    }
+  }
   g.lineCap = 'round';
   g.strokeStyle = PALETTE.paper; g.lineWidth = height * 0.0065; g.beginPath(); curve(height * 0.03); g.stroke();
+  g.strokeStyle = LIGHT(0.5); g.lineWidth = height * 0.0025; g.beginPath(); curve(height * 0.052); g.stroke();
   g.strokeStyle = ROYAL(0.95); g.lineWidth = height * 0.008; g.beginPath(); g.moveTo(0, height * 0.045); g.lineTo(width, height * 0.045); g.stroke();
   // The mark, cut out of the sweep where it has grown tall.
   const markAt = 0.86, [mx] = at(markAt, 0), deep = back * 0.92;
@@ -469,6 +593,14 @@ export function drawCabinetSide(width, height, { frontBottom = 0.77 } = {}) {
   const mid = (height * 0.045 + band) / 2;
   label(g, lx, mid - height * 0.035, 'Dylan Hughes', height * 0.12, PALETTE.paper, 'display');
   label(g, lx, mid + height * 0.06, 'Creative technologist', height * 0.032, LIGHT(1), 'mono');
+  // The model's plate at the front, set as the site's title blocks are: a hairline with the lit tab, and the spec.
+  {
+    const x1 = width - 56 * u, x0 = x1 - 330 * u, y = height * 0.14;
+    g.strokeStyle = WHITE(0.3); g.lineWidth = 1.5 * u; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+    g.fillStyle = ROYAL(1); g.fillRect(x0, y - 2.5 * u, 30 * u, 5 * u);
+    label(g, x0, y + 22 * u, 'Model DH-26', 15 * u, LIGHT(1), 'mono', 'left');
+    label(g, x1, y + 22 * u, 'Richmond, Virginia', 15 * u, WHITE(0.6), 'mono', 'right');
+  }
   return c;
 }
 

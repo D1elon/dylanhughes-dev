@@ -52,7 +52,7 @@ const STOPS = {
   tiptop: { glass: [0.05, -0.25], az: 18, el: 18, fit: [0.7, 0.96], side: 'left', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: 12, el: 8, fit: [0.64, 0.5] } },
   // About: the back pop bumper, its parts lifting clear in front of the speaker panel, under the player card on the
   // LCD. A long lens keeps the bumper and the screen behind it close in size.
-  about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10, sharp: 1 },
+  about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10, sharp: 1, tall: { at: [236, 960, 400], fit: [0.56, 0.74] } },
   // Skills: the four lane inserts across the field above the slings, Web to Fab. The camera arrives on all four, then
   // tours them (SKILL_TOUR).
   skills: { at: [237, 384, 0], az: 0, el: 50, fit: [0.47, 0.13], side: 'left', lift: 6 },
@@ -104,6 +104,7 @@ async function start() {
   if (!canvas || !stations.length) throw new Error('No stage on this page');
   const quality = pickQuality();
   await loadArtFonts();
+  performance.mark('machine:fonts');
 
   // Artwork.
   const art = {
@@ -123,14 +124,16 @@ async function start() {
   const dmdLabel = $('[data-dmd-label]'), dmdCount = $('[data-dmd-count]');
   const dmd = new window.DMD(dmdCanvas, {
     reduced,
-    width: 1024,
+    width: quality.low ? 640 : 896, // 5 or 7 pixels a dot: the texture is re-uploaded on every paint
     onScene: (name, i, n) => { if (dmdLabel) dmdLabel.textContent = name; if (dmdCount && n > 1) dmdCount.textContent = `${i} / ${n}`; },
   });
 
+  performance.mark('machine:art');
   const stage = createStage(canvas, quality);
   const M = makeMaterials(stage.envMap);
   const anisotropy = Math.min(quality.anisotropy, stage.renderer.capabilities.getMaxAnisotropy());
   const h = buildMachine({ M, art, dmdCanvas, anisotropy, maxAnisotropy: stage.renderer.capabilities.getMaxAnisotropy() });
+  performance.mark('machine:built');
   stage.scene.add(h.root);
   if (stage.ao) stage.ao.setSceneClipBox(new THREE.Box3().setFromObject(h.root).expandByScalar(0.03));
   dmd.onPaint = () => { h.dmd.texture.needsUpdate = true; };
@@ -208,21 +211,55 @@ async function start() {
     if (Math.abs(director.floatAt(scrollY()) - i) > 0.2) scrollTo(director.anchors[i], { duration: 1.1 });
   }));
 
-  // Layout and size.
+  // Layout and size. On wide screens each placard sticks beside its part and the holds follow the sections. In the
+  // panel layouts every placard sits in the same fixed panel, under the scene or beside it, so the copy never covers
+  // the part: each section is as long as its copy needs to scroll through the panel, plus a pause to read, plus the
+  // travel to the next.
   const header = $('[data-header]');
-  let width = 0, height = 0;
-  function layout() {
-    width = innerWidth; height = innerHeight;
+  const placards = stations.map(el => el.querySelector('.placard'));
+  const sides = stations.map(el => el.dataset.side || 'hero');
+  const overflow = placards.map(() => 0), scrolled = placards.map(() => 0);
+  const strip = $('.dmd-strip'), stripHome = strip && strip.parentElement, stripNext = strip && strip.nextElementSibling;
+  let width = 0, height = 0, panel = false;
+  function layout(force = false) {
+    const w = innerWidth, hgt = innerHeight;
+    // A phone's address bar showing and hiding only resizes the canvas: the sections stay where they are.
+    const minor = !force && panel && w === width && Math.abs(hgt - height) < 150;
+    width = w; height = hgt;
     stage.resize(width, height);
+    if (minor) return;
     director.setView(width, height, header ? header.offsetHeight : 64);
-    root.classList.toggle('tall', director.view.layout === 'tall');
-    stations.forEach(el => { const card = el.querySelector('.placard'); if (card) el.style.setProperty('--ph', card.offsetHeight + 'px'); });
-    director.measure(stations, height, director.view.layout === 'tall');
+    const L = director.view.layout;
+    panel = L !== 'wide';
+    root.classList.toggle('tall', L === 'tall');
+    root.classList.toggle('side', L === 'side');
+    root.classList.toggle('panel', panel);
+    root.style.setProperty('--panel-top', director.view.panelTop + 'px');
+    root.style.setProperty('--panel-left', director.view.panelLeft + 'px');
+    // The display's controls go with the hero's copy into its panel.
+    if (strip && placards[0]) { if (panel) placards[0].append(strip); else stripHome.insertBefore(strip, stripNext); }
+    if (!panel) {
+      stations.forEach((el, i) => { el.style.height = ''; if (placards[i]) el.style.setProperty('--ph', placards[i].offsetHeight + 'px'); });
+      director.measure(stations, height);
+      return;
+    }
+    const holds = stations.map((el, i) => {
+      const card = placards[i];
+      if (!card) return height * 0.45;
+      card.style.setProperty('--scroll', '0px');
+      scrolled[i] = 0;
+      const over = card.scrollHeight - card.clientHeight;
+      overflow[i] = over > 2 ? Math.ceil(over + 16) : 0;
+      return overflow[i] + height * 0.45 * (+el.dataset.hold || 1);
+    });
+    const travel = height * 0.8;
+    stations.forEach((el, i) => { el.style.height = `${Math.round(holds[i] + (i < stations.length - 1 ? travel : height * 0.25))}px`; });
+    director.setStops(stations, holds);
   }
   layout();
   let resizeTimer = 0;
   addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(layout, 120); });
-  document.fonts.ready.then(layout);
+  document.fonts.ready.then(() => layout(true));
 
   // Pointer: parallax, hover over parts and clicks on them.
   const raycaster = new THREE.Raycaster();
@@ -231,7 +268,9 @@ async function start() {
   let pointerOverUI = false;
   const cursor = $('[data-cursor-label]');
   const uiTarget = el => el.closest('a, button, input, label, .placard, [data-glass], .site-header, .dmd-strip, .site-footer');
+  let pointerMoved = false, pickTick = 0;
   addEventListener('pointermove', e => {
+    pointerMoved = true;
     ndc.set((e.clientX / width) * 2 - 1, -(e.clientY / height) * 2 + 1);
     if (finePointer) director.pointer(ndc.x, ndc.y);
     if (cursor) cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%) scale(${hovered ? 1 : 0})`;
@@ -300,20 +339,28 @@ async function start() {
   if (nextKey) nextKey.addEventListener('click', () => { dmd.next(); if (dmdPaused || reduced) dmd.still(); });
 
   // Copy arrives with its station: each station's reveal is 1 at its stop and falls to 0 half-way to the next.
-  const placards = stations.map(el => el.querySelector('.placard'));
-  const sides = stations.map(el => el.dataset.side || 'hero');
   const shade = $('[data-shade]');
   const shadeState = { l: -1, r: -1, b: -1 };
   const shown = placards.map(() => -1);
   const reveal = placards.map(() => 0);
   const lens = $('[data-lens]');
   let lensShown = 0;
-  function updateCopy(f) {
+  const footer = $('.site-footer');
+  function updateCopy(f, y) {
+    // In the panel layouts, the last section's copy gives way as the footer comes up under it.
+    let tail = 1;
+    if (panel && footer && f > placards.length - 1.6) tail = clamp((footer.getBoundingClientRect().top - height * 0.55) / (height * 0.35));
     placards.forEach((p, i) => {
       let v = clamp(1 - Math.abs(f - i) * 2.4);
       if (reduced) v = Math.abs(f - i) < 0.5 ? 1 : 0;
+      if (i === placards.length - 1) v *= tail;
       reveal[i] = v;
       if (!p) return;
+      // Copy longer than the panel scrolls through it while the camera holds.
+      if (panel) {
+        const s = overflow[i] ? Math.round(-overflow[i] * director.holdProgress(i, y) * 2) / 2 : 0;
+        if (s !== scrolled[i]) { scrolled[i] = s; p.style.setProperty('--scroll', s + 'px'); }
+      }
       if (Math.abs(v - shown[i]) < 0.003) return;
       shown[i] = v;
       p.style.opacity = v.toFixed(3);
@@ -324,7 +371,7 @@ async function start() {
     let best = 0;
     reveal.forEach((v, i) => { if (i > 0 && v > reveal[best]) best = i; });
     const lv = best > 0 ? reveal[best] : 0;
-    if (lens && (lv > 0.01 || lensShown > 0.01)) {
+    if (lens && !panel && (lv > 0.01 || lensShown > 0.01)) {
       if (lv > 0.01) {
         const r = placards[best].getBoundingClientRect();
         const padX = 90, padY = 80;
@@ -335,10 +382,9 @@ async function start() {
       lens.style.opacity = lv.toFixed(3);
       lensShown = lv;
     }
-    // Shade whichever side carries copy; on tall screens, the bottom.
-    const tall = director.view.layout === 'tall';
+    // Shade whichever side carries copy. The panel layouts' panel has a ground of its own (site.css).
     const side = s => Math.max(0, ...reveal.map((v, i) => (sides[i] === s ? v : 0)));
-    const next = { l: tall ? 0 : side('left'), r: tall ? 0 : side('right'), b: tall ? Math.max(...reveal) : 0 };
+    const next = panel ? { l: 0, r: 0, b: 0 } : { l: side('left'), r: side('right'), b: 0 };
     for (const k of ['l', 'r', 'b']) {
       if (Math.abs(next[k] - shadeState[k]) < 0.004) continue;
       shadeState[k] = next[k];
@@ -436,7 +482,9 @@ async function start() {
 
     show.skillFocus = skillFocus;
     show.update(dt, { f });
-    updateCopy(f);
+    // The callouts read the copy's layout before this frame restyles it, so a frame costs one layout, not two.
+    hud.update(stage.camera, width, height, reveal, director.view);
+    updateCopy(f, y);
     syncLists(station);
 
     // The LCD shows the picture for the nearest section that has one, once the camera is past half-way to it, and the
@@ -449,7 +497,6 @@ async function start() {
     lcd.show(want, reduced);
     lcd.update(wall);
 
-    hud.update(stage.camera, width, height, reveal, director.view.layout === 'tall');
     if (exploded) {
       const e = explodeAt(y);
       exploded.update(e, stage.camera, width, height, director.view.layout === 'tall' ? 'tall' : STOPS.about.side);
@@ -458,8 +505,9 @@ async function start() {
     const scrolled = y > 40;
     if (scrolled !== root.classList.contains('scrolled')) root.classList.toggle('scrolled', scrolled);
 
-    // Hover over parts.
-    if (finePointer) {
+    // Hover over parts: a raycast when the pointer has moved, and every few frames while the camera does.
+    if (finePointer && (pointerMoved || ++pickTick % 6 === 0)) {
+      pointerMoved = false;
       const action = pick();
       if (action !== hovered) {
         hovered = action;
@@ -472,16 +520,19 @@ async function start() {
     requestAnimationFrame(frame);
   }
 
-  // First frame, then reveal.
+  // First frame, then reveal. The shaders compile first, in parallel where the browser can, so the first frame
+  // doesn't stall the page while the boot light shows.
   director.apply(director.at(0), 0, { instant: true });
+  try { await stage.renderer.compileAsync(stage.scene, stage.camera); } catch { /* they compile on first use */ }
   stage.render();
+  performance.mark('machine:first-frame');
   requestAnimationFrame(t => { last = t; frame(t); powerOn(); });
   window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, lcd, exploded };
 }
 
 start().catch(err => {
   console.error(err);
-  root.classList.remove('machine', 'booting', 'tall');
+  root.classList.remove('machine', 'booting', 'tall', 'side', 'panel');
   root.classList.add('machine-failed');
   window.dispatchEvent(new Event('machine:failed'));
 });

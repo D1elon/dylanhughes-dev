@@ -14,31 +14,18 @@ export class Director {
     this.holds = [];
     this.current = null;
     this.parallax = { x: 0, y: 0, tx: 0, ty: 0 };
-    this.view = { width: 1, height: 1, header: 64, layout: 'wide', panel: 460 };
+    this.view = { width: 1, height: 1, header: 64, layout: 'wide', panelTop: 0, panelLeft: 0 };
   }
 
   setPoses(poses) { this.poses = poses; }
 
-  // Scroll positions where the camera holds at each station, and for how long. On wide screens a placard sticks
-  // beside its subject, so the hold is centred on its section; on tall screens placards scroll up from the
-  // bottom, so the camera holds while the placard crosses the lower half of the screen. A station with data-hold
-  // holds that many times longer, for one with a camera move of its own inside it (Skills).
-  measure(elements, viewportHeight, tall) {
+  // Scroll positions where the camera holds at each station, and for how long, on wide screens: a placard sticks
+  // beside its subject, so the hold is centred on its section. A station with data-hold holds that many times
+  // longer, for one with a camera move of its own inside it (Skills).
+  measure(elements, viewportHeight) {
     const y = scrollY;
     const top = el => el.getBoundingClientRect().top + y;
     const factor = el => +el.dataset.hold || 1;
-    if (tall) {
-      this.holds = elements.map(el => {
-        const card = el.querySelector('.placard') || el;
-        return Math.min(card.offsetHeight * 0.75, viewportHeight * 0.6) * factor(el);
-      });
-      this.anchors = elements.map((el, i) => {
-        const card = el.querySelector('.placard') || el;
-        return Math.max(0, top(card) - viewportHeight * 0.55) + this.holds[i] / 2;
-      });
-      this.anchors[0] = 0;
-      return;
-    }
     this.anchors = elements.map(el => top(el) + el.offsetHeight / 2 - viewportHeight / 2);
     this.anchors[0] = 0;
     this.holds = elements.map((el, i) => {
@@ -46,6 +33,14 @@ export class Director {
       const next = i < elements.length - 1 ? this.anchors[i + 1] - this.anchors[i] : Infinity;
       return Math.min(Math.min(prev, next, el.offsetHeight) * 0.42 * factor(el), Math.min(prev, next) * 0.75);
     });
+  }
+
+  // Panel layouts (phones, tablets, short landscape screens): each station's hold is given, from the top of its
+  // section, and the section is as long as its hold plus the travel to the next.
+  setStops(elements, holds) {
+    const y = scrollY;
+    this.holds = holds.slice();
+    this.anchors = elements.map((el, i) => el.getBoundingClientRect().top + y + holds[i] / 2);
   }
 
   // Station float: an integer while holding at a station, fractional while travelling.
@@ -71,12 +66,16 @@ export class Director {
     this.view.width = width;
     this.view.height = height;
     this.view.header = header;
-    this.view.layout = width >= 900 && width / height > 1.05 ? 'wide' : 'tall';
-    this.view.panel = Math.min(470, width * 0.36);
+    // Wide: the copy beside the part. Tall (portrait) and side (landscape phones and short windows): the copy in a
+    // panel of its own, under the scene or beside it, so it never covers the part.
+    const landscape = width / height > 1.05;
+    this.view.layout = landscape ? (width >= 900 && height >= 540 ? 'wide' : 'side') : 'tall';
+    this.view.panelTop = Math.round(Math.max(height * 0.47, height - 460));
+    this.view.panelLeft = Math.round(width * 0.54);
   }
 
   // Where on screen a pose's target should sit, and how much of the screen it fills. The scene is always
-  // full-bleed: on wide screens the part sits across from the copy; on tall screens it sits above it.
+  // full-bleed: on wide screens the part sits across from the copy; in the panel layouts, above or beside the panel.
   frame(pose) {
     const { width: W, height: H, header, layout } = this.view;
     const top = header / H;
@@ -87,8 +86,10 @@ export class Director {
       const cx = pose.side === 'left' ? copy + (1 - copy) / 2 : (1 - copy) / 2;
       return { cx, cy: top / 2 + 0.5, fx: (1 - copy) * 0.98, fy: (1 - top) * 0.98 };
     }
-    if (pose.side === 'hero') return { cx: 0.5, cy: top + 0.24, fx: 0.98, fy: 0.46 };
-    return { cx: 0.5, cy: top + 0.21, fx: 0.98, fy: 0.42 };
+    // Panel layouts: the part fills the scene's share of the screen.
+    if (layout === 'side') { const right = this.view.panelLeft / W; return { cx: right / 2, cy: (top + 1) / 2, fx: right * 0.94, fy: (1 - top) * 0.92 }; }
+    const bottom = this.view.panelTop / H;
+    return { cx: 0.5, cy: (top + bottom) / 2, fx: 0.96, fy: (bottom - top) * 0.92 };
   }
 
   // A pose resolved for the current screen: camera position, target, field of view and view offset. A pose's `tall`

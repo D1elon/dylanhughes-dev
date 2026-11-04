@@ -78,7 +78,7 @@ export class Show {
     });
     P.on('enter', e => {
       const id = String(e.id);
-      if (/^(lane|return)\d$/.test(id)) this.flash(rolloverInsert(id), 1.2);
+      if (/^(lane|return)\d$/.test(id)) this.flash(rolloverInsert(id), 0.8);
       else if (/^orbit\d$/.test(id)) this.flash(rolloverInsert(id), 1.4);
       else if (id === 'saucer') { this.flash('saucer_arrow', 1.6); this.saucerAt = this.time; }
       else if (id === 'gate') this.swingGate();
@@ -426,7 +426,7 @@ export class Show {
         if (!b.visible) continue;
         if (Math.abs(b.position.x - r.pos.x) < 9 * MM && Math.abs(b.position.z - r.pos.z) < 21 * MM && b.position.y < 20 * MM) on = true;
       }
-      if (on && !r.on) this.flash(r.insert, 1.2);
+      if (on && !r.on) this.flash(r.insert, 0.8);
       r.on = on;
       r.press = on ? Math.min(1, r.press + dt / 0.01) : Math.max(0, r.press - dt / 0.03);
       r.wire.scale.y = 1 - 0.75 * r.press;
@@ -443,26 +443,27 @@ export class Show {
         case 'years': {
           // Experience: the years light in turn, the latest blinking; elsewhere a chase across the five lanes, then
           // all five together.
-          if (s === 'experience') goal = ins.index < this.rung ? 1.1 : ins.index === this.rung ? (Math.floor(t * 5) % 2 ? 1.7 : 0.8) : 0.08;
-          else { const step = Math.floor(t * 3) % 7; goal = step === ins.index || step === 5 ? 1.1 : 0.12; }
+          if (s === 'experience') goal = ins.index < this.rung ? 0.85 : ins.index === this.rung ? (Math.floor(t * 5) % 2 ? 1.15 : 0.7) : 0.08;
+          else { const step = Math.floor(t * 3) % 7; goal = step === ins.index || step === 5 ? 0.85 : 0.12; }
           break;
         }
         case 'skills': {
-          if (s === 'skills') goal = this.skillsLit[ins.index] > 0.5 ? (ins.index === this.skillFocus ? 1.2 + 0.22 * Math.sin(t * 6) : 1.05) : 0.08;
-          else goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18;
+          // Lit lane inserts sit well under the bloom: the camera's focus light is on them too, close up.
+          if (s === 'skills') goal = this.skillsLit[ins.index] > 0.5 ? (ins.index === this.skillFocus ? 0.78 + 0.1 * Math.sin(t * 5) : 0.6) : 0.06;
+          else goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 0.75 : 0.14;
           break;
         }
-        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
-        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.6 : 0.3) : 0.2; break;
+        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.2; break;
+        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.2; break;
         case 'ladder': goal = (Math.floor(t * 2.5) % 4) === ins.index ? 0.9 : 0.12; break;
         case 'targets': goal = 0.14; break;
-        case 'saucer': goal = this.physics.held ? (Math.floor(t * 8) % 2 ? 1.6 : 0.4) : s === 'about' ? 0.7 : 0.25; break;
-        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.6 : 0.35) : 0.1; break;
+        case 'saucer': goal = this.physics.held ? (Math.floor(t * 8) % 2 ? 1.2 : 0.4) : s === 'about' ? 0.6 : 0.25; break;
+        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.2 : 0.35) : 0.1; break;
         case 'orbit': goal = 0.1; break;
       }
       ins.flash = Math.max(0, ins.flash - dt * 3);
       ins.level += (goal - ins.level) * (1 - Math.exp(-dt * 18));
-      ins.mat.emissiveIntensity = (ins.level + ins.flash * 2) * P * ins.mat.userData.gain;
+      ins.mat.emissiveIntensity = (ins.level + ins.flash * 1.1) * P * ins.mat.userData.gain;
       ins.side.emissiveIntensity = ins.mat.emissiveIntensity;
     }
   }
@@ -472,7 +473,7 @@ export class Show {
   setSkills(progress) {
     this.skillsLit.forEach((lit, i) => {
       const on = progress > 0.12 + i * 0.2 ? 1 : 0;
-      if (on && !lit) this.flash(layout.RETURN_LANES[i].insert, 1.2);
+      if (on && !lit) this.flash(layout.RETURN_LANES[i].insert, 0.6);
       this.skillsLit[i] = on;
     });
   }
