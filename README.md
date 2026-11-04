@@ -65,7 +65,7 @@ The machine runs only where WebGL 2 is available, data saving is off and the add
 ## Adding a project
 
 1. Copy `work/tip-top-pinball.html` to `work/<project>.html` and replace its content. Give the hero image a unique `view-transition-name` (see `.vt-tiptop` in `css/site.css`) so it morphs from the home page.
-2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a plate in `PLATES` in `src/machine/main.js`.
+2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a screen in `SCREENS` in `src/machine/main.js`.
 3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`.
 4. Add the page to `sitemap.xml`.
 

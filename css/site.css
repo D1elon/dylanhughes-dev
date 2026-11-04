@@ -406,11 +406,12 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   .machine .station .placard::before { content: ''; position: absolute; z-index: -1; top: -96px; bottom: -56px; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
     background: linear-gradient(rgba(6, 7, 10, 0), rgba(6, 7, 10, .8) 96px, rgba(6, 7, 10, .8) calc(100% - 56px), rgba(6, 7, 10, 0)); }
   .machine main { overflow-x: clip; }
-  .machine .station-hero { min-height: 0; padding-top: 52vh; padding-bottom: 18vh; }
+  .machine .station-hero { min-height: 0; padding-top: 52vh; padding-bottom: 18vh; flex-direction: column; }
   .machine .station-hero .hero-copy { opacity: 1 !important; transform: none !important; }
   .machine .placard-title { font-size: clamp(30px, 8vw, 40px); }
   .machine .station-hero .hero-title { font-size: clamp(34px, 9vw, 48px); }
-  .machine .dmd-strip { left: 14px; right: 14px; bottom: auto; top: calc(var(--header) + 8px); justify-content: space-between; }
+  /* The display's controls follow the hero copy here, rather than sitting over the translite. */
+  .machine .dmd-strip { position: relative; left: auto; right: auto; bottom: auto; top: auto; margin-top: 22px; width: 100%; justify-content: space-between; }
   .machine .dmd-name { display: none; }
   .machine .scroll-cue { display: none; }
   .machine.motion .station-hero .placard:not(.is-here) > * { opacity: 1; transform: none; }
