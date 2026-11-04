@@ -64,7 +64,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   root.add(body);
   const playfield = new THREE.Group();
   body.add(playfield);
-  const handles = { root, body, playfield, inserts: new Map(), pops: [], targets: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [], flashers: [] };
+  const handles = { root, body, playfield, inserts: new Map(), pops: [], targets: [], flippers: [], slings: [], interactive: [], gi: [], bulbs: [], rollovers: [] };
 
   // Converts playfield millimetres to world coordinates.
   handles.toWorld = (x, y, h = 0) => {
@@ -565,7 +565,7 @@ function bandAround(circles) {
 // its mouth, stands on printed posts and hands the ball to a printed two-wire form at the top of its turn.
 function buildRamps(group, M, handles) {
   handles.ramps = [];
-  const rampMat = M.clearPlastic;
+  const rampMat = M.clearPlastic, hw = new Hardware();
   for (const ramp of RAMPS) {
     const curve = new THREE.CatmullRomCurve3(ramp.profile.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     const width = widthAlong(ramp.profile);
@@ -573,20 +573,19 @@ function buildRamps(group, M, handles) {
     const body = mesh(sweepRamp(curve, width), rampMat, { cast: false, receive: false });
     body.renderOrder = 2;
     g.add(body);
-    g.add(rampSupports(ramp, M, rampMat));
+    g.add(rampFlap(curve, width, M));
+    g.add(rampSupports(ramp, M, rampMat, hw));
     for (const child of g.children) child.traverse(o => { o.userData.action = 'ramp-' + ramp.id; });
     group.add(g);
     handles.interactive.push(body);
 
-    // A flasher on the turn's outer wall, at its apex: it fires when the ramp is made.
-    handles.flashers.push(flasher(group, M, curve, width, ramp));
-
     // The wireform carries on from the end of the turn.
     const wireCurve = new THREE.CatmullRomCurve3(ramp.wire.map(([x, y, h]) => pf(x, y, h)), false, 'centripetal');
     group.add(mesh(sweepWires(wireCurve, ramp), M.chrome));
-    group.add(wireSupports(wireCurve, ramp, M));
+    group.add(wireSupports(ramp, M, hw));
     handles.ramps.push({ id: ramp.id, side: ramp.side, curve, wireCurve, group: g });
   }
+  group.add(...hw.meshes(M));
 }
 // A profile's width at a fraction u of its 3D length (as a curve's getPointAt measures it).
 function widthAlong(profile) {
@@ -600,42 +599,12 @@ function widthAlong(profile) {
     return profile[i - 1][3] + (profile[i][3] - profile[i - 1][3]) * k;
   };
 }
-// Where a ramp turns hardest: the fraction along it, and which side of travel is the turn's outside (1 left, -1 right).
-function apex(curve) {
-  let best = 0, at = 0.5, side = 1;
-  for (let i = 40; i <= 195; i++) {
-    const u = i / 200, a = curve.getTangentAt(u - 0.01).setY(0).normalize(), b = curve.getTangentAt(u + 0.01).setY(0).normalize();
-    const turn = a.x * b.z - a.z * b.x;
-    if (Math.abs(turn) > best) { best = Math.abs(turn); at = u; side = turn > 0 ? 1 : -1; }
-  }
-  return { at, outer: side };
-}
-
-// A flasher dome: a clear royal-blue dome on a black base, clipped to the top of a ramp wall, with a lamp inside and a
-// light that throws its flash onto the playfield.
-function flasher(group, M, curve, width, ramp) {
-  const { at: u, outer } = apex(curve);
-  const p = curve.getPointAt(u), tan = curve.getTangentAt(u).setY(0).normalize();
-  // In the playfield group's frame (Z toward the player), the left of travel is up × tangent.
-  const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tan).normalize().multiplyScalar(outer);
-  const g = new THREE.Group();
-  g.position.copy(p).addScaledVector(side, (width(u) / 2 + RAMP.side + 9) * MM);
-  g.position.y = p.y + (RAMP.wall - 4) * MM;
-  g.add(mesh(new THREE.BoxGeometry(14 * MM, 2 * MM, 22 * MM).translate(0, -1 * MM, 6 * MM).applyMatrix4(new THREE.Matrix4().lookAt(new THREE.Vector3(), side, new THREE.Vector3(0, 1, 0))), M.darkSteel, { cast: false }));
-  g.add(mesh(lathe([[0, 0], [15, 0], [15, 4], [13.5, 5], [0, 5]], 32), M.graphitePlastic, { cast: false }));
-  const mat = new THREE.MeshPhysicalMaterial({ color: ROYAL, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, emissive: ROYAL, emissiveIntensity: 0, transparent: true, opacity: 0.9 });
-  mat.userData.gain = M.popCap.userData.gain * 2;
-  g.add(mesh(lathe([[0, 5], [12.5, 5], [12.5, 9], [12, 14], [10, 19.5], [6.5, 23.5], [0, 25]], 32), mat, { cast: false }));
-  const light = new THREE.PointLight(LIGHT, 0, 0.5, 2);
-  light.position.y = 16 * MM;
-  g.add(light);
-  group.add(g);
-  return { id: ramp.id, mat, light, level: 0 };
-}
-
 // The ramp's body: a 3 mm floor and 2.4 mm walls 28 mm tall, swept along its centre line. The channel follows the
 // profile's width (52 mm at the mouth easing to 42 over 60 mm); low down, where the floor is under 30 mm, the walls
-// carry on down to the wood so no ball can get under the floor.
+// carry on down to the wood so no ball can get under the floor. At the mouth the floor thins to a lip flush with the
+// entrance flap, and nothing of the ramp lies on the wood itself: every face stays at least `RAMP_CLEAR` above it,
+// and faces that would only lie along the wood aren't drawn, so the print under the clear plastic never flickers.
+const RAMP_LIP = 0.9, RAMP_CLEAR = 0.35;
 function sweepRamp(curve, width) {
   const R = RAMP, steps = 240;
   const up = new THREE.Vector3(0, 1, 0);
@@ -644,27 +613,34 @@ function sweepRamp(curve, width) {
     const u = i / steps, p = curve.getPointAt(u), tan = curve.getTangentAt(u);
     frames.push({ p, side: new THREE.Vector3().crossVectors(tan, up).normalize(), w: width(u), floor: p.y / MM });
   }
+  // Heights are relative to the centre line (the floor's top), so `top` and `bot` lift the lip clear of the wood.
   const profile = ({ w, floor }) => {
-    const a = w / 2, b = a + R.side, f = R.floor, hr = R.wall, hl = R.wall;
-    const d = floor < 30 ? Math.max(0, floor - f) : 0;
+    const a = w / 2, b = a + R.side, hr = R.wall, hl = R.wall;
+    const top = Math.max(0, RAMP_LIP - floor), bot = Math.max(-R.floor, RAMP_CLEAR - floor);
+    const low = floor < 30 ? Math.min(bot, RAMP_CLEAR - floor) : bot;
     return [
-      [[-b, -f], [b, -f], [b, hr], [a, hr], [a, 0], [-a, 0], [-a, hl], [-b, hl]],
-      [[a, -f - d], [b, -f - d], [b, -f], [a, -f]],
-      [[-b, -f - d], [-a, -f - d], [-a, -f], [-b, -f]],
+      [[-b, bot], [b, bot], [b, hr], [a, hr], [a, top], [-a, top], [-a, hl], [-b, hl]],
+      [[a, low], [b, low], [b, bot], [a, bot]],
+      [[-b, low], [-a, low], [-a, bot], [-b, bot]],
     ];
   };
   const shapes = frames.map(profile);
   const geos = [];
   shapes[0].forEach((poly, pi) => {
     for (let k = 0; k < poly.length; k++) {
-      const pos = [], idx = [];
+      const pos = [], idx = [], hs = [];
       for (let i = 0; i <= steps; i++) {
         const fr = frames[i], P = shapes[i][pi];
         for (const [lat, vert] of [P[k], P[(k + 1) % P.length]]) {
           const v = fr.p.clone().addScaledVector(fr.side, lat * MM).addScaledVector(up, vert * MM);
           pos.push(v.x, v.y, v.z);
+          hs.push(v.y / MM);
         }
-        if (i < steps) { const o = i * 2; idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); }
+      }
+      // A face lying along the wood can't be seen from above and would only fight the print: it isn't drawn.
+      for (let o = 0; o < steps * 2; o += 2) {
+        if (Math.max(hs[o], hs[o + 1], hs[o + 2], hs[o + 3]) < RAMP_CLEAR + 0.05) continue;
+        idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3);
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -673,38 +649,108 @@ function sweepRamp(curve, width) {
       geos.push(geo);
     }
   });
-  // The entrance: a feathered flap lying on the wood in front of the mouth.
-  const f0 = frames[0], tan0 = curve.getTangentAt(0);
-  const flap = new THREE.BoxGeometry((f0.w + 2 * R.side) * MM, 0.8 * MM, 26 * MM);
-  flap.applyMatrix4(new THREE.Matrix4().makeBasis(f0.side, up, tan0.clone().setY(0).normalize().negate()));
-  flap.translate(f0.p.x - tan0.x * 11 * MM, 0.4 * MM, f0.p.z - tan0.z * 11 * MM);
-  flap.deleteAttribute('uv');
-  geos.push(flap);
-  return mergeGeometries(geos.map(g => (g.index ? g.toNonIndexed() : g)));
+  return mergeGeometries(geos.map(g => g.toNonIndexed()));
 }
 
-// The point of a centre line (playfield mm, [x, y, h, ...]) nearest (x, y) in plan, and the direction to it.
+// The entrance flap: a brushed steel plate on the wood in front of the mouth, the ramp's lip butted to its back
+// edge. Its front 5 mm is ground to a feather so the ball rolls on without a bump, and two countersunk screws hold it
+// down at its outer corners, clear of the ball's line.
+function rampFlap(curve, width, M) {
+  const R = RAMP, b = width(0) / 2 + R.side, len = 24, flat = 18;
+  const up = new THREE.Vector3(0, 1, 0), p0 = curve.getPointAt(0);
+  const fwd = curve.getTangentAt(0).setY(0).normalize().negate(), side = new THREE.Vector3().crossVectors(fwd, up).normalize();
+  // Side profile (along the flap toward the player, height), extruded across its width.
+  const shape = new THREE.Shape([[0, 0], [len, 0], [len, RAMP_CLEAR - 0.1], [flat, RAMP_LIP], [0, RAMP_LIP]].map(([a, c]) => new THREE.Vector2(a * MM, c * MM)));
+  const plate = new THREE.ExtrudeGeometry(shape, { depth: 2 * b * MM, bevelEnabled: false });
+  plate.translate(0, 0, -b * MM);
+  // Local (x along the flap, y up, z across) into the playfield group: x → fwd, y → up, z → side.
+  const basis = new THREE.Matrix4().makeBasis(fwd, up, side).setPosition(p0.x, 0, p0.z);
+  plate.applyMatrix4(basis);
+  const g = new THREE.Group();
+  g.add(mesh(plate, M.steel, { cast: false }));
+  const heads = [], recesses = [];
+  for (const s of [-1, 1]) {
+    const at = new THREE.Vector3(flat - 5, RAMP_LIP, s * (b - 4.5)).multiplyScalar(MM).applyMatrix4(basis);
+    heads.push(new THREE.CylinderGeometry(2.6 * MM, 2.6 * MM, 0.16 * MM, 20).translate(at.x, at.y + 0.08 * MM, at.z));
+    recesses.push(...crossRecess(at.x, at.y + 0.17 * MM, at.z, 1.7));
+  }
+  g.add(mesh(mergeGeometries(heads), M.darkSteel, { cast: false }), mesh(mergeGeometries(recesses), M.rubber, { cast: false }));
+  return g;
+}
+
+// The point of a centre line (playfield mm, [x, y, h, width]) nearest (x, y) in plan, found on its segments, with its
+// height and width there, the distance to it and the unit direction from (x, y) toward it.
 function nearest(line, x, y) {
-  let best = line[0], bd = Infinity;
-  for (const q of line) { const d = Math.hypot(q[0] - x, q[1] - y); if (d < bd) { bd = d; best = q; } }
-  return { q: best, d: bd, dx: (best[0] - x) / (bd || 1), dy: (best[1] - y) / (bd || 1) };
+  let best = null;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1], b = line[i], ex = b[0] - a[0], ey = b[1] - a[1], l2 = ex * ex + ey * ey || 1;
+    const k = Math.max(0, Math.min(1, ((x - a[0]) * ex + (y - a[1]) * ey) / l2));
+    const q = a.map((v, j) => v + (b[j] - v) * k), d = Math.hypot(q[0] - x, q[1] - y);
+    if (!best || d < best.d) best = { q, d };
+  }
+  return { ...best, dx: (best.q[0] - x) / (best.d || 1), dy: (best.q[1] - y) / (best.d || 1) };
 }
 
-// Origin's printed support posts (13 mm, on a foot screwed to the board), each under a printed ear on the ramp's
-// side wall.
-function rampSupports(ramp, M, rampMat) {
-  const posts = [], ears = [], feet = [];
-  for (const [x, y, z] of ramp.supports) {
-    const top = z - RAMP.floor - 0.5, n = nearest(ramp.profile, x, y), angle = Math.atan2(n.dy, n.dx);
-    posts.push(new THREE.CylinderGeometry(6.5 * MM, 6.5 * MM, top * MM, 20).translate(...pf(x, y, top / 2).toArray()));
-    feet.push(new THREE.BoxGeometry(32 * MM, 4 * MM, 11 * MM).rotateY(angle + Math.PI / 2).translate(...pf(x, y, 2).toArray()));
-    const len = n.d - n.q[3] / 2 + 1;
-    ears.push(new THREE.BoxGeometry(len * MM, 3 * MM, 18 * MM).rotateY(angle).translate(...pf(x + (n.dx * len) / 2, y + (n.dy * len) / 2, top + 1.5).toArray()));
+// --- Ramp and wireform hardware ------------------------------------------------------------------------------------
+// How a playfield's ramps and wireforms are put up: each mount is a 3/8" (9.5 mm across the flats) zinc-plated hex
+// standoff, screwed to the wood on a flat washer, and the ramp's moulded ear or the wireform's welded tab lies on its
+// top, held by a black pan-head machine screw through a washer. Built in playfield millimetres, merged by material.
+const STANDOFF = { af: 9.5, chamfer: 0.6 };
+class Hardware {
+  constructor() { this.zinc = []; this.steel = []; this.black = []; this.recess = []; }
+  // A hex standoff from the wood up to `top` at (x, y), its ends chamfered, with flat faces.
+  standoff(x, y, top) {
+    const R = STANDOFF.af / Math.sqrt(3), f = STANDOFF.af / 2 - 0.05, c = STANDOFF.chamfer;
+    const g = lathe([[0, 0], [f, 0], [R, c], [R, top - c], [f, top], [0, top]], 6).rotateY(Math.PI / 6).toNonIndexed();
+    g.computeVertexNormals();
+    this.zinc.push(g.translate(...pf(x, y, 0.8).toArray()));
+    this.washer(x, y, 0, 6.6, 0.8);
+  }
+  washer(x, y, h, ro = 5.2, t = 0.8, ri = 2.2) {
+    this.steel.push(lathe([[ri, 0], [ro, 0], [ro, t], [ri, t], [ri, 0]], 28).toNonIndexed().translate(...pf(x, y, h).toArray()));
+  }
+  // A washer and a pan-head screw seated at height h, with its cross recess.
+  screw(x, y, h) {
+    this.washer(x, y, h);
+    const head = lathe([[0, 0], [3.5, 0], [3.5, 0.9], [3.15, 1.85], [2.3, 2.35], [0, 2.5]], 24).toNonIndexed();
+    this.black.push(head.translate(...pf(x, y, h + 0.8).toArray()));
+    const at = pf(x, y, h + 0.8 + 2.42);
+    this.recess.push(...crossRecess(at.x, at.y, at.z, 2.4));
+  }
+  meshes(M) {
+    const out = [];
+    const add = (list, mat, cast) => { if (list.length) out.push(mesh(mergeGeometries(list.map(stripUV)), mat, { cast })); };
+    add(this.zinc, M.zinc, true);
+    add(this.steel, M.steel, false);
+    add(this.black, M.darkSteel, false);
+    add(this.recess, M.rubber, false);
+    return out;
+  }
+}
+const stripUV = g => { const n = g.index ? g.toNonIndexed() : g; n.deleteAttribute('uv'); return n; };
+// A screw head's cross recess: two thin dark bars, `size` mm across, lying at a point in the playfield group's frame.
+function crossRecess(x, y, z, size) {
+  return [0, Math.PI / 2].map(a => stripUV(new THREE.BoxGeometry(size * MM, 0.12 * MM, 0.45 * MM).rotateY(a + Math.PI / 4).translate(x, y, z)));
+}
+
+// Origin's ramp mounts, built as a moulded ramp is: an ear moulded onto the side wall at the floor's underside, 3 mm
+// thick and rounded round its hole, standing on a standoff and screwed down. The ear runs square to the wall.
+function rampSupports(ramp, M, rampMat, hw) {
+  const ears = [], T = 3, half = 7;
+  for (const [x, y] of ramp.supports) {
+    const n = nearest(ramp.profile, x, y), floor = n.q[2], top = floor - RAMP.floor, base = top - T;
+    // From the post's axis to the wall's outer face, plus a millimetre into the wall so the moulding is continuous.
+    const reach = n.d - n.q[3] / 2 - RAMP.side + 1;
+    const ux = n.dx, uy = n.dy, vx = -uy, vy = ux, outline = [];
+    for (let k = 0; k <= 14; k++) { const a = Math.PI / 2 + (k / 14) * Math.PI; outline.push([x + (Math.cos(a) * ux + Math.sin(a) * vx) * half, y + (Math.cos(a) * uy + Math.sin(a) * vy) * half]); }
+    outline.push([x + ux * reach - vx * half, y + uy * reach - vy * half], [x + ux * reach + vx * half, y + uy * reach + vy * half]);
+    ears.push(extrude(ccw(outline), base, T, { bevel: 0.35, curveSegments: 4 }));
+    hw.standoff(x, y, base - 0.8);
+    hw.screw(x, y, top);
   }
   const g = new THREE.Group();
-  if (posts.length) {
-    g.add(mesh(mergeGeometries(posts), M.whitePlastic), mesh(mergeGeometries(feet), M.whitePlastic, { cast: false }));
-    const earMesh = mesh(mergeGeometries(ears), rampMat, { cast: false, receive: false });
+  if (ears.length) {
+    const earMesh = mesh(mergeGeometries(ears.map(stripUV)), rampMat, { cast: false, receive: false });
     earMesh.renderOrder = 2;
     g.add(earMesh);
   }
@@ -756,24 +802,65 @@ function sweepWires(curve, ramp) {
   return mergeGeometries(geos);
 }
 
-// Wireform supports: Origin's printed posts, each up to an ear on the hoop above it.
-function wireSupports(curve, ramp, M) {
-  const posts = [], straps = [];
-  const strap = (a, b, w = 7, t = 3) => {
-    const d = b.clone().sub(a), len = d.length();
-    const geo = new THREE.BoxGeometry(w * MM, t * MM, len);
-    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.normalize()));
-    geo.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
-    straps.push(geo);
-  };
-  for (const [x, y, z] of ramp.wireSupports) {
-    const n = nearest(ramp.wire, x, y), top = z - 6;
-    posts.push(new THREE.CylinderGeometry(6.5 * MM, 6.5 * MM, top * MM, 20).translate(...pf(x, y, top / 2).toArray()));
-    strap(pf(x, y, top + 1.5), pf(n.q[0] - n.dx * (WIRE.rail - 2), n.q[1] - n.dy * (WIRE.rail - 2), n.q[2] - 2.5));
+// Wireform mounts: a flat steel tab, 11 mm by 1.6 mm, welded under the rail on the post's side and bent down to a
+// pad over the standoff, its end rounded round its screw. Satin plated: flat chrome would only mirror the dark room.
+function wireSupports(ramp, M, hw) {
+  const tabs = [], W = 11, t = 1.6;
+  for (const [x, y] of ramp.wireSupports) {
+    const n = nearest(ramp.wire, x, y), rail = n.q[2];
+    const reach = n.d - WIRE.rail, padTop = rail - 5, bend = Math.min(6.5, reach - 5);
+    // The tab's centre line in its own vertical plane: along `u` (toward the wire) and up, from the pad's rounded end
+    // to under the rail.
+    const path = [[0, padTop - t / 2], [bend, padTop - t / 2], [reach - 1.2, rail + 0.4]];
+    tabs.push(strap(path, x, y, n.dx, n.dy, W, t));
+    tabs.push(stripUV(new THREE.CylinderGeometry((W / 2) * MM, (W / 2) * MM, t * MM, 28).translate(...pf(x, y, padTop - t / 2).toArray())));
+    // The weld: a fillet bead across the joint.
+    const weld = new THREE.CylinderGeometry(1.5 * MM, 1.5 * MM, (W - 1) * MM, 10).rotateX(Math.PI / 2).rotateY(Math.atan2(n.dy, n.dx));
+    tabs.push(stripUV(weld.translate(...pf(x + n.dx * (reach - 1.6), y + n.dy * (reach - 1.6), rail - 0.2).toArray())));
+    hw.standoff(x, y, padTop - t - 0.8);
+    hw.screw(x, y, padTop);
   }
   const g = new THREE.Group();
-  if (posts.length) g.add(mesh(mergeGeometries(posts), M.whitePlastic), mesh(mergeGeometries(straps), M.chrome));
+  if (tabs.length) g.add(mesh(mergeGeometries(tabs), M.steel));
   return g;
+}
+// A flat bar `w` wide and `t` thick, bent along a centre line [[along, height], ...] (mm) in the vertical plane through
+// (x, y) heading (dx, dy), with mitred bends.
+function strap(path, x, y, dx, dy, w, t) {
+  const pts = path.map(([s, h]) => [s, h]), n = pts.length, pos = [];
+  const normal = i => {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+    const ex = b[0] - a[0], ey = b[1] - a[1], l = Math.hypot(ex, ey);
+    let nx = -ey / l, ny = ex / l;
+    if (i > 0 && i < n - 1) {
+      // Mitre: the bisector of the two segments' normals, lengthened to keep the thickness.
+      const p = pts[i - 1], c = pts[i], q = pts[i + 1];
+      const n1 = [-(c[1] - p[1]), c[0] - p[0]], n2 = [-(q[1] - c[1]), q[0] - c[0]];
+      const l1 = Math.hypot(...n1), l2 = Math.hypot(...n2);
+      const m = [n1[0] / l1 + n2[0] / l2, n1[1] / l1 + n2[1] / l2], lm = Math.hypot(...m);
+      const k = 1 / Math.max(0.3, (m[0] / lm) * (n1[0] / l1) + (m[1] / lm) * (n1[1] / l1));
+      nx = (m[0] / lm) * k; ny = (m[1] / lm) * k;
+    }
+    return [nx, ny];
+  };
+  const corner = (i, side, up) => {
+    const [nx, ny] = normal(i), s = pts[i][0] + nx * up * t / 2, h = pts[i][1] + ny * up * t / 2;
+    return pf(x + dx * s - dy * side * w / 2, y + dy * s + dx * side * w / 2, h);
+  };
+  const quad = (a, b, c, d) => { for (const v of [a, c, b, a, d, c]) pos.push(v.x, v.y, v.z); };
+  for (let i = 0; i < n - 1; i++) {
+    const c = [[-1, 1], [1, 1], [1, -1], [-1, -1]];
+    for (let k = 0; k < 4; k++) {
+      const [s0, u0] = c[k], [s1, u1] = c[(k + 1) % 4];
+      quad(corner(i, s0, u0), corner(i, s1, u1), corner(i + 1, s1, u1), corner(i + 1, s0, u0));
+    }
+  }
+  const end = i => { const c = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([sd, u]) => corner(i, sd, u)); quad(c[0], c[1], c[2], c[3]); };
+  end(n - 1);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 // The shooter lane's one-way gate: a wire flap hung from a rod across the lane's exit. A plunge swings it open; a
@@ -1060,17 +1147,20 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
   handles.dmd = { mesh: dmd, texture: dmdTex };
   handles.interactive.push(dmd);
 
-  // Backglass: backlit art behind glass.
+  // The backglass is a full-size LCD under its cover glass, as on Multimorphic's P3 or a JJP head. It shows the
+  // translite's art, and the picture for whichever section is on; a change of picture wipes in under a scan line.
   const glassTex = texture(art.backglass, anisotropy);
-  const glassMat = new THREE.MeshBasicMaterial({ map: glassTex, toneMapped: false, color: new THREE.Color(0, 0, 0) });
   const glassY = B.glassY + B.glassH / 2;
-  const backglass = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), glassMat);
+  const lcd = backboxLCD(glassTex, anisotropy);
+  const backglass = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), lcd.material);
   backglass.position.set(0, glassY, 0.002);
   box.add(backglass);
+  lcd.mesh = backglass;
+  handles.interactive.push(backglass);
   const cover = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), M.glass);
   cover.position.set(0, glassY, 0.006);
   box.add(cover);
-  handles.backglass = { mesh: backglass, material: glassMat, level: 0 };
+  handles.backglass = { mesh: backglass, material: lcd.material, lcd, level: 0 };
   // Anchor for the hero copy laid over the glass.
   const anchor = new THREE.Object3D();
   anchor.position.set(0, glassY, 0.0065);
@@ -1079,109 +1169,49 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
   handles.backglassSize = [B.glassW, B.glassH];
 }
 
-// --- Back panel displays ------------------------------------------------------------------------------------------
-// The back panel is the inside face of the cabinet's back wall, between the playfield's top edge and the backbox,
-// behind every playfield part. Three LCDs are set into it: a case study's screen on each side, behind its ramp, and the
-// portrait in the middle. Each sits in a thin black anodised bezel screwed to the panel at its corners, under its own
-// cover glass. It is dark until its station arrives, then powers on: the backlight comes up and a scan line draws the
-// picture in from the top. Leaving the station, it fades out.
-
-// The panel's face, in playfield millimetres: `y` along the board, `top` above the wood (the cabinet's top edge), and
-// its extent across.
-export const BACK_PANEL = {
-  y: Math.round((PF.l / 2 - (CABINET.back + CABINET.wallT) / MM) * 100) / 100,
-  top: Math.round(CABINET.top / MM),
-  x0: Math.round((PF.w / 2 - CABINET.inner / 2 / MM) * 100) / 100,
-  x1: Math.round((PF.w / 2 + CABINET.inner / 2 / MM) * 100) / 100,
-};
-// An LCD module's build, in millimetres: the bezel's width round the picture, its depth off the panel and the
-// softening on its edges, and the M3 button-head screws through its corners.
-const LCD = { bezel: 4.5, depth: 4.2, bevel: 0.45, screw: 1.45 };
-
-// `x`, `h`: the picture's middle, across the board and above the wood; `width`, `height`: the picture's size. The
-// photo is cropped to fill it, held on `focus` (0–1 across and down the photo).
-export function buildScreen({ M, url, x, h, width, height, action, anisotropy, focus = [0.5, 0.5] }) {
-  const B = LCD, group = new THREE.Group();
-  const W = width + B.bezel * 2, H = height + B.bezel * 2;
-  // The picture: drawn into a canvas at the screen's own aspect, so its UVs run 0–1 over the glass.
-  const res = Math.min(1024, Math.round(width * 10.5));
-  const pic = document.createElement('canvas');
-  pic.width = res; pic.height = Math.round((res * height) / width);
-  const ctx = pic.getContext('2d');
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, pic.width, pic.height);
-  const tex = new THREE.CanvasTexture(pic);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = anisotropy;
-  const img = new Image();
-  img.decoding = 'async';
-  img.onload = () => {
-    const k = Math.max(pic.width / img.naturalWidth, pic.height / img.naturalHeight), w = img.naturalWidth * k, hh = img.naturalHeight * k;
-    ctx.drawImage(img, (pic.width - w) * focus[0], (pic.height - hh) * focus[1], w, hh);
-    tex.needsUpdate = true;
-  };
-  img.src = url;
-  // The power-on: `uSeq` runs 0 → 1 through it (backlight, then the scan), and `uFade` dims the whole picture.
-  const uniforms = { uSeq: { value: 0 }, uFade: { value: 0 }, uRows: { value: pic.height / 3 } };
-  const faceMat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.86, 0.86, 0.86), toneMapped: false });
-  faceMat.onBeforeCompile = shader => {
+// --- Backbox LCD ---------------------------------------------------------------------------------------------------
+// The LCD's pictures are canvases at the glass's 1.32 : 1, so each maps straight on. `add(name, canvas, action)`
+// registers one; `show(name)` changes to it, wiping the new picture down from the top behind a royal scan line while
+// the backlight dips a little, as a panel does when its source changes; `update(wall)` runs the wipe, in seconds since
+// the last frame. Once a case study's picture is up, a click on the screen opens it.
+function backboxLCD(artTexture, anisotropy) {
+  const uniforms = { tA: { value: artTexture }, tB: { value: artTexture }, uSeq: { value: 1 } };
+  const material = new THREE.MeshBasicMaterial({ map: artTexture, toneMapped: false, color: new THREE.Color(0, 0, 0) });
+  material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
-    shader.fragmentShader = 'uniform float uSeq;\nuniform float uFade;\nuniform float uRows;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    shader.fragmentShader = 'uniform sampler2D tA;\nuniform sampler2D tB;\nuniform float uSeq;\n' + shader.fragmentShader.replace('#include <map_fragment>', `
       {
-        float back = smoothstep( 0.0, 0.2, uSeq );
-        float scan = clamp( ( uSeq - 0.16 ) / 0.6, 0.0, 1.0 ) * 1.08;
         float down = 1.0 - vMapUv.y;
-        float shown = smoothstep( down - 0.012, down + 0.012, scan );
-        float line = exp( -pow( ( down - scan ) * 64.0, 2.0 ) ) * ( 1.0 - smoothstep( 0.92, 1.08, scan ) );
-        vec3 col = mix( vec3( 0.006, 0.009, 0.02 ) * back, diffuseColor.rgb, shown );
-        col += vec3( 0.36, 0.48, 1.0 ) * line * 0.75 * back;
-        float rows = 0.86 + 0.14 * sin( vMapUv.y * uRows * 6.2832 );
-        col *= mix( rows, 1.0, smoothstep( 0.72, 1.0, uSeq ) );
-        diffuseColor.rgb = col * uFade;
+        float scan = uSeq * 1.08;
+        float shown = smoothstep( down - 0.008, down + 0.008, scan );
+        vec3 col = mix( texture2D( tA, vMapUv ).rgb, texture2D( tB, vMapUv ).rgb, shown );
+        float live = step( 0.0005, uSeq ) * ( 1.0 - smoothstep( 0.92, 1.08, scan ) );
+        col *= 1.0 - 0.18 * live * ( 1.0 - smoothstep( 0.0, 0.25, uSeq ) );
+        col += vec3( 0.36, 0.48, 1.0 ) * exp( -pow( ( down - scan ) * 90.0, 2.0 ) ) * 0.7 * live;
+        diffuseColor.rgb *= col;
       }`);
   };
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(width * MM, height * MM), faceMat);
-  face.position.z = (B.depth - 0.9) * MM;
-  face.userData.screenAction = action;
-  group.add(face);
-  // The black matrix round the picture, and the cover glass over it.
-  const backing = new THREE.Mesh(new THREE.PlaneGeometry((width + 0.6) * MM, (height + 0.6) * MM), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  backing.position.z = (B.depth - 1.1) * MM;
-  group.add(backing);
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry((width + 0.4) * MM, (height + 0.4) * MM), M.screenGlass);
-  glass.position.z = (B.depth - 0.45) * MM;
-  group.add(glass);
-  // The bezel: a frame with softened edges round the picture.
-  const outline = (w, hgt, r) => { const s = new THREE.Shape(); s.moveTo(-w / 2 + r, -hgt / 2); s.lineTo(w / 2 - r, -hgt / 2); s.quadraticCurveTo(w / 2, -hgt / 2, w / 2, -hgt / 2 + r); s.lineTo(w / 2, hgt / 2 - r); s.quadraticCurveTo(w / 2, hgt / 2, w / 2 - r, hgt / 2); s.lineTo(-w / 2 + r, hgt / 2); s.quadraticCurveTo(-w / 2, hgt / 2, -w / 2, hgt / 2 - r); s.lineTo(-w / 2, -hgt / 2 + r); s.quadraticCurveTo(-w / 2, -hgt / 2, -w / 2 + r, -hgt / 2); return s; };
-  const frame = outline(W, H, 1.8);
-  frame.holes.push(outline(width + 0.2, height + 0.2, 0.4));
-  const bezel = mesh(new THREE.ExtrudeGeometry(frame, { depth: B.depth - B.bevel * 2, bevelEnabled: true, bevelSize: B.bevel, bevelThickness: B.bevel, bevelSegments: 2, curveSegments: 4 }).translate(0, 0, B.bevel).scale(MM, MM, MM), M.trim, { cast: false });
-  group.add(bezel);
-  // A screw through each corner of the bezel, its head just proud of the face.
-  const head = lathe([[0, 0], [B.screw, 0], [B.screw, 0.3], [B.screw * 0.7, 0.75], [0, 0.85]], 16).rotateX(Math.PI / 2);
-  const screwGeo = [];
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) screwGeo.push(head.clone().translate(sx * (W / 2 - B.bezel / 2), sy * (H / 2 - B.bezel / 2), B.depth - 0.1));
-  group.add(mesh(mergeGeometries(screwGeo).scale(MM, MM, MM), M.chrome, { cast: false }));
-  // A power LED in the bezel's lower right corner.
-  const ledMat = new THREE.MeshBasicMaterial({ color: 0x0a1430 });
-  const led = new THREE.Mesh(new THREE.CircleGeometry(0.55 * MM, 12), ledMat);
-  led.position.set((width / 2 - 6) * MM, -(height / 2 + B.bezel / 2) * MM, (B.depth + 0.02) * MM);
-  group.add(led);
-  group.position.copy(pf(x, BACK_PANEL.y, h));
-
-  const lit = new THREE.Color(LIGHT), dim = new THREE.Color(0x0a1430);
-  const screen = { group, face, action, seq: 0, fade: 0, on: false };
-  // `on`: whether its station is here. `wall`: seconds since the last frame, unclamped, so the power-on takes the same
-  // time however slowly frames come.
-  screen.update = (wall, on, reduced = false) => {
-    if (on) { screen.fade = 1; screen.seq = reduced ? 1 : Math.min(1, screen.seq + wall / 0.95); }
-    else { screen.fade = reduced ? 0 : Math.max(0, screen.fade - wall / 0.3); if (screen.fade === 0) screen.seq = 0; }
-    screen.on = on;
-    uniforms.uSeq.value = screen.seq;
-    uniforms.uFade.value = screen.fade;
-    ledMat.color.copy(screen.fade > 0 ? lit : dim);
-    // Clickable once it's showing something.
-    face.userData.action = screen.seq > 0.4 && screen.fade > 0.5 ? action : null;
+  const lcd = { material, mesh: null, showing: 'art', seq: 1, pictures: { art: { texture: artTexture, action: null } } };
+  lcd.add = (name, canvas, action) => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = anisotropy;
+    lcd.pictures[name] = { texture: t, action };
   };
-  screen.update(0, false, true);
-  return screen;
+  lcd.show = (name, instant = false) => {
+    const pic = lcd.pictures[name];
+    if (!pic || name === lcd.showing) return;
+    // Mid-wipe, whichever picture covers more of the screen becomes the one wiped over.
+    if (lcd.seq < 1 && lcd.seq > 0.5) uniforms.tA.value = uniforms.tB.value;
+    uniforms.tB.value = pic.texture;
+    lcd.seq = instant ? 1 : 0;
+    lcd.showing = name;
+  };
+  lcd.update = wall => {
+    if (lcd.seq < 1) lcd.seq = Math.min(1, lcd.seq + wall / 0.85);
+    if (lcd.seq >= 1) uniforms.tA.value = uniforms.tB.value;
+    uniforms.uSeq.value = lcd.seq;
+    if (lcd.mesh) lcd.mesh.userData.action = lcd.seq > 0.6 ? lcd.pictures[lcd.showing].action : null;
+  };
+  return lcd;
 }

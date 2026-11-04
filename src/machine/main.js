@@ -4,8 +4,8 @@
 import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
-import { buildMachine, buildScreen, BACKBOX, CABINET } from './machine.js';
-import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, loadArtFonts } from './art.js';
+import { buildMachine, BACKBOX, CABINET } from './machine.js';
+import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, drawScreenPhoto, drawPlayerCard, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
 import { Hud } from './hud.js';
@@ -43,15 +43,17 @@ const ACTIONS = {
 // screen. `fit` is the box (metres) kept in frame: small numbers bring the camera close.
 const STOPS = {
   hero: { az: -18, el: 5, fit: [0.84, 1.02], side: 'left', fov: 30 },
-  // The case studies: each ramp's turn at the back, where it hands the ball to its wireform, with its screen on the
-  // back panel above it. High enough that the ramp's flasher drops below the screen, low enough that the backbox's
-  // overhang stays above it.
-  deadbounce: { at: [120, 950, 70], az: 30, el: 34, fit: [0.25, 0.24], side: 'right', lift: 18 },
-  tiptop: { at: [368, 950, 70], az: -30, el: 34, fit: [0.25, 0.24], side: 'left', lift: 10 },
-  // About: the back pop bumper, its parts lifting clear over the two in front, seen from the right so the stack stands
-  // in the gap between the Deadbounce screen and the portrait.
-  about: { at: [240, 852, 92], az: 14, el: 30, fit: [0.32, 0.38], side: 'right', lift: 10 },
-  // Skills: the four lane inserts across the field above the slings, Web to Fab.
+  // The case studies: the backbox's LCD showing the work, seen from over each ramp's side of the playfield, with the
+  // top of that ramp, where it hands the ball to its wireform, along the bottom of the frame. `glass` places the
+  // target from the glass's middle ([across, up] in metres).
+  // On tall screens, where the scene has only the top of the screen, the screen fills it on its own.
+  deadbounce: { glass: [-0.05, -0.25], az: -18, el: 18, fit: [0.7, 0.96], side: 'right', lift: 6, tall: { glass: [0, -0.03], az: -12, el: 8, fit: [0.64, 0.5] } },
+  tiptop: { glass: [0.05, -0.25], az: 18, el: 18, fit: [0.7, 0.96], side: 'left', lift: 6, tall: { glass: [0, -0.03], az: 12, el: 8, fit: [0.64, 0.5] } },
+  // About: the back pop bumper, its parts lifting clear in front of the speaker panel, under the player card on the
+  // LCD. A long lens keeps the bumper and the screen behind it close in size.
+  about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10 },
+  // Skills: the four lane inserts across the field above the slings, Web to Fab. The camera arrives on all four, then
+  // tours them (SKILL_TOUR).
   skills: { at: [237, 384, 0], az: 0, el: 50, fit: [0.47, 0.13], side: 'left', lift: 6 },
   // Experience: the five top lanes and their years, from the player's end over the pops.
   experience: { at: [235, 988, 8], az: -4, el: 52, fit: [0.38, 0.17], side: 'right', lift: 12 },
@@ -59,18 +61,38 @@ const STOPS = {
   contact: { at: [237, 165, 22], az: -8, el: 47, fit: [0.27, 0.17], side: 'left', lift: 8 },
 };
 
-// Displays set into the back panel (machine.js), behind every playfield part, each lit as its station arrives: the
-// case studies' 16:10 screens at either side, behind their ramps, and the portrait in the middle. `x`, `h`: each
-// picture's middle across the board and above the wood, in millimetres; `width`, `height`: the picture. They're laid
-// out symmetrically about the cabinet's middle (x = 257.2, right of the play area's centre line, since the shooter
-// lane is on the right), and kept between the top arch rail and the backbox's overhang as the stations' cameras see
-// the panel (24 to 106 mm up). From About, the exploded bumper stands in the gap between the Deadbounce screen and the
-// portrait.
-const SCREEN_H = 62, SCREEN_AT = 65, PANEL_MID = 257.175, SPREAD = 209.4;
-const SCREENS = {
-  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', x: PANEL_MID - SPREAD, h: SCREEN_AT, width: SCREEN_H * 1.6, height: SCREEN_H, focus: [0.5, 0.55], action: 'ramp-deadbounce' },
-  about: { url: '/assets/img/dylan.jpg', x: PANEL_MID, h: SCREEN_AT, width: SCREEN_H * 0.8, height: SCREEN_H, focus: [0.5, 0.3], action: 'portrait' },
-  tiptop: { url: '/assets/img/tiptop.jpg', x: PANEL_MID + SPREAD, h: SCREEN_AT, width: SCREEN_H * 1.6, height: SCREEN_H, focus: [0.5, 0], action: 'ramp-tiptop' },
+// The Skills tour. As the section scrolls by, the camera pushes in on each lane insert in turn as it lights (show.js
+// lights insert i at 0.12 + 0.2i of the hold), holds on it, pulls back a little to cross the field between the
+// inlanes, and after Fab pulls back out to all four before moving on. `stops` are each insert's [arrive, leave] in the
+// station's hold progress. Each wireform drops its ball into an inlane over that lane's insert, so the close-ups look
+// down steeply from the player's end: between the wireform's spreading rails and over its dead end, which frames the
+// shot from below.
+const SKILL_TOUR = {
+  stops: [0.1, 0.3, 0.5, 0.7].map(a => [a, a + 0.1]),
+  inserts: [[26, 386], [69.4, 386], [404.95, 386], [448.35, 386]],
+  close: { el: 58, fit: [0.13, 0.07], side: 'left', fov: 30 },
+  swing: 7,
+};
+// Where the tour is at hold progress p: `k` the insert in view (fractional while crossing), `zoom` 0 (all four) to
+// 1 (close), and `cross` 0–1–0 over each crossing.
+function skillTour(p) {
+  const s = SKILL_TOUR.stops, last = s.length - 1;
+  const zoom = smooth(clamp(p / s[0][0])) * (1 - smooth(clamp((p - s[last][1]) / (1 - s[last][1]))));
+  let k = 0, cross = 0;
+  for (let i = 0; i < last; i++) {
+    const t = clamp((p - s[i][1]) / (s[i + 1][0] - s[i][1]));
+    if (t > 0) { k = i + smooth(t); cross = Math.sin(Math.PI * t); }
+  }
+  return { k, zoom, cross };
+}
+
+// The backbox LCD's pictures, one per section that has one, each up while its section is on: a case study's
+// screenshot, cropped to the screen and held on `focus`, or About's player card. A click on a case study's picture
+// opens it.
+const PICTURES = {
+  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', focus: [0.5, 0.5], action: 'ramp-deadbounce' },
+  tiptop: { url: '/assets/img/tiptop.jpg', focus: [0.5, 0], action: 'ramp-tiptop' },
+  about: { url: '/assets/img/dylan.jpg', card: true, action: 'portrait' },
 };
 
 async function start() {
@@ -117,22 +139,26 @@ async function start() {
   const W = (x, y, hh = 0) => h.toWorld(x, y, hh);
   h.backbox.updateMatrixWorld(true);
   const heroTarget = h.backbox.localToWorld(new THREE.Vector3(0, (BACKBOX.dmdY - BACKBOX.dmdH / 2 + BACKBOX.glassY + BACKBOX.glassH) / 2, 0));
+  const glassAt = ([x, y]) => h.backbox.localToWorld(new THREE.Vector3(x, BACKBOX.glassY + BACKBOX.glassH / 2 + y, 0));
   const pose = name => {
     const s = STOPS[name];
-    return { ...s, target: s.at ? W(...s.at) : heroTarget };
+    const target = p => (p.at ? W(...p.at) : p.glass ? glassAt(p.glass) : heroTarget);
+    return { ...s, target: target(s), ...(s.tall && { tall: { ...s.tall, target: target({ ...s, ...s.tall }) } }) };
   };
   const names = stations.map(el => el.dataset.station);
   const director = new Director(stage.camera);
   director.setPoses(names.map(pose));
   const establish = { target: W(237, 470, 60), az: -34, el: 15, fit: [1.5, 1.6], side: 'center', fov: 30 };
+  const skillPoses = SKILL_TOUR.inserts.map(([x, y]) => ({ ...SKILL_TOUR.close, target: W(x, y + 6, 0), az: x < 237 ? SKILL_TOUR.swing : -SKILL_TOUR.swing }));
+  let skillFocus = -1;
 
-  // The back panel's displays.
-  const screens = {};
-  for (const [name, cfg] of Object.entries(SCREENS)) {
-    const screen = buildScreen({ M, anisotropy, ...cfg });
-    h.playfield.add(screen.group);
-    h.interactive.push(screen.face);
-    screens[name] = screen;
+  // The LCD's pictures, drawn as each photo arrives.
+  const lcd = h.backglass.lcd;
+  for (const [name, cfg] of Object.entries(PICTURES)) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = cfg.url;
+    img.decode().then(() => lcd.add(name, cfg.card ? drawPlayerCard(img, 1320) : drawScreenPhoto(img, quality.low ? 1024 : 1320, cfg.focus), cfg.action)).catch(() => {});
   }
 
   // Callouts from parts to copy.
@@ -323,14 +349,15 @@ async function start() {
   const skillRows = $$('[data-skill]'), rungs = $$('[data-rung]');
   let listState = '';
   function syncLists(station) {
-    const state = show.skillsLit.join('') + '|' + (station === 'experience' ? show.rung : -1);
+    const state = show.skillsLit.join('') + '|' + (station === 'experience' ? show.rung : -1) + '|' + skillFocus;
     if (state === listState) return;
     listState = state;
     skillRows.forEach((li, i) => li.classList.toggle('lit', show.skillsLit[i] > 0.5));
     rungs.forEach((li, i) => li.classList.toggle('lit', station === 'experience' && i <= show.rung));
-    // The current entry: the insert lit last while the row is part-way lit, and the year being lit.
+    // The current entry: the insert the camera is on (or, with reduced motion, the one lit last while the row is
+    // part-way lit), and the year being lit.
     const lit = show.skillsLit.filter(g => g > 0.5).length;
-    const skill = station === 'skills' && lit > 0 && lit < skillRows.length ? show.skillsLit.lastIndexOf(1) : -1;
+    const skill = station !== 'skills' ? -1 : reduced ? (lit > 0 && lit < skillRows.length ? show.skillsLit.lastIndexOf(1) : -1) : skillFocus;
     const rung = station === 'experience' ? show.rung : -1;
     for (const [rows, current] of [[skillRows, skill], [rungs, rung]]) {
       rows.forEach((li, i) => li.classList.toggle('current', i === current));
@@ -388,21 +415,38 @@ async function start() {
 
     // Camera.
     let goal = director.at(reduced ? at : f);
+    skillFocus = -1;
+    if (iSkills >= 0 && !reduced && Math.abs(f - iSkills) < 0.001) {
+      const { k, zoom, cross } = skillTour(director.holdProgress(iSkills, y));
+      if (zoom > 0.001) {
+        const i0 = Math.floor(k), i1 = Math.min(skillPoses.length - 1, i0 + 1);
+        const close = director.blend(director.resolve(skillPoses[i0]), director.resolve(skillPoses[i1]), k - i0, 0);
+        // Crossing the field between the inlanes, the camera eases back so it doesn't whip across close up.
+        const span = Math.abs(SKILL_TOUR.inserts[i1][0] - SKILL_TOUR.inserts[i0][0]) / 340;
+        goal = director.blend(goal, close, zoom * (1 - 0.6 * cross * span), 0);
+        if (zoom > 0.6 && cross < 0.5) skillFocus = Math.round(k);
+      }
+    }
     if (intro.blend < 1) goal = director.blend(director.resolve(establish), goal, intro.blend, 0);
     director.apply(goal, dt, { instant: reduced, damping: 6.5 });
     // Light and focus close in on the part as the camera settles at its station.
     const settled = at > 0 ? clamp(1 - Math.abs(f - at) * 2.4) : 0;
     stage.focusOn(director.current.target, director.current.d, settled * intro.blend);
 
+    show.skillFocus = skillFocus;
     show.update(dt, { f });
     updateCopy(f);
     syncLists(station);
 
-    // Each display powers on as its station arrives, and goes dark as the camera leaves.
-    for (const [name, screen] of Object.entries(screens)) {
-      const d = Math.abs(f - names.indexOf(name));
-      screen.update(wall, screen.on ? d < 0.42 : d < 0.3, reduced);
+    // The LCD shows the picture for the nearest section that has one, once the camera is past half-way to it, and the
+    // translite's art otherwise; the one showing holds a little longer, so it doesn't flicker at the change.
+    let want = 'art', near = lcd.showing === 'art' ? 0.46 : 0.54;
+    for (const name of Object.keys(PICTURES)) {
+      const d = Math.abs(f - names.indexOf(name)) - (name === lcd.showing ? 0.06 : 0);
+      if (names.includes(name) && d < near) { near = d; want = name; }
     }
+    lcd.show(want, reduced);
+    lcd.update(wall);
 
     hud.update(stage.camera, width, height, reveal, director.view.layout === 'tall');
     if (exploded) {
@@ -431,7 +475,7 @@ async function start() {
   director.apply(director.at(0), 0, { instant: true });
   stage.render();
   requestAnimationFrame(t => { last = t; frame(t); powerOn(); });
-  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, screens, exploded };
+  window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, lcd, exploded };
 }
 
 start().catch(err => {

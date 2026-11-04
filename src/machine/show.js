@@ -33,6 +33,7 @@ export class Show {
     this.time = 0;
     this.power = 0; // 0 → 1 as the machine powers on
     this.skillsLit = [0, 0, 0, 0]; // the lane inserts, Web to Fab, lit as Skills scrolls by
+    this.skillFocus = -1; // the one the camera is on, which pulses
     this.rung = -1; // the top lane lit last as Experience scrolls by, -1 before the first
     this.explodedPop = 0; // the pop the About section takes apart: pop_1, the back one
     this.station = null;
@@ -83,7 +84,7 @@ export class Show {
       else if (id === 'gate') this.swingGate();
       else if (id.endsWith('-made')) {
         const ramp = RAMPS.find(r => id === `ramp-${r.id}-made`);
-        if (ramp) { this.flash(`${ramp.side}_ramp_arrow`, 1.4); this.fireFlasher(ramp.id); }
+        if (ramp) this.flash(`${ramp.side}_ramp_arrow`, 1.4);
       }
     });
     P.on('drain', () => {
@@ -134,11 +135,6 @@ export class Show {
   kickSling(side) {
     const s = this.h.slings.find(x => x.side === side);
     if (s) s.kicked = this.time;
-  }
-  // A flasher fires in a quick double strobe, as games do for a made shot.
-  fireFlasher(id) {
-    const f = this.h.flashers.find(x => x.id === id);
-    if (f) f.fired = this.time;
   }
   flash(id, amount = 1) {
     const ins = this.h.inserts.get(id);
@@ -362,20 +358,14 @@ export class Show {
     this.updateInserts(dt, ctx);
 
     // Backglass and lights follow the power level.
-    h.backglass.material.color.setScalar(P * (0.92 + 0.08 * Math.sin(t * 1.3)));
+    // The translite's art breathes a little, as a light box does; a picture on the LCD holds steady.
+    h.backglass.material.color.setScalar(P * (h.backglass.lcd.showing === 'art' ? 0.92 + 0.08 * Math.sin(t * 1.3) : 0.94));
     for (const light of h.gi) light.intensity = light.userData.base * P;
     for (const m of h.bulbs) m.emissiveIntensity = 2.2 * P * m.userData.gain;
     // The start button blinks while a ball waits, as in attract mode, and flashes when pressed.
     const pressed = this.startAt === undefined ? 9 : t - this.startAt;
     const waiting = this.auto.state === 'shooter' && Math.sin(t * 5) > 0;
     h.startButton.material.emissiveIntensity = (0.3 + (waiting ? 0.5 : 0) + 3 * Math.exp(-pressed * 5)) * P * (h.startButton.material.userData.gain || 1);
-    for (const f of h.flashers) {
-      const e = f.fired === undefined ? 9 : t - f.fired;
-      const k = e < 0.09 ? 1 : e < 0.16 ? 0.15 : e < 0.25 ? 1 : Math.max(0, 1 - (e - 0.25) / 0.2);
-      const level = this.reduced ? 0 : k * k;
-      f.mat.emissiveIntensity = (0.08 + 3 * level) * P * f.mat.userData.gain;
-      f.light.intensity = 0.05 * level * P;
-    }
   }
 
   // The ball, drawn where the simulation has it (on a ramp or wire it carries its height), turning as it rolls.
@@ -458,7 +448,7 @@ export class Show {
           break;
         }
         case 'skills': {
-          if (s === 'skills') goal = this.skillsLit[ins.index] > 0.5 ? (ins.index === this.skillsLit.lastIndexOf(1) ? (Math.floor(t * 5) % 2 ? 1.7 : 0.9) : 1.2) : 0.08;
+          if (s === 'skills') goal = this.skillsLit[ins.index] > 0.5 ? (ins.index === this.skillFocus ? 1.2 + 0.22 * Math.sin(t * 6) : 1.05) : 0.08;
           else goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 1.1 : 0.18;
           break;
         }

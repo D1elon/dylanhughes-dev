@@ -51,10 +51,10 @@ npm run build     # or: npm run watch
 - `layout.js`: every playfield measurement, in millimetres from the left rail and the front edge. The playfield is Deadbounce's Origin table, part for part: `origin.js` is generated from its template by `tools/origin-layout.mjs` (`node tools/origin-layout.mjs <deadbounce>/studio/src/templates/twin-ramps.json`), and `layout.js` builds its exports from it.
 - The inlane guides' outline is Origin's: an original adaptation inspired by "pinball flipper ball guide" by Tinkot, CC BY 4.0 (https://www.thingiverse.com/thing:3563020, https://creativecommons.org/licenses/by/4.0/).
 - `art.js`: the playfield, translite, apron, cards, plastics and cabinet art, drawn on canvases at load in the style of Deadbounce's Origin table: a stage-lit graphite field, beams from the flippers to each shot, inserts in pools of their own light and edge-lit plastics, in royal blue, white and black
-- `machine.js`: the cabinet, backbox and every playfield part
+- `machine.js`: the cabinet, backbox and every playfield part. The ramps and wireforms go up as a playfield is assembled: hex standoffs screwed to the wood, the ramps' moulded ears and the wireforms' welded tabs screwed down on them, and a steel flap at each ramp's mouth. The backglass is a full-size LCD that shows the translite's art, or the picture for the section on screen.
 - `materials.js` and `stage.js`: materials, lights, environment and post-processing, with lighter settings for phones
 - `physics.js` and `colliders.js`: the ball's simulation, after the engine in Deadbounce. One steel ball rolls, spins and bounces in playfield millimetres, with the flippers as coils (each button works its side's main and upper flipper), the pops and slings kicking, the standups reporting hits, the saucer catching and kicking the ball back out, and the ramps and wireforms as raised tracks. `colliders.js` builds every surface from `layout.js`.
-- `show.js`: animates the parts in step with the simulation and lights the inserts: the four lane inserts light in turn with the Skills list, and the top lanes' years with the Experience timeline. Its autopilot plays the machine for each section: it shoots the case-study ramps, soft-plunges into the top lanes for the pops, and holds the ball on a flipper elsewhere. A visitor's flips (the Shift keys) take over for a few seconds.
+- `show.js`: animates the parts in step with the simulation and lights the inserts: the four lane inserts light in turn with the Skills list (the camera tours them as they light), and the top lanes' years with the Experience timeline. Its autopilot plays the machine for each section: it shoots the case-study ramps, soft-plunges into the top lanes for the pops, and holds the ball on a flipper elsewhere. A visitor's flips (the Shift keys) take over for a few seconds.
 - `explode.js`: the About section's exploded view of the back pop bumper
 - `director.js`: the camera. Each section of the page is a station with a pose; scrolling blends between them and holds on each while its copy is read.
 - `hud.js`: the leader lines from parts to the copy about them
@@ -65,7 +65,7 @@ The machine runs only where WebGL 2 is available, data saving is off and the add
 ## Adding a project
 
 1. Copy `work/tip-top-pinball.html` to `work/<project>.html` and replace its content. Give the hero image a unique `view-transition-name` (see `.vt-tiptop` in `css/site.css`) so it morphs from the home page.
-2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a screen in `SCREENS` in `src/machine/main.js`.
+2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a picture for the backbox LCD in `PICTURES` in `src/machine/main.js`.
 3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`.
 4. Add the page to `sitemap.xml`.
 

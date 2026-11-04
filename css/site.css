@@ -300,6 +300,7 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 .machine .station { display: flex; align-items: flex-start; min-height: 230vh; padding-inline: max(var(--gutter), calc((100vw - 1480px) / 2)); }
 .machine .station[data-side="right"] { justify-content: flex-end; }
 .machine .station-hero { min-height: 135vh; }
+.machine .station[data-hold] { min-height: 330vh; }
 .machine .station .placard {
   position: sticky; top: max(calc(var(--header) + 24px), calc(50vh + var(--header) / 2 - var(--ph, 320px) / 2));
   width: min(520px, 36vw); opacity: 0; will-change: opacity, transform; isolation: isolate;
@@ -400,7 +401,7 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 
 /* Tall screens: the part fills the top of the screen; the copy scrolls up over a shadow at the bottom. */
 @media (max-width: 899px), (max-aspect-ratio: 21/20) {
-  .machine .station { display: block; min-height: 0; padding: 62vh 22px 26vh; }
+  .machine .station, .machine .station[data-hold] { display: block; min-height: 0; padding: 62vh 22px 26vh; }
   .machine .station .placard { position: relative; top: auto; width: 100%; max-width: 560px; margin-inline: auto; }
   /* A full-width band of shadow under the copy, feathered at the top, so the label and title read over the parts. */
   .machine .station .placard::before { content: ''; position: absolute; z-index: -1; top: -96px; bottom: -56px; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;

@@ -389,6 +389,46 @@ export function drawBackglass(width) {
   return c;
 }
 
+// --- Backbox LCD pictures ------------------------------------------------------------------------------------------
+// What the backbox's LCD shows for a section, `width` wide at the glass's 1.32 : 1.
+
+// A case study's screenshot filling the screen, cropped to fit and held on `focus` (0–1 across and down it).
+export function drawScreenPhoto(img, width, focus = [0.5, 0.5]) {
+  const c = canvas(width, width / 1.32), g = c.getContext('2d');
+  g.fillStyle = PALETTE.black;
+  g.fillRect(0, 0, c.width, c.height);
+  const k = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, (c.width - w) * focus[0], (c.height - h) * focus[1], w, h);
+  return c;
+}
+
+// About's player card, as a game puts up between balls: the portrait at full height on the right, fading into the
+// black under the translite's glow, and at the left the player, the name and the place, set as the site sets them.
+export function drawPlayerCard(img, width) {
+  const height = Math.round(width / 1.32), c = canvas(width, height), g = c.getContext('2d'), u = width / 1320;
+  const glow = g.createRadialGradient(width * 0.3, height * 0.5, 0, width * 0.3, height * 0.5, width * 0.7);
+  glow.addColorStop(0, '#121c44'); glow.addColorStop(0.55, '#0b0e1a'); glow.addColorStop(1, PALETTE.black);
+  g.fillStyle = glow;
+  g.fillRect(0, 0, width, height);
+  const ph = height, pw = (img.naturalWidth / img.naturalHeight) * ph, px = width - pw;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, px, 0, pw, ph);
+  const fade = g.createLinearGradient(px, 0, px + pw * 0.42, 0);
+  fade.addColorStop(0, 'rgba(6, 7, 10, 1)'); fade.addColorStop(0.55, 'rgba(6, 7, 10, 0.55)'); fade.addColorStop(1, 'rgba(6, 7, 10, 0)');
+  g.fillStyle = fade;
+  g.fillRect(px - 1, 0, pw * 0.42 + 1, height);
+  const x = 96 * u;
+  // The site's label rule: a hairline with a short royal bar at its start.
+  g.fillStyle = WHITE(0.18); g.fillRect(x, height * 0.3, 420 * u, 1.5 * u);
+  g.fillStyle = ROYAL(1); g.fillRect(x, height * 0.3 - 1.5 * u, 44 * u, 4.5 * u);
+  label(g, x, height * 0.3 + 40 * u, 'Player 1', 22 * u, LIGHT(1), 'mono', 'left');
+  label(g, x, height * 0.48, 'Dylan', 118 * u, PALETTE.white, 'display', 'left');
+  label(g, x, height * 0.48 + 118 * u, 'Hughes', 118 * u, PALETTE.white, 'display', 'left');
+  label(g, x, height * 0.48 + 214 * u, 'Richmond, Virginia', 22 * u, GREY(0.95), 'mono', 'left');
+  return c;
+}
+
 // --- Cabinet, apron and targets ----------------------------------------------------------------------------------
 
 // A cabinet side, `width` from the back (x = 0) to the front, `height` from the top edge down to the bottom at the

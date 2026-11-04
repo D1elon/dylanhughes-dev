@@ -21,14 +21,16 @@ export class Director {
 
   // Scroll positions where the camera holds at each station, and for how long. On wide screens a placard sticks
   // beside its subject, so the hold is centred on its section; on tall screens placards scroll up from the
-  // bottom, so the camera holds while the placard crosses the lower half of the screen.
+  // bottom, so the camera holds while the placard crosses the lower half of the screen. A station with data-hold
+  // holds that many times longer, for one with a camera move of its own inside it (Skills).
   measure(elements, viewportHeight, tall) {
     const y = scrollY;
     const top = el => el.getBoundingClientRect().top + y;
+    const factor = el => +el.dataset.hold || 1;
     if (tall) {
       this.holds = elements.map(el => {
         const card = el.querySelector('.placard') || el;
-        return Math.min(card.offsetHeight * 0.75, viewportHeight * 0.6);
+        return Math.min(card.offsetHeight * 0.75, viewportHeight * 0.6) * factor(el);
       });
       this.anchors = elements.map((el, i) => {
         const card = el.querySelector('.placard') || el;
@@ -42,7 +44,7 @@ export class Director {
     this.holds = elements.map((el, i) => {
       const prev = i > 0 ? this.anchors[i] - this.anchors[i - 1] : Infinity;
       const next = i < elements.length - 1 ? this.anchors[i + 1] - this.anchors[i] : Infinity;
-      return Math.min(prev, next, el.offsetHeight) * 0.42;
+      return Math.min(Math.min(prev, next, el.offsetHeight) * 0.42 * factor(el), Math.min(prev, next) * 0.75);
     });
   }
 
@@ -89,8 +91,10 @@ export class Director {
     return { cx: 0.5, cy: top + 0.21, fx: 0.98, fy: 0.42 };
   }
 
-  // A pose resolved for the current screen: camera position, target, field of view and view offset.
+  // A pose resolved for the current screen: camera position, target, field of view and view offset. A pose's `tall`
+  // overrides some of it on tall screens, where the scene has only the top of the screen.
   resolve(pose) {
+    if (this.view.layout === 'tall' && pose.tall) pose = { ...pose, ...pose.tall };
     const f = this.frame(pose);
     const fov = (pose.fov || 32) * DEG;
     const aspect = this.view.width / this.view.height;
