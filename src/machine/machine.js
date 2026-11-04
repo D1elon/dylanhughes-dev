@@ -57,7 +57,7 @@ let edgeLitMat;
 const edgeLit = () => (edgeLitMat ||= new THREE.MeshStandardMaterial({ color: 0x0a1230, roughness: 0.3, emissive: ROYAL, emissiveIntensity: glow(ROYAL, 0.16) }));
 const nylon = new THREE.MeshPhysicalMaterial({ color: 0xe8eaee, roughness: 0.45, clearcoat: 0.2 });
 
-export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
+export function buildMachine({ M, art, dmdCanvas, anisotropy, maxAnisotropy = anisotropy }) {
   const root = new THREE.Group();
   const body = new THREE.Group(); // the cabinet, tilted to the playfield's pitch
   body.rotation.x = PITCH;
@@ -89,7 +89,7 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy }) {
   buildBalls(playfield, M, handles);
   buildGI(playfield, M, handles);
   buildCabinet(body, root, M, art, anisotropy, handles);
-  buildBackbox(root, M, art, dmdCanvas, anisotropy, handles);
+  buildBackbox(root, M, art, dmdCanvas, anisotropy, handles, maxAnisotropy);
   return handles;
 }
 
@@ -1093,7 +1093,7 @@ class RoundedBox extends THREE.BufferGeometry {
 
 // --- Backbox ---------------------------------------------------------------------------------------------------
 
-function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
+function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles, maxAnisotropy = anisotropy) {
   const B = BACKBOX;
   const box = new THREE.Group();
   // Stand the backbox on the cabinet's back end.
@@ -1151,13 +1151,13 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles) {
   // translite's art, and the picture for whichever section is on; a change of picture wipes in under a scan line.
   const glassTex = texture(art.backglass, anisotropy);
   const glassY = B.glassY + B.glassH / 2;
-  const lcd = backboxLCD(glassTex, anisotropy);
+  const lcd = backboxLCD(glassTex, maxAnisotropy);
   const backglass = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), lcd.material);
   backglass.position.set(0, glassY, 0.002);
   box.add(backglass);
   lcd.mesh = backglass;
   handles.interactive.push(backglass);
-  const cover = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), M.glass);
+  const cover = new THREE.Mesh(new THREE.PlaneGeometry(B.glassW, B.glassH), M.screenGlass);
   cover.position.set(0, glassY, 0.006);
   box.add(cover);
   handles.backglass = { mesh: backglass, material: lcd.material, lcd, level: 0 };
@@ -1184,7 +1184,9 @@ function backboxLCD(artTexture, anisotropy) {
         float down = 1.0 - vMapUv.y;
         float scan = uSeq * 1.08;
         float shown = smoothstep( down - 0.008, down + 0.008, scan );
-        vec3 col = mix( texture2D( tA, vMapUv ).rgb, texture2D( tB, vMapUv ).rgb, shown );
+        // A negative LOD bias picks the sharper mip: the screen is seen at an angle and somewhat smaller than its
+        // pictures, where plain trilinear filtering goes soft.
+        vec3 col = mix( texture2D( tA, vMapUv, -0.65 ).rgb, texture2D( tB, vMapUv, -0.65 ).rgb, shown );
         float live = step( 0.0005, uSeq ) * ( 1.0 - smoothstep( 0.92, 1.08, scan ) );
         col *= 1.0 - 0.18 * live * ( 1.0 - smoothstep( 0.0, 0.25, uSeq ) );
         col += vec3( 0.36, 0.48, 1.0 ) * exp( -pow( ( down - scan ) * 90.0, 2.0 ) ) * 0.7 * live;

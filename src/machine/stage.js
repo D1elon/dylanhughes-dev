@@ -145,8 +145,14 @@ export function createStage(canvas, quality) {
     const vignette = new ShaderPass(VignetteShader);
     vignette.uniforms.offset.value = 0.85;
     vignette.uniforms.darkness.value = 1;
-    // Depth of field: a shallow focus on the part the camera is framing.
+    // Depth of field: a shallow focus on the part the camera is framing. Everything within `range` (metres) of the
+    // focus stays sharp, so a station can hold a whole screen or a whole assembly in focus and still let the
+    // foreground and background go soft.
     dof = new BokehPass(scene, camera, { focus: 1, aperture: 0, maxblur: 0.005 });
+    dof.uniforms.range = { value: 0 };
+    dof.materialBokeh.fragmentShader = dof.materialBokeh.fragmentShader
+      .replace('uniform float focus;', 'uniform float focus;\n\t\tuniform float range;')
+      .replace('float factor = ( focus + viewZ );', 'float factor = ( focus + viewZ );\n\t\t\tfactor = sign( factor ) * max( 0.0, abs( factor ) - range );');
     renderer.setEffects([ao, dof, bloom, vignette]);
   }
 
@@ -177,9 +183,10 @@ export function createStage(canvas, quality) {
     ema = 16.7;
   }
 
-  // Points the focus light and the depth of field at the camera's subject. `amount` is 0 away from a station, 1 at it.
+  // Points the focus light and the depth of field at the camera's subject. `amount` is 0 away from a station, 1 at it;
+  // `sharp` (0–1) widens the band held in focus, for stations that show a picture or a whole assembly.
   const aim = new THREE.Vector3();
-  function focusOn(target, distance, amount) {
+  function focusOn(target, distance, amount, sharp = 0) {
     aim.copy(camera.position).sub(target).setY(0).normalize();
     lights.focus.position.copy(target).addScaledVector(aim, 0.28).add(new THREE.Vector3(0, 0.62, 0));
     lights.focus.target.position.copy(target);
@@ -187,6 +194,7 @@ export function createStage(canvas, quality) {
     if (dof) {
       dof.uniforms.focus.value = distance;
       dof.uniforms.aperture.value = 0.012 * amount;
+      dof.uniforms.range.value = 0.012 + 0.3 * sharp;
     }
   }
 

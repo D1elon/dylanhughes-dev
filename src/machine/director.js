@@ -100,7 +100,7 @@ export class Director {
     const aspect = this.view.width / this.view.height;
     const tan = Math.tan(fov / 2);
     const d = Math.max(pose.fit[1] / (2 * tan * f.fy), pose.fit[0] / (2 * tan * aspect * f.fx)) * (pose.zoom || 1);
-    return { target: pose.target.clone(), az: pose.az * DEG, el: pose.el * DEG, d, fov: pose.fov || 32, cx: f.cx, cy: f.cy };
+    return { target: pose.target.clone(), az: pose.az * DEG, el: pose.el * DEG, d, fov: pose.fov || 32, cx: f.cx, cy: f.cy, sharp: pose.sharp || 0 };
   }
 
   // Blends resolved poses a → b by t, with an optional crane lift (degrees of extra elevation mid-way).
@@ -113,6 +113,7 @@ export class Director {
       fov: a.fov + (b.fov - a.fov) * t,
       cx: a.cx + (b.cx - a.cx) * t,
       cy: a.cy + (b.cy - a.cy) * t,
+      sharp: a.sharp + (b.sharp - a.sharp) * t,
     };
     return out;
   }
@@ -142,6 +143,7 @@ export class Director {
     c.fov += (goal.fov - c.fov) * k;
     c.cx += (goal.cx - c.cx) * k;
     c.cy += (goal.cy - c.cy) * k;
+    c.sharp += (goal.sharp - c.sharp) * k;
     const p = this.parallax;
     const kp = instant ? 1 : 1 - Math.exp(-dt * 3);
     p.x += (p.tx - p.x) * kp;

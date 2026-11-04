@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Deadbounce · Case study · Dylan Hughes</title>
   <meta name="description" content="Deadbounce is a studio Dylan Hughes is designing and building for homebrew pinball: design a playfield in 3D at real size, write the rules without code, play it on its own physics engine, then take cut plans and a wiring plan to the workshop.">
-  <meta name="theme-color" content="#FFFFFF">
+  <meta name="theme-color" content="#06070A">
   <link rel="canonical" href="https://dylanhughes.dev/work/deadbounce.html">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://dylanhughes.dev/work/deadbounce.html">
@@ -18,11 +18,14 @@
   <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/site.css">
+  <script>(function(){try{var s=JSON.parse(sessionStorage.getItem('dh-pixels')||'null'),r=document.documentElement;if(!s||Date.now()-s.t>6000||s.path!==location.pathname||matchMedia('(prefers-reduced-motion: reduce)').matches)return;r.classList.add('px-in');r.style.setProperty('--px',s.pitch+'px');r.style.setProperty('--px-r',s.pitch*.36+'px');setTimeout(function(){r.classList.remove('px-in')},3000);addEventListener('pagereveal',function(e){if(e.viewTransition)e.viewTransition.skipTransition()})}catch(e){}})();</script>
   <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('motion');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('motion')},2500)}</script>
   <script src="/js/vendor/gsap.min.js" defer></script>
   <script src="/js/vendor/ScrollTrigger.min.js" defer></script>
   <script src="/js/vendor/SplitText.min.js" defer></script>
   <script src="/js/vendor/lenis.min.js" defer></script>
+  <script src="/js/dmd-glyphs.js" defer></script>
+  <script src="/js/pixels.js" defer></script>
   <script src="/js/site.js" defer></script>
 </head>
 <body>
@@ -47,7 +50,42 @@
   <main id="main">
     <section class="case-hero wrap" aria-labelledby="case-title">
       <a class="back mono" href="/#work" data-intro><span aria-hidden="true">←</span> All work</a>
-      <h1 class="case-page-title display" id="case-title" data-intro-lines>Everything it takes to build a pinball machine.</h1>
+      <div class="case-title-row">
+        <h1 class="case-page-title display" id="case-title" data-intro-lines>Everything it takes to build a pinball machine.</h1>
+        <svg class="db-mark" viewBox="-4 -62 72 130" role="img" aria-labelledby="db-mark-title" data-mark>
+          <title id="db-mark-title">The Deadbounce logo</title>
+        <g class="dbm-drop">
+            <defs>
+              <mask id="dbm-d-fill" maskUnits="userSpaceOnUse" x="-8" y="-8" width="80" height="80">
+                <rect x="-8" y="-8" width="80" height="80" fill="#fff"/>
+                <path fill="#000" stroke="#fff" stroke-width=".8" d="M11.03 44.79L33.51 31.96A3.6 3.6 0 0 1 37.63 37.83L17.88 54.58A6 6 0 1 1 11.03 44.79Z"/>
+              </mask>
+              <mask id="dbm-d-line" maskUnits="userSpaceOnUse" x="-8" y="-8" width="80" height="80">
+                <rect x="-8" y="-8" width="80" height="80" fill="#fff"/>
+                <path fill="#000" stroke="#000" stroke-width="1.8" d="M11.03 44.79L33.51 31.96A3.6 3.6 0 0 1 37.63 37.83L17.88 54.58A6 6 0 1 1 11.03 44.79Z"/>
+              </mask>
+              <radialGradient id="dbm-chrome" cx="35%" cy="30%" r="75%">
+                <stop offset="0" stop-color="#ffffff"/>
+                <stop offset=".35" stop-color="#d9d7e4"/>
+                <stop offset=".75" stop-color="#7f7d92"/>
+                <stop offset="1" stop-color="#3b3a48"/>
+              </radialGradient>
+            </defs>
+            <g class="dbm-lock">
+              <path class="dbm-line" mask="url(#dbm-d-line)" pathLength="1" d="M12 8H30C46 8 57 18 57 32C57 46 46 56 30 56H14A6 6 0 0 1 14 44H30C38.5 44 45 39 45 32C45 25 38.5 20 30 20H12Z"/>
+              <path class="dbm-fill" mask="url(#dbm-d-fill)" d="M12 8H30C46 8 57 18 57 32C57 46 46 56 30 56H14A6 6 0 0 1 14 44H30C38.5 44 45 39 45 32C45 25 38.5 20 30 20H12Z"/>
+              <g class="dbm-pan">
+                <g class="dbm-flip-l"><path transform="matrix(1 0 0 -1 -38.1 85.08)" d="M11.03 44.79L33.51 31.96A3.6 3.6 0 0 1 37.63 37.83L17.88 54.58A6 6 0 1 1 11.03 44.79Z"/></g>
+                <g class="dbm-flip"><path d="M11.03 44.79L33.51 31.96A3.6 3.6 0 0 1 37.63 37.83L17.88 54.58A6 6 0 1 1 11.03 44.79Z"/></g>
+                <g class="dbm-ball-in"><g class="dbm-ball">
+                  <circle cx="15" cy="30.5" r="5.25"/>
+                  <circle class="dbm-chrome" cx="15" cy="30.5" r="5.25" fill="url(#dbm-chrome)"/>
+                </g></g>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
       <p class="case-meta meta" data-intro>Product <span class="chip"><span class="led" aria-hidden="true"></span>In development</span></p>
       <div class="case-hero-grid" data-intro>
         <div>

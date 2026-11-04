@@ -411,13 +411,17 @@ export function drawPlayerCard(img, width) {
   glow.addColorStop(0, '#121c44'); glow.addColorStop(0.55, '#0b0e1a'); glow.addColorStop(1, PALETTE.black);
   g.fillStyle = glow;
   g.fillRect(0, 0, width, height);
-  const ph = height, pw = (img.naturalWidth / img.naturalHeight) * ph, px = width - pw;
-  g.imageSmoothingQuality = 'high';
-  g.drawImage(img, px, 0, pw, ph);
-  const fade = g.createLinearGradient(px, 0, px + pw * 0.42, 0);
-  fade.addColorStop(0, 'rgba(6, 7, 10, 1)'); fade.addColorStop(0.55, 'rgba(6, 7, 10, 0.55)'); fade.addColorStop(1, 'rgba(6, 7, 10, 0)');
-  g.fillStyle = fade;
-  g.fillRect(px - 1, 0, pw * 0.42 + 1, height);
+  // The photo's own edge fades out (its alpha, not a black wash), so it melts into the glow behind it.
+  const ph = height, pw = Math.round((img.naturalWidth / img.naturalHeight) * ph), px = width - pw;
+  const photo = canvas(pw, ph), pg = photo.getContext('2d');
+  pg.imageSmoothingQuality = 'high';
+  pg.drawImage(img, 0, 0, pw, ph);
+  pg.globalCompositeOperation = 'destination-in';
+  const fade = pg.createLinearGradient(0, 0, pw * 0.45, 0);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 0)'); fade.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)'); fade.addColorStop(1, 'rgba(0, 0, 0, 1)');
+  pg.fillStyle = fade;
+  pg.fillRect(0, 0, pw, ph);
+  g.drawImage(photo, px, 0);
   const x = 96 * u;
   // The site's label rule: a hairline with a short royal bar at its start.
   g.fillStyle = WHITE(0.18); g.fillRect(x, height * 0.3, 420 * u, 1.5 * u);

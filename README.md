@@ -5,12 +5,13 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 ## Structure
 
 - `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact. The same HTML is the 3D machine's copy and the plain page shown without WebGL.
-- `work/deadbounce.html`: Deadbounce case study
+- `work/deadbounce.html`: Deadbounce case study, with Deadbounce's own logo animation beside its title
 - `work/tip-top-pinball.html`: Tip Top Pinball case study, with a before-and-after comparison
 - `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
 - `404.html`: not-found page, served by GitHub Pages for any missing URL
 - `css/site.css`: the whole design system (tokens at the top)
 - `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion
+- `js/pixels.js`: the page change into a case study. The page frosts over like glass under a wave of dot-matrix pixels; the case study's name lights up in the display's lettering, then the dots open outward and the page is built out of them. A short script in each case study's head draws the first frame in CSS, so the hand-over doesn't show. With reduced motion it stays an ordinary link.
 - `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its hand-drawn bitmap fonts
 - `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Commit it after every change to the source.
 - `src/machine/`: the machine's source, and `tools/build-machine.mjs`, its build script
@@ -25,9 +26,8 @@ Only original work and client work is published here. Retheme projects built on 
 
 Black and white, with one accent: royal blue, the colour of the machine's lamps. Every token is at the top of `css/site.css`.
 
-- **Royal blue** `#2B59FF` (`--royal`) fills: LEDs, the focus ring, selection, primary buttons, lit and active states. White text on it passes AA (5.3:1). As text, blue takes `#6E8CFF` (`--royal-soft`) on black and `#1F46E0` (`--royal-deep`) on white, so small blue text always passes.
-- **Black**: room `#06070A`, cabinet `#0B0C0F`, raised `#14161A`, rules `#262A31`; text `#F4F5F7` (`--chalk`), muted `#9AA1AB`.
-- **White**: page `#FFFFFF`, bands `#F5F6F8`, ink `#0D0F12`, muted `#5A616B`, rules `#D9DCE1`.
+- **Royal blue** `#2B59FF` (`--royal`) fills: LEDs, the focus ring, selection, primary buttons, lit and active states. White text on it passes AA (5.3:1). As text, blue takes `#6E8CFF` (`--royal-soft`, `--royal-ink`), so small blue text always passes on black.
+- **Black**: every page sits in the machine's room, so going from the machine to a case study stays dark: room and page `#06070A`, cabinet `#0B0C0F`, bands `#101216`, raised `#14161A`, rules `#262A31`, title-block hairlines at 30% white; text `#F4F5F7`, muted `#9AA1AB` (7.7:1).
 
 Type is three self-hosted families, one job each:
 
