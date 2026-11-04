@@ -90,7 +90,57 @@ export function buildMachine({ M, art, dmdCanvas, anisotropy, maxAnisotropy = an
   buildGI(playfield, M, handles);
   buildCabinet(body, root, M, art, anisotropy, handles);
   buildBackbox(root, M, art, dmdCanvas, anisotropy, handles, maxAnisotropy);
+  mergeStatic(root, handles);
   return handles;
+}
+
+// --- Draw calls ---------------------------------------------------------------------------------------------------
+// Most of the machine never moves: posts, guides, hardware, the cabinet. After it's built, every static, opaque mesh is
+// merged with the others that share its material (and its shadow and occlusion settings) into one mesh in the
+// machine's frame, which cuts the draw calls in each of the frame's passes from hundreds to a few dozen. The parts
+// that move, anything clickable, see-through plastics and mirrored pieces stay as they are.
+function mergeStatic(root, handles) {
+  const dynamic = new Set();
+  const mark = o => { if (o) dynamic.add(o); };
+  handles.pops.forEach(p => mark(p.group));
+  handles.slings.forEach(sl => { mark(sl.rubber); mark(sl.arm); });
+  handles.flippers.forEach(f => mark(f.pivot));
+  handles.targets.forEach(t => mark(t.holder));
+  handles.rollovers.forEach(r => mark(r.wire));
+  if (handles.saucer) mark(handles.saucer.group);
+  if (handles.gate) mark(handles.gate.flap);
+  if (handles.plunger) { mark(handles.plunger.group); mark(handles.plunger.spring); }
+  mark(handles.ball); mark(handles.shooterBall); mark(handles.startButton);
+  const interactive = new Set(handles.interactive);
+  root.updateMatrixWorld(true);
+  const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const groups = new Map(), taken = [];
+  const visit = o => {
+    if (dynamic.has(o)) return;
+    if (o.isMesh && !interactive.has(o) && !Array.isArray(o.material) && !o.material.transparent && !o.morphTargetInfluences && o.visible) {
+      const m = new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld);
+      if (m.determinant() > 0) {
+        const g = o.geometry, attrs = Object.keys(g.attributes).sort().join(',');
+        const key = [o.material.uuid, o.castShadow, o.receiveShadow, o.renderOrder, !!o.userData.noAO, attrs, !!g.index].join('|');
+        if (!groups.has(key)) groups.set(key, { material: o.material, cast: o.castShadow, receive: o.receiveShadow, order: o.renderOrder, noAO: !!o.userData.noAO, geos: [] });
+        groups.get(key).geos.push(g.clone().applyMatrix4(m));
+        taken.push(o);
+      }
+    }
+    for (const c of o.children) visit(c);
+  };
+  visit(root);
+  for (const o of taken) { o.removeFromParent(); o.geometry.dispose(); }
+  for (const gr of groups.values()) {
+    const merged = gr.geos.length === 1 ? gr.geos[0] : mergeGeometries(gr.geos);
+    if (!merged) continue;
+    if (gr.geos.length > 1) gr.geos.forEach(g => g.dispose());
+    const out = new THREE.Mesh(merged, gr.material);
+    out.castShadow = gr.cast; out.receiveShadow = gr.receive; out.renderOrder = gr.order;
+    if (gr.noAO) out.userData.noAO = true;
+    out.matrixAutoUpdate = false;
+    root.add(out);
+  }
 }
 
 // --- Playfield ----------------------------------------------------------------------------------------------------

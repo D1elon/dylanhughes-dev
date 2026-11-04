@@ -320,7 +320,6 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 .machine .lens { display: block; position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; opacity: 0; background: rgba(6, 7, 10, .3);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   -webkit-mask: radial-gradient(closest-side, #000 58%, transparent); mask: radial-gradient(closest-side, #000 58%, transparent); }
-.machine.tall .lens { display: none; }
 
 /* The copy, recoloured for the scene. */
 .machine .label { color: var(--chalk-mute); }
@@ -406,24 +405,34 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   .machine .story p:first-child { font-size: 18px; }
 }
 
-/* Tall screens: the part fills the top of the screen; the copy scrolls up over a shadow at the bottom. */
-@media (max-width: 899px), (max-aspect-ratio: 21/20) {
-  .machine .station, .machine .station[data-hold] { display: block; min-height: 0; padding: 62vh 22px 26vh; }
-  .machine .station .placard { position: relative; top: auto; width: 100%; max-width: 560px; margin-inline: auto; }
-  /* A full-width band of shadow under the copy, feathered at the top, so the label and title read over the parts. */
-  .machine .station .placard::before { content: ''; position: absolute; z-index: -1; top: -96px; bottom: -56px; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
-    background: linear-gradient(rgba(6, 7, 10, 0), rgba(6, 7, 10, .8) 96px, rgba(6, 7, 10, .8) calc(100% - 56px), rgba(6, 7, 10, 0)); }
-  .machine main { overflow-x: clip; }
-  .machine .station-hero { min-height: 0; padding-top: 52vh; padding-bottom: 18vh; flex-direction: column; }
-  .machine .station-hero .hero-copy { opacity: 1 !important; transform: none !important; }
-  .machine .placard-title { font-size: clamp(30px, 8vw, 40px); }
-  .machine .station-hero .hero-title { font-size: clamp(34px, 9vw, 48px); }
-  /* The display's controls follow the hero copy here, rather than sitting over the translite. */
-  .machine .dmd-strip { position: relative; left: auto; right: auto; bottom: auto; top: auto; margin-top: 22px; width: 100%; justify-content: space-between; }
-  .machine .dmd-name { display: none; }
-  .machine .scroll-cue { display: none; }
-  .machine.motion .station-hero .placard:not(.is-here) > * { opacity: 1; transform: none; }
-  .machine.motion .station-hero .placard:not(.is-here)::after { transform: none; }
+/* Panel layouts (phones, tablets, short landscape screens; html.panel, set by the machine): the scene keeps the top of
+   the screen (html.tall) or its left (html.side), and the copy sits in a panel of its own below or beside it, in the
+   same title block as on wide screens, so it never covers the part. Every section's copy shares the panel and
+   crossfades there as the camera travels; copy longer than the panel scrolls inside it while the camera holds. The
+   machine sets --panel-top and --panel-left, each section's length and each placard's --scroll. */
+.machine.panel .station, .machine.panel .station[data-hold], .machine.panel .station-hero { display: block; min-height: 0; padding: 0; }
+.machine.panel .station .placard { --pad: max(22px, calc((100vw - 560px) / 2));
+  position: fixed; z-index: 2; top: var(--panel-top); right: 0; bottom: 0; left: 0; width: auto; margin: 0; overflow: hidden;
+  padding: 22px var(--pad) calc(22px + env(safe-area-inset-bottom)); border-top-color: var(--hair-scene); text-shadow: none; }
+.machine.panel .station .placard::after { left: var(--pad); top: -1px; }
+/* Copy scrolling up the panel fades under its top edge rather than being cut off there. */
+.machine.panel .station .placard::before { content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: 0; height: 20px; background: linear-gradient(var(--room), rgba(6, 7, 10, 0)); pointer-events: none; }
+.machine.panel .station .placard > * { translate: 0 var(--scroll, 0px); }
+.machine.panel .station .placard:not(.is-here) { pointer-events: none; }
+.machine.side .station .placard { --pad: 26px; top: var(--header); left: var(--panel-left); padding: 18px max(20px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) var(--pad); }
+/* The panel's ground: the scene darkens into it, feathered where they meet. */
+.machine.tall .shade { background: linear-gradient(rgba(6, 7, 10, 0) calc(var(--panel-top) - 64px), rgba(6, 7, 10, .94) var(--panel-top), var(--room) calc(var(--panel-top) + 40px)); }
+.machine.side .shade { background: linear-gradient(90deg, rgba(6, 7, 10, 0) calc(var(--panel-left) - 64px), rgba(6, 7, 10, .94) var(--panel-left), var(--room) calc(var(--panel-left) + 40px)); }
+.machine.panel .lens, .machine.panel .scroll-cue, .machine.panel .dmd-name { display: none; }
+.machine.panel main { overflow-x: clip; }
+.machine.panel .placard-title { font-size: clamp(28px, 7.4vw, 40px); }
+.machine.panel .station-hero .hero-title { font-size: clamp(32px, 8.4vw, 48px); }
+.machine.side .placard { --r-label: 14px; --r-lede: 12px; --r-block: 16px; }
+.machine.side .placard-title, .machine.side .station-hero .hero-title { font-size: clamp(22px, 6.4vh, 34px); }
+.machine.side .placard-lede, .machine.side .hero-lede { font-size: 15px; }
+/* The display's controls ride in the hero's panel. */
+.machine.panel .dmd-strip { position: static; margin-top: 20px; width: 100%; justify-content: space-between; opacity: 1; transform: none; pointer-events: auto; }
+.machine.panel .site-footer { z-index: 3; background: linear-gradient(rgba(6, 7, 10, 0), var(--room) 56px); padding-top: 64px; }
 }
 
 /* Cursor label over interactive parts and the featured project, for fine pointers only. */
