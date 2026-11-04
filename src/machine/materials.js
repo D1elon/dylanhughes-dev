@@ -1,5 +1,5 @@
 // Shared physically based materials, in the site's palette: black, white and royal blue, with chrome and steel for the
-// hardware. Lamps (inserts, pop caps, flashers, bulbs) carry a gain in userData that evens out their brightness by
+// hardware. Lamps (inserts, pop caps, bulbs) carry a gain in userData that evens out their brightness by
 // luminance, so a royal-blue lamp, which has about a seventh of white's luminance, blooms as much as a white one.
 import * as THREE from 'three';
 import { hex } from './palette.js';
@@ -54,8 +54,6 @@ export function makeMaterials(envMap) {
     transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false,
   });
   M.glass = reflectOnly(envMap, 0.45, 0.02);
-  // A display's cover glass: a little less glare than the backglass, so the picture under it stays clear.
-  M.screenGlass = reflectOnly(envMap, 0.28, 0.03);
   M.wood = new THREE.MeshStandardMaterial({ color: 0xc4a174, roughness: 0.78 }); // the ply's cut edge, left natural
   M.cardPaper = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75 });
   // Pop caps: royal-blue plastic, lit from inside by the bumper's lamp.
