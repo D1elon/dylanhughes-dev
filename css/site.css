@@ -186,6 +186,8 @@ main { counter-reset: station; }
 .placard-lede { color: var(--ink-mute); font-size: var(--t-lede); line-height: var(--lh-lede); margin-top: var(--r-lede); max-width: 58ch; }
 .placard-media { display: block; overflow: hidden; border-radius: 10px; margin-bottom: var(--r-label); background: var(--cab); aspect-ratio: 16 / 9; }
 .placard-media img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transition: transform .8s var(--ease); }
+/* A screenshot with the app's toolbar along its top: cropped from the bottom, so the toolbar stays whole. */
+.placard-media img.crop-top { object-position: 50% 0; }
 .placard-media:hover img { transform: scale(1.03); }
 .placard .spec { margin-top: var(--r-block); }
 .placard .actions { margin-top: var(--r-block); gap: 10px 20px; }

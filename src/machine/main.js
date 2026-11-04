@@ -90,7 +90,7 @@ function skillTour(p) {
 // screenshot, cropped to the screen and held on `focus`, or About's player card. A click on a case study's picture
 // opens it.
 const PICTURES = {
-  deadbounce: { url: '/assets/img/deadbounce-viewport.jpg', focus: [0.5, 0.5], action: 'ramp-deadbounce' },
+  deadbounce: { url: '/assets/img/deadbounce-origin.jpg', focus: [0.5, 0.5], action: 'ramp-deadbounce' },
   tiptop: { url: '/assets/img/tiptop.jpg', focus: [0.5, 0], action: 'ramp-tiptop' },
   about: { url: '/assets/img/dylan.jpg', card: true, action: 'portrait' },
 };
