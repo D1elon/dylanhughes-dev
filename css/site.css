@@ -243,12 +243,44 @@ main { counter-reset: station; }
 .play-row { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
 .play-row .hint { color: var(--ink-mute); }
 
-/* --- The plain home page: the same title blocks, in a two-column grid ---------------------------------- */
-html:not(.machine) .home main { width: 100%; max-width: 1120px; margin-inline: auto; padding: clamp(40px, 7vw, 88px) var(--gutter) clamp(80px, 10vw, 128px); display: grid; gap: clamp(72px, 9vw, 120px); }
-html:not(.machine) .home .work { display: grid; gap: clamp(72px, 9vw, 120px); }
-html:not(.machine) .home .hero-title { font-size: clamp(40px, 5.4vw, 80px); max-width: 15ch; }
-html:not(.machine) .home .station-hero .dmd { margin-top: clamp(40px, 5vw, 64px); }
-html:not(.machine) .home .dmd-strip { margin-top: 14px; }
+/* --- The home page ----------------------------------------------------------------------------------------------
+   The site as published: the same title blocks as the case studies, on the machine's black. The hero sits on a
+   drawing's grid lit from behind the display; the work leads with its pictures; every other section's label holds
+   in a left column while the section scrolls by; contact closes on the hero's grid. (html.machine is the 3D machine,
+   kept for later at /?machine.) */
+html:not(.machine) .home main { width: 100%; max-width: 1240px; margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 160px); display: grid; gap: clamp(104px, 12vw, 176px); }
+html:not(.machine) .home .work { display: grid; gap: clamp(96px, 11vw, 160px); }
+/* A drawing's grid of faint registration crosses, lit royal from below, fading out downward. */
+html:not(.machine) .home .station-hero, html:not(.machine) .home #contact { position: relative; isolation: isolate; }
+html:not(.machine) .home .station-hero::before, html:not(.machine) .home #contact::before { content: ''; position: absolute; z-index: -1; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
+  background: radial-gradient(48% 46% at 50% 80%, rgba(43, 89, 255, .2), rgba(43, 89, 255, 0) 72%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 24v8M24 28h8' stroke='%23F4F5F7' stroke-opacity='.12'/%3E%3C/svg%3E") 50% 0 / 56px 56px; }
+html:not(.machine) .home .station-hero::before { top: 0; bottom: -10%; -webkit-mask: linear-gradient(#000 60%, transparent); mask: linear-gradient(#000 60%, transparent); }
+html:not(.machine) .home #contact::before { top: -18%; bottom: calc(-1 * clamp(96px, 12vw, 160px)); background-position: 50% 0, 50% 0; -webkit-mask: linear-gradient(transparent, #000 40%); mask: linear-gradient(transparent, #000 40%); }
+/* The hero. */
+html:not(.machine) .home .station-hero { padding-top: clamp(48px, 8vw, 112px); }
+html:not(.machine) .home .hero-title { font-size: clamp(44px, 6.4vw, 96px); max-width: 14ch; }
+html:not(.machine) .home .hero-lede { font-size: clamp(18px, 1.4vw, 21px); max-width: 44ch; }
+html:not(.machine) .home .station-hero .dmd { margin-top: clamp(56px, 7vw, 96px); }
+html:not(.machine) .home .dmd-bezel { box-shadow: 0 0 0 1px var(--rule-dark), 0 50px 120px -48px rgba(43, 89, 255, .55); }
+html:not(.machine) .home .dmd-strip { margin-top: 16px; }
+/* The work's pictures: a hairline frame that lights royal on hover as the picture settles closer. */
+html:not(.machine) .home .placard-media { box-shadow: 0 0 0 1px var(--rule-dark); transition: box-shadow .4s var(--ease); }
+html:not(.machine) .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); }
+/* About: the portrait at a size you can see. */
+html:not(.machine) .home .about-head { grid-template-columns: clamp(104px, 17vw, 208px) 1fr; gap: clamp(20px, 3vw, 40px); }
+html:not(.machine) .home .about-portrait { border-radius: 10px; box-shadow: 0 0 0 1px var(--rule-dark); }
+html:not(.machine) .home .story { max-width: 62ch; margin-top: clamp(28px, 3vw, 40px); }
+html:not(.machine) .home .story p:first-child { font-size: clamp(20px, 1.6vw, 25px); }
+/* Experience: a line through the years, the roles still running lit. */
+html:not(.machine) .home .timeline { position: relative; margin-top: 28px; }
+html:not(.machine) .home .timeline::before { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
+html:not(.machine) .home .timeline li:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
+html:not(.machine) .home .timeline + .btn { margin-top: 32px; }
+/* Contact closes the page, as large as the hero. */
+html:not(.machine) .home #contact { padding-top: clamp(24px, 4vw, 56px); }
+html:not(.machine) .home #contact .placard-title { font-size: var(--d-l); max-width: 14ch; }
+html:not(.machine) .home .contact-email { font-size: clamp(26px, 3.4vw, 48px); }
 html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); box-shadow: 0 0 0 100vmax var(--cab); clip-path: inset(0 -100vmax); }
 @media (min-width: 900px) {
   html:not(.machine) .home .station:not(.station-hero) .placard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.7fr); column-gap: clamp(32px, 4vw, 64px); }
@@ -256,6 +288,27 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   /* The label holds still in its column while its section scrolls by. */
   html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-column: 1; grid-row: 1 / span 9; align-self: start; position: sticky; top: calc(var(--header) + 20px); margin-bottom: 0; flex-wrap: wrap; }
   html:not(.machine) .home .station:not(.station-hero) .label-count { margin-left: 0; flex-basis: 100%; padding-left: calc(2.4em + 12px); }
+  html:not(.machine) .home .station:not(.station-hero) .placard > .btn { justify-self: start; }
+  /* Each project leads with its picture, its title block beside it, the two on alternate sides; the label runs
+     across the top as one row. */
+  html:not(.machine) .home .work .station:not(.station-hero) .placard { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: clamp(40px, 5vw, 80px); align-content: start; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard > .label { grid-column: 1 / -1; grid-row: 1; position: static; flex-wrap: nowrap; margin-bottom: var(--r-label); }
+  html:not(.machine) .home .work .station:not(.station-hero) .label-count { margin-left: auto; flex-basis: auto; padding-left: 0; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1; grid-row: 2 / span 7; align-self: start; margin-bottom: 0; aspect-ratio: 4 / 3; }
+  html:not(.machine) .home .work #tiptop .placard { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  html:not(.machine) .home .work #tiptop .placard > * { grid-column: 1; }
+  html:not(.machine) .home .work #tiptop .placard > .label { grid-column: 1 / -1; }
+  html:not(.machine) .home .work #tiptop .placard-media { grid-column: 2; }
+  html:not(.machine) .home .work #tiptop .placard-media img { object-position: 0 0; }
+  html:not(.machine) .home .work .placard-title { font-size: clamp(34px, 3.4vw, 52px); }
+  /* Skills: four cards, two by two. */
+  html:not(.machine) .home .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
+  html:not(.machine) .home .skill-list li { padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 10px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease); }
+  html:not(.machine) .home .skill-list li:hover { border-color: rgba(110, 140, 255, .5); }
+  html:not(.machine) .home .skill-list .dots { width: 26px; height: 26px; }
+}
+@media (max-width: 600px) {
+  html:not(.machine) .home .about-head { grid-template-columns: 104px 1fr; }
 }
 .flat-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .scroll-cue { display: none; }
@@ -613,7 +666,7 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 .lost p:not(.mono) { color: var(--ink-mute); font-size: var(--t-lede); line-height: var(--lh-lede); margin-block: 16px 32px; max-width: 40ch; }
 
 /* Motion: initial states, applied only when the intro will run. */
-.motion [data-intro], .motion [data-intro-lines] { visibility: hidden; }
+.motion:not(.machine) [data-intro], .motion:not(.machine) [data-intro-lines], .motion:not(.machine) [data-intro-dmd] { visibility: hidden; }
 
 /* Page transitions. */
 @view-transition { navigation: auto; }

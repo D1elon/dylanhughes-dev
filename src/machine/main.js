@@ -97,8 +97,10 @@ const PICTURES = {
 };
 
 async function start() {
-  // The page's head script decides: without WebGL 2, with data saving on or at ?flat, the page stays plain.
+  // The page's head script decides: the machine runs only at /?machine, with WebGL 2 and data saving off.
   if (!root.classList.contains('machine')) return;
+  // It's loaded by the head script as it parses, so it waits for the page and its deferred scripts (the display).
+  if (document.readyState === 'loading') await new Promise(resolve => addEventListener('DOMContentLoaded', resolve, { once: true }));
   const canvas = $('[data-stage]');
   const stations = $$('[data-station]');
   if (!canvas || !stations.length) throw new Error('No stage on this page');
