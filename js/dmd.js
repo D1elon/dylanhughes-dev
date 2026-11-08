@@ -48,6 +48,36 @@
     const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
     for (let s = 0; s <= steps; s++) set(buf, x0 + (x1 - x0) * s / steps, y0 + (y1 - y0) * s / steps, v);
   }
+  // Shapes, with soft edges: a dot is lit by how much of it the shape covers, as a display's lettering artist would
+  // shade the edge of a curve.
+  function disc(buf, cx, cy, r, v = 1) {
+    for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+      const k = Math.min(1, Math.max(0, r + 0.5 - Math.hypot(x - cx, y - cy)));
+      if (k > 0.05) set(buf, x, y, v * k);
+    }
+  }
+  function ring(buf, cx, cy, r, v = 1) {
+    for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+      const k = Math.min(1, Math.max(0, 1 - Math.abs(Math.hypot(x - cx, y - cy) - r) * 1.4));
+      if (k > 0.05) set(buf, x, y, v * k);
+    }
+  }
+  // A flipper bat: a round end 4 dots across, round the pivot at (px, py), tapering along `len` to a rounded tip under 2 dots
+  // across, pointing toward `dir` (1 right, -1 left) at `angle` below horizontal, with its pivot pin left dark.
+  function bat(buf, px, py, dir, angle, len, v = 1) {
+    const tx = px + dir * Math.cos(angle) * len, ty = py + Math.sin(angle) * len, r0 = 2.0, r1 = 0.85;
+    const ex = tx - px, ey = ty - py, l2 = ex * ex + ey * ey;
+    for (let y = Math.floor(Math.min(py, ty) - r0 - 1); y <= Math.ceil(Math.max(py, ty) + r0 + 1); y++) {
+      for (let x = Math.floor(Math.min(px, tx) - r0 - 1); x <= Math.ceil(Math.max(px, tx) + r0 + 1); x++) {
+        const k = Math.max(0, Math.min(1, ((x - px) * ex + (y - py) * ey) / l2));
+        const d = Math.hypot(x - (px + ex * k), y - (py + ey * k)), r = r0 + (r1 - r0) * k;
+        const c = Math.min(1, Math.max(0, r + 0.5 - d));
+        if (c > 0.05) set(buf, x, y, v * c);
+      }
+    }
+    const i = Math.round(py) * COLS + Math.round(px);
+    if (i >= 0 && i < N) buf[i] = 0.18;
+  }
   const center = bmp => Math.round((COLS - bmp.w) / 2);
   const easeOut = p => 1 - Math.pow(1 - p, 3);
   const easeBack = p => { const c = 1.6; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
@@ -113,39 +143,71 @@
       label: 'Pinball',
       duration: 7.5,
       still: 2.6,
-      reset(state) {
-        Object.assign(state, { x: 66, y: 10, vx: 28, vy: 0, score: 0, left: 0, right: 0, sim: 0 });
+      // A little playfield, 44 dots wide: an arched top, two pop bumpers, inlane guides down to a pair of flippers
+      // drawn as real bats (a round pivot end tapering to a rounded tip), and a ball that plays between them.
+      field: {
+        lo: 47, hi: 85, top: 10, guide: 20,
+        pops: [{ x: 58, y: 15, r: 2.6 }, { x: 74, y: 15, r: 2.6 }],
+        flippers: [{ x: 53.5, y: 25, dir: 1 }, { x: 78.5, y: 25, dir: -1 }],
+        len: 9.5, rest: 0.5, up: -0.42,
       },
+      reset(state) {
+        Object.assign(state, { x: 66, y: 11, vx: 22, vy: 0, score: 0, left: 0, right: 0, pop: [0, 0], sim: 0, n: 0 });
+      },
+      // The flipper's angle below horizontal for a stroke `s` (1 at full lift, easing back to 0 at rest).
+      angle(s) { const F = this.field; return F.rest + (F.up - F.rest) * Math.sin(Math.min(1, s) * Math.PI / 2); },
       step(state, dt) {
-        const g = 70, lo = 47, hi = 85;
+        const F = this.field, g = 64;
         state.vy += g * dt;
         state.x += state.vx * dt;
         state.y += state.vy * dt;
-        if (state.x < lo) { state.x = lo; state.vx = Math.abs(state.vx); state.score += 1250; }
-        if (state.x > hi) { state.x = hi; state.vx = -Math.abs(state.vx); state.score += 1250; }
-        if (state.y < 10) { state.y = 10; state.vy = Math.abs(state.vy); state.score += 5000; }
-        const flipping = state.y > 22 && state.vy > 0;
-        state.left = Math.max(0, state.left - dt * 6);
-        state.right = Math.max(0, state.right - dt * 6);
-        if (flipping && state.y > 25) {
-          const fromLeft = state.x < 66;
-          if (fromLeft) state.left = 1; else state.right = 1;
-          state.vy = -Math.min(64, 46 + Math.abs(state.vx) * 0.4);
-          state.vx = (fromLeft ? 1 : -1) * (14 + ((state.score / 1250) % 5) * 7);
-          state.score += 25000;
+        // The walls, narrowing down the inlane guides toward the flippers.
+        const inset = Math.max(0, state.y - F.guide) * 1.25;
+        if (state.x < F.lo + inset) { state.x = F.lo + inset; state.vx = Math.abs(state.vx); }
+        if (state.x > F.hi - inset) { state.x = F.hi - inset; state.vx = -Math.abs(state.vx); }
+        if (state.y < F.top) { state.y = F.top; state.vy = Math.abs(state.vy) * 0.8; state.score += 500; }
+        // The pops kick the ball away from their centre and light up.
+        F.pops.forEach((p, i) => {
+          const dx = state.x - p.x, dy = state.y - p.y, d = Math.hypot(dx, dy), reach = p.r + 1.5;
+          if (d < reach && d > 0) {
+            const nx = dx / d, ny = dy / d, dot = state.vx * nx + state.vy * ny;
+            if (dot < 0) { state.vx -= 2 * dot * nx; state.vy -= 2 * dot * ny; }
+            state.vx += nx * 12; state.vy += ny * 12;
+            state.x = p.x + nx * reach; state.y = p.y + ny * reach;
+            state.pop[i] = 1; state.score += 1000;
+          }
+          state.pop[i] = Math.max(0, state.pop[i] - dt * 4);
+        });
+        state.left = Math.max(0, state.left - dt * 5.5);
+        state.right = Math.max(0, state.right - dt * 5.5);
+        // Flip as the ball comes down onto a flipper (or, over the gap, just before it would drain).
+        if (state.vy > 0 && state.y > 20) {
+          const side = state.x < 66 ? 0 : 1, f = F.flippers[side];
+          const along = (state.x - f.x) * f.dir, reach = Math.cos(F.rest) * F.len;
+          const surface = f.y + Math.min(reach, Math.max(0, along)) * Math.tan(F.rest) - 2.2;
+          if (state.y >= surface || state.y > 27) {
+            state[side ? 'right' : 'left'] = 1;
+            state.n += 1;
+            state.vy = -(50 + (state.n % 3) * 5);
+            state.vx = (side ? -1 : 1) * (12 + (state.n % 4) * 6);
+            state.score += 25000;
+          }
         }
       },
       draw(buf, t, state) {
         if (state.sim === undefined) this.reset(state);
         while (state.sim < t) { this.step(state, 1 / 120); state.sim += 1 / 120; }
-        for (let y = 9; y < 32; y++) { set(buf, 44, y, 0.38); set(buf, 88, y, 0.38); }
-        for (let x = 44; x <= 88; x++) set(buf, x, 8, 0.38);
-        const lift = s => -0.55 + (1 - s) * 0.95;
-        const flip = (px, dir, s) => line(buf, px, 27, px + dir * Math.cos(lift(s)) * 8, 27 + Math.sin(lift(s)) * 8, 1);
-        flip(57, 1, state.left); flip(57, 1, state.left * 0.85);
-        flip(75, -1, state.right); flip(75, -1, state.right * 0.85);
-        const bx = Math.round(state.x), by = Math.round(state.y);
-        set(buf, bx, by, 1); set(buf, bx + 1, by, 1); set(buf, bx, by + 1, 1); set(buf, bx + 1, by + 1, 1);
+        const F = this.field, dim = 0.36;
+        // The arched top and the walls, then the inlane guides down to the flippers.
+        for (let x = 50; x <= 82; x++) set(buf, x, 7, dim);
+        line(buf, 50, 7, 45, 12, dim); line(buf, 82, 7, 87, 12, dim);
+        for (let y = 12; y <= F.guide; y++) { set(buf, 45, y, dim); set(buf, 87, y, dim); }
+        line(buf, 45, F.guide, 51, F.guide + 4.8, dim); line(buf, 87, F.guide, 81, F.guide + 4.8, dim);
+        // The pops: rings that light up when hit.
+        F.pops.forEach((p, i) => { ring(buf, p.x, p.y, p.r, 0.45 + 0.55 * state.pop[i]); if (state.pop[i] > 0.3) disc(buf, p.x, p.y, 1.1, state.pop[i]); });
+        // The flippers.
+        F.flippers.forEach((f, i) => bat(buf, f.x, f.y, f.dir, this.angle(i ? state.right : state.left), F.len));
+        disc(buf, state.x, state.y, 1.55, 1);
         stamp(buf, small('SCORE'), 4, 2, 0.6);
         stamp(buf, small(String(state.score)), 4, 11, 1);
         stamp(buf, small('BALL 1'), 92, 2, 0.6);

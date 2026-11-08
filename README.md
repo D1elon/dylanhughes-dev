@@ -1,10 +1,10 @@
 # dylanhughes.dev
 
-Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. The home page is a pinball machine rendered in 3D: it opens on the backbox, and scrolling flies the camera down over the playfield, where each section of the page is a part of the machine. Everything else is static HTML, CSS and JavaScript; fonts and animation libraries are self-hosted. Only the 3D machine has a build step.
+Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Virginia. The site is static HTML, CSS and JavaScript in the dark of a pinball machine's cabinet, with a dot-matrix display in the hero; fonts and animation libraries are self-hosted. A 3D pinball machine version of the home page is built and kept in the repository for later, switched off on the published site (see below). Only the 3D machine has a build step.
 
 ## Structure
 
-- `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact. The same HTML is the 3D machine's copy and the plain page shown without WebGL.
+- `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact. The same HTML is the 2D home page and the 3D machine's copy.
 - `work/deadbounce.html`: Deadbounce case study, with Deadbounce's own logo animation beside its title
 - `work/tip-top-pinball.html`: Tip Top Pinball case study, with a before-and-after comparison
 - `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
@@ -37,9 +37,12 @@ Type is three self-hosted families, one job each:
 
 Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page the label row moves into a left column and holds still while its section scrolls by.
 
-The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball, Richmond and the local time) with lamp persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
+The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball on a little playfield with pop bumpers and flippers drawn as real bats, Richmond and the local time) with lamp persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
 
-## The 3D machine
+## The 3D machine (switched off for now)
+
+The 3D machine is kept for later, once it has had more optimisation and polish. The published site doesn't load it: it runs only at `/?machine`, where the head script loads `js/machine.js`, and only with WebGL 2 and data saving off.
+
 
 `src/machine/` is plain ES modules on Three.js, bundled by esbuild into `js/machine.js`:
 
@@ -60,7 +63,7 @@ npm run build     # or: npm run watch
 - `hud.js`: the leader lines from parts to the copy about them
 - `main.js`: starts it all and connects scrolling, pointer, keyboard and clicks
 
-The machine runs only where WebGL 2 is available, data saving is off and the address has no `?flat`. If it can't start, the page falls back to the plain layout and the 2D display. With reduced motion, the camera cuts between stations and nothing animates.
+At `/?machine`, if the machine can't start, the page falls back to the 2D layout and display. With reduced motion, the camera cuts between stations and nothing animates.
 
 ## Adding a project
 
