@@ -69,8 +69,9 @@
   --r-lede: 18px;
   --r-block: 28px;
 
-  --wrap: 1360px;
-  --gutter: clamp(20px, 4vw, 56px);
+  /* The page's one container: the header, the home page and the case studies share its edges. */
+  --wrap: 1520px;
+  --gutter: clamp(20px, 5vw, 96px);
   --header: 68px;
   --ease: cubic-bezier(.2, .7, 0, 1);
 }
@@ -193,7 +194,7 @@ main { counter-reset: station; }
 .placard-media img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transition: transform .8s var(--ease); }
 /* A screenshot with the app's toolbar along its top: cropped from the bottom, so the toolbar stays whole. */
 .placard-media img.crop-top { object-position: 50% 0; }
-.placard-media:hover img { transform: scale(1.03); }
+@media (hover: hover) { .placard-media:hover img { transform: scale(1.03); } }
 .placard .spec { margin-top: var(--r-block); }
 .placard .actions { margin-top: var(--r-block); gap: 10px 20px; }
 .placard > .btn { margin-top: var(--r-block); }
@@ -245,70 +246,138 @@ main { counter-reset: station; }
 
 /* --- The home page ----------------------------------------------------------------------------------------------
    The site as published: the same title blocks as the case studies, on the machine's black. The hero sits on a
-   drawing's grid lit from behind the display; the work leads with its pictures; every other section's label holds
-   in a left column while the section scrolls by; contact closes on the hero's grid. (html.machine is the 3D machine,
-   kept for later at /?machine.) */
-html:not(.machine) .home main { width: 100%; max-width: 1240px; margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 160px); display: grid; gap: clamp(104px, 12vw, 176px); }
-html:not(.machine) .home .work { display: grid; gap: clamp(96px, 11vw, 160px); }
+   drawing's grid lit from behind the display; the work leads with its pictures; contact closes on the hero's grid.
+   (html.machine is the 3D machine, kept for later at /?machine.)
+
+   By screen: phones stack everything in one column. Tablets (700px and up) keep one column with room to breathe,
+   and set the skills as cards. Desktops (1100px and up) lay each section on a 12-column grid: its label holds in the
+   first three columns while it scrolls by, its content takes the other nine, and the work sets its picture and its
+   title block side by side. Large monitors (1800px and up) widen the container and step the type up. */
+html:not(.machine) .home main { width: 100%; max-width: var(--wrap); margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 176px); display: grid; gap: clamp(104px, 12vw, 200px); }
+html:not(.machine) .home .work { display: grid; gap: clamp(96px, 11vw, 184px); }
 /* A drawing's grid of faint registration crosses, lit royal from below, fading out downward. */
 html:not(.machine) .home .station-hero, html:not(.machine) .home #contact { position: relative; isolation: isolate; }
 html:not(.machine) .home .station-hero::before, html:not(.machine) .home #contact::before { content: ''; position: absolute; z-index: -1; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
   background: radial-gradient(48% 46% at 50% 80%, rgba(43, 89, 255, .2), rgba(43, 89, 255, 0) 72%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 24v8M24 28h8' stroke='%23F4F5F7' stroke-opacity='.12'/%3E%3C/svg%3E") 50% 0 / 56px 56px; }
 html:not(.machine) .home .station-hero::before { top: 0; bottom: -10%; -webkit-mask: linear-gradient(#000 60%, transparent); mask: linear-gradient(#000 60%, transparent); }
-html:not(.machine) .home #contact::before { top: -18%; bottom: calc(-1 * clamp(96px, 12vw, 160px)); background-position: 50% 0, 50% 0; -webkit-mask: linear-gradient(transparent, #000 40%); mask: linear-gradient(transparent, #000 40%); }
+html:not(.machine) .home #contact::before { top: -18%; bottom: calc(-1 * clamp(96px, 12vw, 176px)); background-position: 50% 0, 50% 0; -webkit-mask: linear-gradient(transparent, #000 40%); mask: linear-gradient(transparent, #000 40%); }
 /* The hero. */
-html:not(.machine) .home .station-hero { padding-top: clamp(48px, 8vw, 112px); }
-html:not(.machine) .home .hero-title { font-size: clamp(44px, 6.4vw, 96px); max-width: 14ch; }
-html:not(.machine) .home .hero-lede { font-size: clamp(18px, 1.4vw, 21px); max-width: 44ch; }
-html:not(.machine) .home .station-hero .dmd { margin-top: clamp(56px, 7vw, 96px); }
+html:not(.machine) .home .station-hero { padding-top: clamp(40px, 7vw, 128px); }
+html:not(.machine) .home .hero-title { font-size: clamp(40px, 6.2vw, 112px); max-width: 15ch; }
+html:not(.machine) .home .hero-lede { font-size: clamp(17px, 1.35vw, 22px); max-width: 44ch; }
+html:not(.machine) .home .station-hero .dmd { margin-top: clamp(48px, 6vw, 104px); }
 html:not(.machine) .home .dmd-bezel { box-shadow: 0 0 0 1px var(--rule-dark), 0 50px 120px -48px rgba(43, 89, 255, .55); }
 html:not(.machine) .home .dmd-strip { margin-top: 16px; }
 /* The work's pictures: a hairline frame that lights royal on hover as the picture settles closer. */
 html:not(.machine) .home .placard-media { box-shadow: 0 0 0 1px var(--rule-dark); transition: box-shadow .4s var(--ease); }
-html:not(.machine) .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); }
+@media (hover: hover) { html:not(.machine) .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); } }
 /* About: the portrait at a size you can see. */
-html:not(.machine) .home .about-head { grid-template-columns: clamp(104px, 17vw, 208px) 1fr; gap: clamp(20px, 3vw, 40px); }
+html:not(.machine) .home .about-head { grid-template-columns: clamp(96px, 22vw, 176px) 1fr; gap: clamp(18px, 3vw, 36px); }
 html:not(.machine) .home .about-portrait { border-radius: 10px; box-shadow: 0 0 0 1px var(--rule-dark); }
-html:not(.machine) .home .story { max-width: 62ch; margin-top: clamp(28px, 3vw, 40px); }
-html:not(.machine) .home .story p:first-child { font-size: clamp(20px, 1.6vw, 25px); }
+html:not(.machine) .home .story { max-width: 62ch; margin-top: clamp(24px, 3vw, 40px); }
+html:not(.machine) .home .story p:first-child { font-size: clamp(19px, 1.6vw, 26px); }
+html:not(.machine) .home .story p { font-size: clamp(15.5px, 1.05vw, 17px); }
 /* Experience: a line through the years, the roles still running lit. */
 html:not(.machine) .home .timeline { position: relative; margin-top: 28px; }
 html:not(.machine) .home .timeline::before { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
 html:not(.machine) .home .timeline li:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
 html:not(.machine) .home .timeline + .btn { margin-top: 32px; }
 /* Contact closes the page, as large as the hero. */
-html:not(.machine) .home #contact { padding-top: clamp(24px, 4vw, 56px); }
-html:not(.machine) .home #contact .placard-title { font-size: var(--d-l); max-width: 14ch; }
-html:not(.machine) .home .contact-email { font-size: clamp(26px, 3.4vw, 48px); }
+html:not(.machine) .home #contact { padding-top: clamp(24px, 4vw, 64px); }
+html:not(.machine) .home #contact .placard-title { font-size: clamp(36px, 5vw, 88px); max-width: 14ch; }
+html:not(.machine) .home .contact-email { font-size: clamp(24px, 3.4vw, 56px); }
 html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); box-shadow: 0 0 0 100vmax var(--cab); clip-path: inset(0 -100vmax); }
-@media (min-width: 900px) {
-  html:not(.machine) .home .station:not(.station-hero) .placard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.7fr); column-gap: clamp(32px, 4vw, 64px); }
-  html:not(.machine) .home .station:not(.station-hero) .placard > * { grid-column: 2; }
-  /* The label holds still in its column while its section scrolls by. */
-  html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-column: 1; grid-row: 1 / span 9; align-self: start; position: sticky; top: calc(var(--header) + 20px); margin-bottom: 0; flex-wrap: wrap; }
-  html:not(.machine) .home .station:not(.station-hero) .label-count { margin-left: 0; flex-basis: 100%; padding-left: calc(2.4em + 12px); }
-  html:not(.machine) .home .station:not(.station-hero) .placard > .btn { justify-self: start; }
-  /* Each project leads with its picture, its title block beside it, the two on alternate sides; the label runs
-     across the top as one row. */
-  html:not(.machine) .home .work .station:not(.station-hero) .placard { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: clamp(40px, 5vw, 80px); align-content: start; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard > .label { grid-column: 1 / -1; grid-row: 1; position: static; flex-wrap: nowrap; margin-bottom: var(--r-label); }
-  html:not(.machine) .home .work .station:not(.station-hero) .label-count { margin-left: auto; flex-basis: auto; padding-left: 0; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1; grid-row: 2 / span 7; align-self: start; margin-bottom: 0; aspect-ratio: 4 / 3; }
-  html:not(.machine) .home .work #tiptop .placard { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
-  html:not(.machine) .home .work #tiptop .placard > * { grid-column: 1; }
-  html:not(.machine) .home .work #tiptop .placard > .label { grid-column: 1 / -1; }
-  html:not(.machine) .home .work #tiptop .placard-media { grid-column: 2; }
-  html:not(.machine) .home .work #tiptop .placard-media img { object-position: 0 0; }
-  html:not(.machine) .home .work .placard-title { font-size: clamp(34px, 3.4vw, 52px); }
-  /* Skills: four cards, two by two. */
+
+/* Tablets and up: skills as cards, two by two. */
+@media (min-width: 700px) {
   html:not(.machine) .home .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
   html:not(.machine) .home .skill-list li { padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 10px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease); }
-  html:not(.machine) .home .skill-list li:hover { border-color: rgba(110, 140, 255, .5); }
   html:not(.machine) .home .skill-list .dots { width: 26px; height: 26px; }
+  html:not(.machine) .home .work .placard-media { aspect-ratio: 16 / 10; }
 }
-@media (max-width: 600px) {
-  html:not(.machine) .home .about-head { grid-template-columns: 104px 1fr; }
+@media (min-width: 700px) and (hover: hover) {
+  html:not(.machine) .home .skill-list li:hover { border-color: rgba(110, 140, 255, .5); }
+}
+
+/* Desktops: every section on a 12-column grid. */
+@media (min-width: 1100px) {
+  html:not(.machine) .home .placard { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-content: start; }
+  html:not(.machine) .home .placard > * { grid-column: 4 / -1; }
+  /* The label holds still in its columns while its section scrolls by. */
+  html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-column: 1 / span 3; grid-row: 1 / span 9; align-self: start; position: sticky; top: calc(var(--header) + 24px); margin-bottom: 0; flex-wrap: wrap; }
+  html:not(.machine) .home .station:not(.station-hero) .label-count { margin-left: 0; flex-basis: 100%; padding-left: calc(2.4em + 12px); }
+  html:not(.machine) .home .placard > .btn, html:not(.machine) .home .placard > .actions { justify-self: start; }
+
+  /* The hero: the label across the top, the headline wide, and under it the lede and the actions side by side. */
+  html:not(.machine) .home .station-hero .placard > * { grid-column: 1 / -1; }
+  html:not(.machine) .home .station-hero .hero-lede { grid-column: 1 / span 6; }
+  html:not(.machine) .home .station-hero .placard > .actions { grid-column: 8 / -1; grid-row: 3; align-self: end; margin-top: 0; }
+
+  /* The work: the label across the top, then the picture and the title block side by side, on alternate sides. */
+  html:not(.machine) .home .work .station:not(.station-hero) .placard > .label { grid-column: 1 / -1; grid-row: 1; position: static; flex-wrap: nowrap; margin-bottom: var(--r-label); }
+  html:not(.machine) .home .work .station:not(.station-hero) .label-count { margin-left: auto; flex-basis: auto; padding-left: 0; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard > * { grid-column: 8 / -1; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; grid-row: 2 / span 8; align-self: start; margin-bottom: 0; aspect-ratio: 4 / 3; }
+  html:not(.machine) .home .work #tiptop.station .placard > * { grid-column: 1 / span 5; }
+  html:not(.machine) .home .work #tiptop.station .placard > .label { grid-column: 1 / -1; }
+  html:not(.machine) .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
+  html:not(.machine) .home .work #tiptop.station .placard-media img { object-position: 0 0; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { margin-top: 4px; }
+
+  /* About: the title and the story, with the portrait in a column of its own beside them. */
+  html:not(.machine) .home .about-head { display: contents; }
+  html:not(.machine) .home #about .placard-title { grid-column: 4 / span 6; grid-row: 1; }
+  html:not(.machine) .home #about .story { grid-column: 4 / span 6; grid-row: 2; }
+  html:not(.machine) .home #about .about-portrait { grid-column: 10 / -1; grid-row: 1 / span 2; align-self: start; position: sticky; top: calc(var(--header) + 24px); }
+
+  /* Experience, read like a CV: the dates in a column of their own. */
+  html:not(.machine) .home .timeline li { grid-template-columns: minmax(150px, 2fr) minmax(0, 7fr); column-gap: 32px; padding-block: 16px 18px; }
+  html:not(.machine) .home .timeline li > .mono { grid-column: 1; grid-row: 1 / span 3; text-align: left; padding-top: 3px; }
+  html:not(.machine) .home .timeline li > h3 { grid-column: 2; grid-row: 1; font-size: 17px; }
+  html:not(.machine) .home .timeline li > p:not(.mono) { grid-column: 2; }
+  html:not(.machine) .home .timeline li::before { top: 23px; }
+  html:not(.machine) .home .timeline::before { top: 27px; }
+  html:not(.machine) .home .timeline p:last-child { max-width: 70ch; }
+}
+
+/* Laptops (1100–1499px): the work's title block takes half the width, so its details aren't cramped. */
+@media (min-width: 1100px) and (max-width: 1499px) {
+  html:not(.machine) .home .work .station:not(.station-hero) .placard > * { grid-column: 7 / -1; }
+  html:not(.machine) .home .work #tiptop.station .placard > * { grid-column: 1 / span 6; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; }
+  html:not(.machine) .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
+}
+
+/* Large monitors: a wider container and a step up in type, the header's with it. */
+@media (min-width: 1800px) {
+  :root { --wrap: 1720px; --gutter: 112px; --header: 76px; --t-lede: 21px; --t-body: 17px; --t-small: 15px; --t-label: 11.5px; --d-xs: 19px; --d-s: 32px; --d-m: 52px; --d-l: 76px; --d-xl: 112px; }
+  .nav a { font-size: 15px; }
+  .wordmark { font-size: 18px; }
+  html:not(.machine) .home .skill-list li { padding: 28px 28px 30px; }
+}
+/* Very large monitors (1440p ultrawide, 4K at 100%): wider again, and larger type throughout. */
+@media (min-width: 2400px) {
+  :root { --wrap: 2040px; --gutter: 128px; --header: 84px; --t-lede: 23px; --t-body: 18px; --t-small: 16px; --t-label: 12.5px; --d-xs: 21px; --d-s: 36px; --d-m: 60px; --d-l: 88px; --d-xl: 132px; }
+  .nav { gap: 36px; }
+  .nav a { font-size: 16.5px; }
+  .wordmark { font-size: 20px; }
+  .btn { min-height: 56px; padding-inline: 24px; font-size: 16.5px; }
+  html:not(.machine) .home .hero-title { font-size: 136px; }
+  html:not(.machine) .home .hero-lede { font-size: 25px; }
+  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { font-size: 72px; }
+  html:not(.machine) .home .story p:first-child { font-size: 30px; }
+  html:not(.machine) .home .story p { font-size: 19px; }
+  html:not(.machine) .home #contact .placard-title { font-size: 104px; }
+  html:not(.machine) .home .contact-email { font-size: 66px; }
+  html:not(.machine) .home .timeline li > h3 { font-size: 19px; }
+}
+
+/* Touch screens: larger tap targets for the small controls. */
+@media (pointer: coarse) {
+  .key { min-height: 44px; padding-inline: 14px; }
+  .contact-links a, .link-out { display: inline-block; padding-block: 12px; }
 }
 .flat-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .scroll-cue { display: none; }
