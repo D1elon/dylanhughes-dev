@@ -17,7 +17,7 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `src/machine/`: the machine's source, and `tools/build-machine.mjs`, its build script
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
 - `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
-- `assets/`: résumé PDF, favicon, social share image (`og.png`) and photographs
+- `assets/`: résumé PDF, favicon, social share image (`og.jpg`), touch and manifest icons and photographs
 - `CNAME`, `robots.txt` and `sitemap.xml`: domain and search-engine configuration
 
 Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.

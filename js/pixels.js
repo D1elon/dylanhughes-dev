@@ -180,7 +180,7 @@
   let arrival = null;
   try { arrival = root.classList.contains('px-in') ? JSON.parse(sessionStorage.getItem(KEY) || 'null') : null; sessionStorage.removeItem(KEY); } catch { arrival = null; }
   let startIntro;
-  window.__pixelsIntro = new Promise(resolve => { startIntro = resolve; });
+  window.__pixelsIntro = new Promise(resolve => { startIntro = () => { root.classList.remove('px-hold'); resolve(); }; });
   if (!arrival) { root.classList.remove('px-in'); startIntro(); return; }
   arrive(arrival);
 
