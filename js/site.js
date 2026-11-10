@@ -63,9 +63,12 @@
   // Current section in the nav.
   const navLinks = $$('.nav a[href^="#"]');
   if (navLinks.length && 'IntersectionObserver' in window) {
+    // The section under the middle of the screen is current. Scrolling back up out of a section clears it, so
+    // nothing stays lit above the first one.
     const io = new IntersectionObserver(entries => entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      navLinks.forEach(a => (a.getAttribute('href') === '#' + entry.target.id ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      const link = navLinks.find(a => a.getAttribute('href') === '#' + entry.target.id);
+      if (entry.isIntersecting) navLinks.forEach(a => (a === link ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      else if (entry.boundingClientRect.top > 0) link.removeAttribute('aria-current');
     }), { rootMargin: '-45% 0px -50% 0px' });
     navLinks.forEach(a => { const s = $(a.getAttribute('href')); if (s) io.observe(s); });
   }
@@ -130,7 +133,9 @@
       new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }).observe(canvas);
       document.addEventListener('visibilitychange', sync);
       dmd.sync = sync;
+      // With motion, the display powers on as the intro (CSS, site.css) brings its bezel in.
       if (!animate || !$('[data-intro-dmd]')) dmd.boot();
+      else setTimeout(() => dmd.boot(), Math.max(0, 850 - performance.now()));
     }
   };
   if (machine) window.addEventListener('machine:failed', startDisplay, { once: true });
@@ -171,24 +176,12 @@
       return gsap.from(split.lines, { yPercent: 108, ease, ...vars, onComplete: () => split.revert() });
     };
 
-    // Intro: header, headline lines, then the display powers on.
-    const introLines = $('[data-intro-lines]');
-    // Arriving through the pixel transition, the intro waits until the page has begun to open (js/pixels.js).
-    const intro = gsap.timeline({ defaults: { ease }, paused: true });
+    // The intro itself is CSS (site.css), so it starts with the first paint rather than waiting for this file.
+    // Arriving through the pixel transition it holds until the page has begun to open (js/pixels.js). A product's
+    // mark plays once, as its title rises.
     (window.__pixelsIntro || Promise.resolve()).then(() => {
-      intro.play();
-      // A product's mark plays once, as its title rises.
       $$('[data-mark]').forEach(el => setTimeout(() => el.classList.add('is-playing'), 250));
     });
-    const introParts = $$('[data-intro]');
-    if (introParts.length) intro.fromTo(introParts, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 1, stagger: .06 }, 0);
-    if (introLines) intro.add(riseLines(introLines, { duration: 1.25, stagger: .09 }), .1);
-    const bezel = $('[data-intro-dmd]');
-    if (bezel) {
-      intro.fromTo(bezel, { autoAlpha: 0, clipPath: 'inset(0% 0% 100% 0% round 20px)' },
-        { autoAlpha: 1, clipPath: 'inset(0% 0% 0% 0% round 20px)', duration: 1.1, ease: 'expo.inOut', clearProps: 'clipPath' }, .45);
-      intro.call(() => dmd && dmd.boot(), null, 1.15);
-    }
 
     // Headings rise line by line as they arrive.
     $$('[data-split]').forEach(el => {
@@ -199,34 +192,19 @@
     ScrollTrigger.batch('[data-fade]', {
       start: 'top 90%',
       once: true,
-      onEnter: els => gsap.fromTo(els, { autoAlpha: 0, y: 28 }, { autoAlpha: 1, y: 0, duration: 1.1, stagger: .08, ease, overwrite: true }),
+      onEnter: els => gsap.fromTo(els, { autoAlpha: 0, y: 28 }, { autoAlpha: 1, y: 0, duration: 1.1, stagger: .08, ease, overwrite: true, clearProps: 'transform' }),
     });
     gsap.set('[data-fade]', { autoAlpha: 0 });
 
-    // Featured project: the frame opens and the screenshot settles as it scrolls into view.
-    $$('.work .case-media').forEach(media => {
-      const img = $('img', media);
-      gsap.fromTo(media, { clipPath: 'inset(9% 7% 0% 7% round 18px)' }, { clipPath: 'inset(0% 0% 0% 0% round 18px)', ease: 'none', scrollTrigger: { trigger: media, start: 'top 95%', end: 'top 25%', scrub: true } });
-      gsap.fromTo(img, { scale: 1.12, yPercent: 4 }, { scale: 1, yPercent: 0, ease: 'none', scrollTrigger: { trigger: media, start: 'top 95%', end: 'top 25%', scrub: true } });
-    });
-
-    // The story brightens word by word as it is read.
-    $$('[data-scrub]').forEach(story => {
-      const words = SplitText.create($$('p', story), { type: 'words' }).words;
-      gsap.fromTo(words, { opacity: .16 }, { opacity: 1, stagger: .1, ease: 'none', scrollTrigger: { trigger: story, start: 'top 78%', end: 'bottom 52%', scrub: true } });
-    });
-
-    // Photographs drift slightly against the scroll.
-    $$('.portrait-frame img, .shop-frame img').forEach(img => {
-      gsap.fromTo(img, { scale: 1.14, yPercent: -5 }, { scale: 1.06, yPercent: 5, ease: 'none', scrollTrigger: { trigger: img.closest('figure'), start: 'top bottom', end: 'bottom top', scrub: true } });
+    // A project's picture settles back into its frame as it scrolls into view. It scales through a custom property
+    // (site.css), so the hover zoom still composes with it.
+    $$('[data-settle]').forEach(media => {
+      gsap.fromTo($('img', media), { '--settle': 1.14 }, { '--settle': 1, ease: 'none', scrollTrigger: { trigger: media, start: 'top 100%', end: 'top 40%', scrub: true } });
     });
 
     // Rules draw across as their rows arrive.
     $$('.rule').forEach(rule => {
       gsap.from(rule, { scaleX: 0, duration: 1.4, ease: 'expo.inOut', scrollTrigger: { trigger: rule.parentElement, start: 'top 90%', once: true } });
-    });
-    $$('.xp-row').forEach(row => {
-      gsap.from($$(':scope > :not(.rule)', row), { autoAlpha: 0, y: 18, duration: 1, stagger: .06, ease, delay: .15, scrollTrigger: { trigger: row, start: 'top 90%', once: true } });
     });
 
     // A label follows the pointer over the featured project.

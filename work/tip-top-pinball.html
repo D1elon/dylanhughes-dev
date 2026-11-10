@@ -15,10 +15,12 @@
   <meta property="og:image:alt" content="The redesigned Tip Top Pinball homepage">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/site.css">
-  <script>(function(){try{var s=JSON.parse(sessionStorage.getItem('dh-pixels')||'null'),r=document.documentElement;if(!s||Date.now()-s.t>6000||s.path!==location.pathname||matchMedia('(prefers-reduced-motion: reduce)').matches)return;r.classList.add('px-in');r.style.setProperty('--px',s.pitch+'px');r.style.setProperty('--px-r',s.pitch*.36+'px');setTimeout(function(){r.classList.remove('px-in')},3000);addEventListener('pagereveal',function(e){if(e.viewTransition)e.viewTransition.skipTransition()})}catch(e){}})();</script>
+  <script>(function(){try{var s=JSON.parse(sessionStorage.getItem('dh-pixels')||'null'),r=document.documentElement;if(!s||Date.now()-s.t>6000||s.path!==location.pathname||matchMedia('(prefers-reduced-motion: reduce)').matches)return;r.classList.add('px-in','px-hold');r.style.setProperty('--px',s.pitch+'px');r.style.setProperty('--px-r',s.pitch*.36+'px');setTimeout(function(){r.classList.remove('px-in','px-hold')},3000);addEventListener('pagereveal',function(e){if(e.viewTransition)e.viewTransition.skipTransition()})}catch(e){}})();</script>
   <script>document.documentElement.classList.add('js');if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('motion');setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove('motion')},2500)}</script>
   <script src="/js/vendor/gsap.min.js" defer></script>
   <script src="/js/vendor/ScrollTrigger.min.js" defer></script>
@@ -49,10 +51,10 @@
 
   <main id="main">
     <section class="case-hero wrap" aria-labelledby="case-title">
-      <a class="back mono" href="/#work" data-intro><span aria-hidden="true">←</span> All work</a>
+      <a class="back mono" href="/#work" data-intro="0"><span aria-hidden="true">←</span> All work</a>
       <h1 class="case-page-title display" id="case-title" data-intro-lines>A clearer path to local pinball repair.</h1>
-      <p class="case-meta meta" data-intro>Client website <span class="chip is-live"><span class="led" aria-hidden="true"></span>Live</span></p>
-      <div class="case-hero-grid" data-intro>
+      <p class="case-meta meta" data-intro="2">Client website <span class="chip is-live"><span class="led" aria-hidden="true"></span>Live</span></p>
+      <div class="case-hero-grid" data-intro="3">
         <div>
           <p class="case-lede">Tip Top Pinball repairs pinball and arcade machines around Richmond. I redesigned and launched its website, bringing the repair services, the areas it covers, service requests and the machines it has on location into one place.</p>
           <div class="actions">

@@ -11,12 +11,14 @@
   <meta property="og:url" content="https://dylanhughes.dev/">
   <meta property="og:title" content="Dylan Hughes · Creative technologist">
   <meta property="og:description" content="Websites for local businesses, game software for pinball machines, and 3D-printed parts, from first sketch to final product.">
-  <meta property="og:image" content="https://dylanhughes.dev/assets/og.png">
+  <meta property="og:image" content="https://dylanhughes.dev/assets/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Dylan Hughes, creative technologist in Richmond, Virginia: his name on a royal-blue dot-matrix display">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/martian-mono.woff2" as="font" type="font/woff2" crossorigin>
@@ -55,7 +57,7 @@
 </head>
 <body class="home">
   <a class="skip" href="#main">Skip to content</a>
-  <div class="boot" aria-hidden="true"><span class="boot-led"></span><span class="mono">Powering on</span></div>
+  <div class="boot" aria-hidden="true"><span class="boot-led"></span><span class="mono" data-boot-label>Powering on</span></div>
   <canvas class="stage" data-stage aria-hidden="true"></canvas>
   <div class="shade" data-shade aria-hidden="true"></div>
   <div class="lens" data-lens aria-hidden="true"></div>
@@ -80,10 +82,10 @@
   <main id="main">
     <section class="station station-hero" id="top" data-station="hero" aria-labelledby="hero-title">
       <div class="hero-copy placard">
-        <p class="label mono" data-intro><span class="led" aria-hidden="true"></span>Creative technologist · Richmond, Virginia</p>
+        <p class="label mono" data-intro="0"><span class="led" aria-hidden="true"></span>Creative technologist · Richmond, Virginia</p>
         <h1 class="hero-title display" id="hero-title" data-intro-lines>I design and build things that work, on screen and off.</h1>
-        <p class="hero-lede" data-intro>Websites for local businesses, game software for pinball machines, and 3D-printed parts. I take each one from first sketch to final product.</p>
-        <div class="actions" data-intro>
+        <p class="hero-lede" data-intro="2">Websites for local businesses, game software for pinball machines, and 3D-printed parts. I take each one from first sketch to final product.</p>
+        <div class="actions" data-intro="3">
           <a class="btn btn-royal" href="#work">See the work <span class="btn-arrow" aria-hidden="true">↓</span></a>
           <a class="btn btn-line" href="/assets/dylan-hughes-resume.pdf" download>Résumé <span class="sr-only">(PDF)</span><span class="btn-arrow" aria-hidden="true">↓</span></a>
         </div>
@@ -93,7 +95,7 @@
           <canvas data-dmd role="img" aria-label="A pinball dot-matrix display cycling through four scenes: Dylan Hughes, creative technologist; I design and build websites, game software and printed parts; a game of pinball; and Richmond, Virginia with the local time."></canvas>
         </div>
       </figure>
-      <div class="dmd-strip" data-intro>
+      <div class="dmd-strip" data-intro="6">
         <span class="dmd-status mono"><span class="led" aria-hidden="true"></span><span class="dmd-name">128 × 32 dot-matrix display ·</span> <span data-dmd-label>Attract mode</span> <span data-dmd-count></span></span>
         <span class="dmd-controls">
           <button class="key mono" type="button" data-dmd-pause aria-pressed="false">Pause</button>
@@ -109,8 +111,8 @@
       <article class="station" id="deadbounce" data-station="deadbounce" data-side="right" aria-labelledby="deadbounce-title">
         <div class="placard">
           <p class="label mono">Selected work <span class="label-count">1 of 2</span></p>
-          <a class="placard-media" href="/work/deadbounce.html" tabindex="-1" aria-hidden="true" data-cursor="Read the case study" data-fade>
-            <picture><source srcset="/assets/img/deadbounce-origin.webp" type="image/webp"><img class="crop-top" src="/assets/img/deadbounce-origin.jpg" alt="" width="1600" height="1212" loading="lazy" decoding="async"></picture>
+          <a class="placard-media" href="/work/deadbounce.html" tabindex="-1" aria-hidden="true" data-cursor="Read the case study" data-fade data-settle>
+            <picture><source srcset="/assets/img/deadbounce-origin-960.webp 960w, /assets/img/deadbounce-origin.webp 1600w" sizes="(min-width: 1100px) 46vw, 92vw" type="image/webp"><img class="crop-top" src="/assets/img/deadbounce-origin.jpg" srcset="/assets/img/deadbounce-origin-960.jpg 960w, /assets/img/deadbounce-origin.jpg 1600w" sizes="(min-width: 1100px) 46vw, 92vw" alt="" width="1600" height="1212" loading="lazy" decoding="async"></picture>
           </a>
           <h3 class="placard-title display" id="deadbounce-title" data-anchor="98.7,899.9,84" data-split>Deadbounce</h3>
           <p class="placard-meta meta">Product <span class="chip"><span class="led" aria-hidden="true"></span>In development</span></p>
@@ -128,8 +130,8 @@
       <article class="station" id="tiptop" data-station="tiptop" data-side="left" aria-labelledby="tiptop-title">
         <div class="placard">
           <p class="label mono">Selected work <span class="label-count">2 of 2</span></p>
-          <a class="placard-media" href="/work/tip-top-pinball.html" tabindex="-1" aria-hidden="true" data-cursor="Read the case study" data-fade>
-            <picture><source srcset="/assets/img/tiptop.webp" type="image/webp"><img src="/assets/img/tiptop.jpg" alt="" width="1600" height="1027" loading="lazy" decoding="async"></picture>
+          <a class="placard-media" href="/work/tip-top-pinball.html" tabindex="-1" aria-hidden="true" data-cursor="Read the case study" data-fade data-settle>
+            <picture><source srcset="/assets/img/tiptop-960.webp 960w, /assets/img/tiptop.webp 1600w" sizes="(min-width: 1100px) 46vw, 92vw" type="image/webp"><img src="/assets/img/tiptop.jpg" srcset="/assets/img/tiptop-960.jpg 960w, /assets/img/tiptop.jpg 1600w" sizes="(min-width: 1100px) 46vw, 92vw" alt="" width="1600" height="1027" loading="lazy" decoding="async"></picture>
           </a>
           <h3 class="placard-title display" id="tiptop-title" data-anchor="375.7,899.9,84" data-split>Tip Top Pinball</h3>
           <p class="placard-meta meta">Client website <span class="chip is-live"><span class="led" aria-hidden="true"></span>Live</span></p>
@@ -166,23 +168,23 @@
       <div class="placard">
         <p class="label mono">Skills and tools</p>
         <h2 class="placard-title display" id="skills-title" data-split>Four kinds of work, often in the same project.</h2>
-        <ul class="skill-list" data-fade>
-          <li data-skill="0" data-anchor="26,386,1">
+        <ul class="skill-list">
+          <li data-fade data-skill="0" data-anchor="26,386,1">
             <span class="dots" data-dots="1111111/1000001/1111111/1000001/1000001/1000001/1111111" aria-hidden="true"></span>
             <div><h3>Web</h3><p>Business websites from first layout to launch, with local SEO and monthly upkeep.</p>
             <p class="chips mono">HTML · CSS · JavaScript · React · Astro · Node.js · Supabase · WordPress · Shopify · Apps Script</p></div>
           </li>
-          <li data-skill="1" data-anchor="69.4,386,1">
+          <li data-fade data-skill="1" data-anchor="69.4,386,1">
             <span class="dots" data-dots="0000000/0000000/1100011/0110110/0011100/0000000/0000000" aria-hidden="true"></span>
             <div><h3>Game software</h3><p>Rules, interfaces and hardware integration for pinball machines, plus the tools to test them.</p>
             <p class="chips mono">C# · Unity · Python · Multimorphic P3 · Stern Spike 2 · Stern SAM</p></div>
           </li>
-          <li data-skill="2" data-anchor="404.95,386,1">
+          <li data-fade data-skill="2" data-anchor="404.95,386,1">
             <span class="dots" data-dots="1111111/1001001/1001101/1001111/1001101/1001001/1111111" aria-hidden="true"></span>
             <div><h3>Media</h3><p>Interface art, animation, audio and video, made for the screen it runs on.</p>
             <p class="chips mono">Figma · Photoshop · Illustrator · Premiere Pro · After Effects</p></div>
           </li>
-          <li data-skill="3" data-anchor="448.35,386,1">
+          <li data-fade data-skill="3" data-anchor="448.35,386,1">
             <span class="dots" data-dots="0011100/0111110/0000000/0111110/0000000/0111110/1111111" aria-hidden="true"></span>
             <div><h3>Fabrication</h3><p>Parts and products modelled, scanned, print-tuned, packaged and documented.</p>
             <p class="chips mono">Fusion · 3D scanning · Bambu Studio · Multi-material printing</p></div>
@@ -195,12 +197,12 @@
       <div class="placard">
         <p class="label mono">Experience</p>
         <h2 class="placard-title display" id="experience-title" data-split>Where I’ve worked.</h2>
-        <ol class="timeline" data-fade>
-          <li data-rung="0" data-anchor="127,1011,1"><p class="mono"><time datetime="2025">2025</time> to now</p><h3>Freelance Technical Consultant and Developer</h3><p class="org">Self-employed · Richmond, VA</p><p>Small-business websites from design to launch: five delivered for local clients, with local SEO and upkeep under retainer.</p></li>
-          <li data-rung="1" data-anchor="177,1024,1"><p class="mono"><time datetime="2023-07">Jul 2023</time> to now</p><h3>Digital Content Specialist and Personal Assistant</h3><p class="org">Alex Glaser / The Glaser Group · Richmond, VA</p><p>C# and Unity game software for Multimorphic P3, Stern Spike 2 and Stern SAM, a 3D-printed product line, and workflow automation.</p></li>
-          <li data-rung="2" data-anchor="234,1033,1"><p class="mono"><time datetime="2021-12">Dec 2021</time> to <time datetime="2023-07">Jul 2023</time></p><h3>Marketing Coordinator and Lead Server</h3><p class="org">Origin Beer Lab and Center of the Universe Brewing · Ashland, VA</p><p>Social media, photo and video, and event promotion; led front-of-house shifts.</p></li>
-          <li data-rung="3" data-anchor="294,1024,1"><p class="mono"><time datetime="2018-06">Jun 2018</time> to <time datetime="2021-01">Jan 2021</time></p><h3>Operations Assistant</h3><p class="org">T&amp;B Equipment / InProduction · Ashland, VA</p><p>Inventory and event installations, plus desktop and hardware support for staff.</p></li>
-          <li data-rung="4" data-anchor="347,1009,1"><p class="mono"><time datetime="2018">2018</time></p><h3>Advanced Studies Diploma</h3><p class="org">Atlee High School · Mechanicsville, VA</p><p>Everything since is self-taught.</p></li>
+        <ol class="timeline">
+          <li data-fade data-rung="0" data-anchor="127,1011,1"><p class="mono"><time datetime="2025">2025</time> to now</p><h3>Freelance Technical Consultant and Developer</h3><p class="org">Self-employed · Richmond, VA</p><p>Small-business websites from design to launch: five delivered for local clients, with local SEO and upkeep under retainer.</p></li>
+          <li data-fade data-rung="1" data-anchor="177,1024,1"><p class="mono"><time datetime="2023-07">Jul 2023</time> to now</p><h3>Digital Content Specialist and Personal Assistant</h3><p class="org">Alex Glaser / The Glaser Group · Richmond, VA</p><p>C# and Unity game software for Multimorphic P3, Stern Spike 2 and Stern SAM, a 3D-printed product line, and workflow automation.</p></li>
+          <li data-fade data-rung="2" data-anchor="234,1033,1"><p class="mono"><time datetime="2021-12">Dec 2021</time> to <time datetime="2023-07">Jul 2023</time></p><h3>Marketing Coordinator and Lead Server</h3><p class="org">Origin Beer Lab and Center of the Universe Brewing · Ashland, VA</p><p>Social media, photo and video, and event promotion; led front-of-house shifts.</p></li>
+          <li data-fade data-rung="3" data-anchor="294,1024,1"><p class="mono"><time datetime="2018-06">Jun 2018</time> to <time datetime="2021-01">Jan 2021</time></p><h3>Operations Assistant</h3><p class="org">T&amp;B Equipment / InProduction · Ashland, VA</p><p>Inventory and event installations, plus desktop and hardware support for staff.</p></li>
+          <li data-fade data-rung="4" data-anchor="347,1009,1"><p class="mono"><time datetime="2018">2018</time></p><h3>Advanced Studies Diploma</h3><p class="org">Atlee High School · Mechanicsville, VA</p><p>Everything since is self-taught.</p></li>
         </ol>
         <a class="btn btn-line" href="/assets/dylan-hughes-resume.pdf" download>Download the résumé <span class="sr-only">(PDF)</span><span class="btn-arrow" aria-hidden="true">↓</span></a>
       </div>
@@ -233,6 +235,7 @@
     <p>© <span data-year>2026</span> Dylan Hughes</p>
     <p class="footer-made">Designed and built in Richmond, Virginia</p>
     <p class="footer-view machine-only"><a href="/">View as a plain page</a></p>
+    <a class="flat-only" href="#main" data-top>Back to top <span aria-hidden="true">↑</span></a>
   </footer>
   <div class="cursor" aria-hidden="true" data-cursor-label></div>
 </body>

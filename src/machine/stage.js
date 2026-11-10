@@ -52,6 +52,27 @@ class StageAO extends GTAOPass {
     });
   }
 }
+// Depth of field reads the ambient occlusion pass's depth (half resolution, opaque parts only) rather than drawing
+// the whole scene a second time for its own: one fewer full pass over the machine every frame. Glass and clear plastic
+// aren't in that depth, so the focus falls on what is seen through them.
+class StageDoF extends BokehPass {
+  constructor(scene, camera, params, ao) {
+    super(scene, camera, params);
+    this.ao = ao;
+    this._renderTargetDepth.dispose();
+    this.materialBokeh.defines.DEPTH_PACKING = 0;
+    this.uniforms.tDepth.value = ao.depthTexture;
+  }
+  setSize(width, height) { this.uniforms.aspect.value = width / height; }
+  render(renderer, writeBuffer, readBuffer) {
+    this.uniforms.tColor.value = readBuffer.texture;
+    this.uniforms.nearClip.value = this.camera.near;
+    this.uniforms.farClip.value = this.camera.far;
+    renderer.setRenderTarget(writeBuffer);
+    renderer.clear();
+    this._fsQuad.render(renderer);
+  }
+}
 class SoftBloom extends UnrealBloomPass {
   setSize(width, height) { super.setSize(Math.ceil(width / 2), Math.ceil(height / 2)); }
 }
@@ -148,7 +169,7 @@ export function createStage(canvas, quality) {
     // Depth of field: a shallow focus on the part the camera is framing. Everything within `range` (metres) of the
     // focus stays sharp, so a station can hold a whole screen or a whole assembly in focus and still let the
     // foreground and background go soft.
-    dof = new BokehPass(scene, camera, { focus: 1, aperture: 0, maxblur: 0.005 });
+    dof = new StageDoF(scene, camera, { focus: 1, aperture: 0, maxblur: 0.005 }, ao);
     dof.uniforms.range = { value: 0 };
     dof.materialBokeh.fragmentShader = dof.materialBokeh.fragmentShader
       .replace('uniform float focus;', 'uniform float focus;\n\t\tuniform float range;')
@@ -170,14 +191,15 @@ export function createStage(canvas, quality) {
     renderer.render(scene, camera);
   }
 
-  // If frames run slow, step down once every few seconds: first the ambient occlusion, then resolution. Never back up.
+  // If frames run slow, step down once every few seconds: first the depth of field, then the ambient occlusion (whose
+  // depth the depth of field needs), then resolution. Never back up.
   let ema = 16.7, prev = 0, settle = performance.now() + 4000;
   function govern(now) {
     if (prev) ema += (Math.min(100, now - prev) - ema) * 0.05;
     prev = now;
     if (now < settle || ema < 21) return;
-    if (ao && ao.enabled) ao.enabled = false;
-    else if (dof && dof.enabled) dof.enabled = false;
+    if (dof && dof.enabled) dof.enabled = false;
+    else if (ao && ao.enabled) ao.enabled = false;
     else if (pixelRatio > 1) { pixelRatio = Math.max(1, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(width, height); }
     settle = now + 2500;
     ema = 16.7;

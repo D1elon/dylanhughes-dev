@@ -1,0 +1,14 @@
+{
+  "name": "Dylan Hughes",
+  "short_name": "Dylan Hughes",
+  "description": "Creative technologist in Richmond, Virginia: websites, game software for pinball machines, and 3D-printed parts.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#06070A",
+  "theme_color": "#06070A",
+  "icons": [
+    { "src": "/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
