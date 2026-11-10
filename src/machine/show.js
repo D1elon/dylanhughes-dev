@@ -433,10 +433,17 @@ export class Show {
     }
   }
 
-  // Inserts: each lamp eases toward its goal; flashes decay on top.
+  // Inserts: each lamp eases toward its goal; flashes decay on top. Two shows run over them. When the machine powers
+  // on, the lamps come up in a wave from the flippers to the top arch, the way the site's pages arrive dot by dot. And
+  // away from the sections that read the lamps (Skills, Experience, Contact) the game runs its attract show: every
+  // few seconds a ring of light runs out from the sun across the whole field.
   updateInserts(dt, ctx) {
     const t = this.time, P = this.power, s = this.station;
     const OFF = 0.05;
+    if (P > 0.02 && this.litAt === undefined) this.litAt = t;
+    const since = this.litAt === undefined || this.reduced ? 9 : t - this.litAt;
+    const attract = !this.reduced && s !== 'skills' && s !== 'experience' && s !== 'contact';
+    const beat = t % 6.5, ring = attract && beat < 1.5 ? (beat / 1.5) * 660 : -1;
     for (const [id, ins] of this.h.inserts) {
       let goal = OFF;
       switch (ins.group) {
@@ -453,17 +460,23 @@ export class Show {
           else goal = (Math.floor(t * 1.5) + ins.index) % 4 === 0 ? 0.75 : 0.14;
           break;
         }
-        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.2; break;
-        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.2; break;
-        case 'ladder': goal = (Math.floor(t * 2.5) % 4) === ins.index ? 0.9 : 0.12; break;
-        case 'targets': goal = 0.14; break;
+        // The ramps' comets breathe, a beat apart, and blink when their case study is on.
+        case 'ramp0': goal = s === 'deadbounce' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.3 + 0.14 * Math.sin(t * 2.2); break;
+        case 'ramp1': goal = s === 'tiptop' ? (Math.floor(t * 4) % 2 ? 1.2 : 0.3) : 0.3 + 0.14 * Math.sin(t * 2.2 + Math.PI); break;
+        // The stack climbs: extra ball, lock, wizard, then all three.
+        case 'ladder': { const step = Math.floor(t * 2.5) % 5; goal = step === ins.index || step === 3 ? 0.9 : 0.14; break; }
+        // Design, build, ship: lit across in turn.
+        case 'targets': goal = Math.floor(t * 1.6) % 4 === ins.index ? 0.7 : 0.16; break;
         case 'saucer': goal = this.physics.held ? (Math.floor(t * 8) % 2 ? 1.2 : 0.4) : s === 'about' ? 0.6 : 0.25; break;
-        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.2 : 0.35) : 0.1; break;
-        case 'orbit': goal = 0.1; break;
+        case 'again': goal = s === 'contact' ? (Math.floor(t * 2.5) % 2 ? 1.2 : 0.35) : 0.12; break;
+        case 'orbit': goal = Math.floor(t * 1.2) % 2 === ins.index ? 0.5 : 0.14; break;
       }
+      let show = 0;
+      if (ring >= 0) show = Math.max(0, 1 - Math.abs(Math.hypot(ins.x - PF.cx, ins.y - 492) - ring) / 80) * 0.45;
+      if (since < 2) show = Math.max(show, Math.max(0, 1 - Math.abs(ins.y - (since / 1.4) * 1100) / 130) * 0.8);
       ins.flash = Math.max(0, ins.flash - dt * 3);
       ins.level += (goal - ins.level) * (1 - Math.exp(-dt * 18));
-      ins.mat.emissiveIntensity = (ins.level + ins.flash * 1.1) * P * ins.mat.userData.gain;
+      ins.mat.emissiveIntensity = (ins.level + ins.flash * 1.1 + show) * P * ins.mat.userData.gain;
       ins.side.emissiveIntensity = ins.mat.emissiveIntensity;
     }
   }

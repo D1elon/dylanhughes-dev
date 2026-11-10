@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createStage, pickQuality } from './stage.js';
 import { makeMaterials } from './materials.js';
 import { buildMachine, BACKBOX, CABINET } from './machine.js';
-import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, drawScreenPhoto, drawPlayerCard, loadArtFonts } from './art.js';
+import { drawPlayfield, drawBackglass, drawApronCard, drawTargetFace, drawCabinetSide, drawCabinetFront, drawBackboxSide, drawSlingPlastic, drawPlasticPrint, drawApron, drawPopDecal, drawScreenPhoto, drawPlayerCard, loadArtFonts } from './art.js';
 import { Director } from './director.js';
 import { Show } from './show.js';
 import { Hud } from './hud.js';
@@ -116,7 +116,10 @@ async function start() {
   const art = {
     playfield: drawPlayfield(quality.playfieldScale),
     backglass: drawBackglass(quality.low ? 1320 : 2048),
-    cabinetSide: drawCabinetSide(2048, 768, { frontBottom: (CABINET.top - CABINET.bottom) / (CABINET.top - CABINET.bottom + (CABINET.front - CABINET.back) * Math.tan(6.5 * DEG)) }),
+    // The side's canvas has the side's own proportions (about 2 : 1), so its lettering and scales aren't squeezed.
+    cabinetSide: drawCabinetSide(2048, Math.round(2048 * (CABINET.top - CABINET.bottom + (CABINET.front - CABINET.back) * Math.tan(6.5 * DEG)) / (CABINET.front - CABINET.back)), { frontBottom: (CABINET.top - CABINET.bottom) / (CABINET.top - CABINET.bottom + (CABINET.front - CABINET.back) * Math.tan(6.5 * DEG)) }),
+    cabinetFront: drawCabinetFront(1024, 706),
+    backboxSide: drawBackboxSide(256, 778),
     plastics: SLINGS.map(sl => drawSlingPlastic(sl)),
     inlane: INLANE_GUIDES.map(g => ({ plate: drawPlasticPrint(g.plate.outline), cover: drawPlasticPrint(g.cover.outline, { mark: true }) })),
     apron: drawApron(quality.low ? 1024 : 2048),
@@ -165,6 +168,7 @@ async function start() {
 
   // The LCD's pictures, drawn as each photo arrives.
   const lcd = h.backglass.lcd;
+  lcd.still = reduced;
   for (const [name, cfg] of Object.entries(PICTURES)) {
     const img = new Image();
     img.decoding = 'async';
@@ -447,6 +451,14 @@ async function start() {
     running = !document.hidden;
     if (running) { last = performance.now(); requestAnimationFrame(frame); }
     if (document.hidden) dmd.stop(); else if (!dmdPaused) dmd.start();
+  });
+  // Leaving for a case study through the pixel transition (js/pixels.js), the scene holds still once the dots have
+  // mostly covered it, which leaves the frames to the transition. Back from the browser's cache, it carries on.
+  addEventListener('pixels:leave', () => setTimeout(() => { running = false; dmd.stop(); }, 320));
+  addEventListener('pixels:reset', () => {
+    if (running || document.hidden) return;
+    running = true; last = performance.now(); requestAnimationFrame(frame);
+    if (!dmdPaused) dmd.start();
   });
 
   let lastStation = null;

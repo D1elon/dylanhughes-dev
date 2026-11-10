@@ -74,13 +74,14 @@ export function lacquer(map) {
   return new THREE.MeshPhysicalMaterial({ map, roughness: 0.6, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06 });
 }
 
-// An insert: plastic sanded flush with the wood, lit from beneath. Its `emissiveIntensity` is the lamp. Lamp colours:
-// royal blue, the deeper royal, the light tint and white.
+// An insert: tinted plastic sanded flush with the wood, lit from beneath. Unlit it still reads as a coloured lens
+// against the print round it; its `emissiveIntensity` is the lamp. Lamp colours: royal blue, the deeper royal, the
+// light tint and white.
 const LAMPS = { royal: ROYAL, deep: DEEP, light: LIGHT, white: LAMP_WHITE };
 export function insertMaterial(color) {
   const tint = new THREE.Color(LAMPS[color] ?? LAMPS.white);
   const m = new THREE.MeshPhysicalMaterial({
-    color: tint.clone().multiplyScalar(0.12), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03,
+    color: tint.clone().multiplyScalar(0.3), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03,
     emissive: tint, emissiveIntensity: 0.06, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
   });
   m.userData.gain = gainFor(tint);
