@@ -407,8 +407,8 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 /* A soft shade on the side that carries the copy, so type always reads over the playfield. JS sets --l, --r and
    (on tall screens) --b from the stations in view. */
 .machine .shade { display: block; position: fixed; inset: 0; z-index: 1; pointer-events: none; background:
-  linear-gradient(90deg, rgba(6, 7, 10, calc(var(--l, 0) * .9)), rgba(6, 7, 10, calc(var(--l, 0) * .72)) 30%, rgba(6, 7, 10, calc(var(--l, 0) * .3)) 44%, rgba(6, 7, 10, 0) 56%),
-  linear-gradient(270deg, rgba(6, 7, 10, calc(var(--r, 0) * .9)), rgba(6, 7, 10, calc(var(--r, 0) * .72)) 30%, rgba(6, 7, 10, calc(var(--r, 0) * .3)) 44%, rgba(6, 7, 10, 0) 56%),
+  linear-gradient(90deg, rgba(6, 7, 10, calc(var(--l, 0) * .97)), rgba(6, 7, 10, calc(var(--l, 0) * .93)) 34%, rgba(6, 7, 10, calc(var(--l, 0) * .6)) 47%, rgba(6, 7, 10, 0) 62%),
+  linear-gradient(270deg, rgba(6, 7, 10, calc(var(--r, 0) * .97)), rgba(6, 7, 10, calc(var(--r, 0) * .93)) 34%, rgba(6, 7, 10, calc(var(--r, 0) * .6)) 47%, rgba(6, 7, 10, 0) 62%),
   linear-gradient(0deg, rgba(6, 7, 10, calc(var(--b, 0) * .92)), rgba(6, 7, 10, calc(var(--b, 0) * .8)) 42%, rgba(6, 7, 10, 0) 66%); }
 
 /* Callouts: hairlines from the parts to the copy, like dimension lines on a cut plan. White lines, lit in blue;

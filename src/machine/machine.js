@@ -8,7 +8,7 @@ import {
 } from './layout.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MM, pf, extrude, extrudeLocal, place, lathe, tube, tubeLocal, densify, wall, roundedHull, ccw, arcPoints } from './geo.js';
-import { insertMaterial, lacquer, glow, ROYAL, LIGHT, DEEP, LAMP_WHITE } from './materials.js';
+import { insertMaterial, lacquer, glow, ROYAL, LIGHT, LAMP_WHITE } from './materials.js';
 import { insertList, rolloverInsert, drawInsertPrint } from './art.js';
 
 const DEG = Math.PI / 180;
@@ -937,20 +937,19 @@ function buildGate(group, M, handles) {
 function buildInserts(group, handles) {
   for (const ins of insertList()) {
     const mat = insertMaterial(ins.color);
-    if (ins.legend || ins.icon) {
-      const tex = texture(drawInsertPrint(ins, 192));
-      // The cap's UVs are its shape coordinates in metres, centred on the insert.
-      tex.repeat.set(1 / (ins.w * MM), 1 / (ins.l * MM));
-      tex.offset.set(0.5, 0.5);
-      mat.map = tex;
-      mat.emissiveMap = tex;
-    }
+    // Every lens carries its moulding (and its legend, if it has one). The cap's UVs are its shape coordinates in
+    // metres, centred on the insert.
+    const tex = texture(drawInsertPrint(ins, 192));
+    tex.repeat.set(1 / (ins.w * MM), 1 / (ins.l * MM));
+    tex.offset.set(0.5, 0.5);
+    mat.map = tex;
+    mat.emissiveMap = tex;
     // Sanded flush with the wood: only a hair of the top stands above the board.
     const m = new THREE.Mesh(extrudeLocal(ins.shape, 0.4, { curveSegments: 6 }), [mat, insertMaterial(ins.color)]);
     place(m, ins.x, ins.y, -0.34, ins.angle);
     m.renderOrder = 1;
     group.add(m);
-    handles.inserts.set(ins.id, { mesh: m, mat, side: m.material[1], group: ins.group, index: ins.index, level: 0.06, goal: 0.06, flash: 0 });
+    handles.inserts.set(ins.id, { mesh: m, mat, side: m.material[1], group: ins.group, index: ins.index, x: ins.x, y: ins.y, level: 0.06, goal: 0.06, flash: 0 });
   }
 }
 
@@ -1060,14 +1059,10 @@ function buildCabinet(body, root, M, art, anisotropy, handles) {
   const front = mesh(new THREE.BoxGeometry(outer, frontH, C.wallT), M.cabinet);
   front.position.set(0, C.bottom + frontH / 2, C.front - C.wallT / 2);
   body.add(front);
-  // The sides' sweep carried across the front under the coin door, with its fine white line.
-  const sweepH = (C.top - bottomAt(C.back)) * 0.08;
-  const sweep = mesh(new THREE.PlaneGeometry(outer, sweepH), new THREE.MeshPhysicalMaterial({ color: DEEP, roughness: 0.42, clearcoat: 0.7, clearcoatRoughness: 0.2 }), { cast: false });
-  sweep.position.set(0, C.bottom + sweepH / 2, C.front + 0.0004);
-  body.add(sweep);
-  const line = mesh(new THREE.PlaneGeometry(outer, 0.0045), new THREE.MeshStandardMaterial({ color: 0xf5f6f8, roughness: 0.4 }), { cast: false });
-  line.position.set(0, C.bottom + sweepH + 0.017, C.front + 0.0004);
-  body.add(line);
+  // The front's stencil: the sides' scales rolling in from both corners toward the coin door, and the name over it.
+  const frontArt = mesh(new THREE.PlaneGeometry(outer, frontH), new THREE.MeshPhysicalMaterial({ map: texture(art.cabinetFront, anisotropy), roughness: 0.4, clearcoat: 0.7, clearcoatRoughness: 0.2 }), { cast: false });
+  frontArt.position.set(0, C.bottom + frontH / 2, C.front + 0.0004);
+  body.add(frontArt);
   const backH = C.top - yMin;
   const back = mesh(new THREE.BoxGeometry(outer, backH, C.wallT), M.cabinet);
   back.position.set(0, yMin + backH / 2, C.back + C.wallT / 2);
@@ -1153,7 +1148,9 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles, maxAnisotrop
   root.add(box);
   handles.backbox = box;
 
-  const shell = mesh(new THREE.BoxGeometry(B.w, B.h, B.d), M.cabinet);
+  // The shell, its two sides stencilled like the cabinet's.
+  const boxSide = new THREE.MeshPhysicalMaterial({ map: texture(art.backboxSide, anisotropy), roughness: 0.4, clearcoat: 0.7, clearcoatRoughness: 0.2 });
+  const shell = mesh(new THREE.BoxGeometry(B.w, B.h, B.d), [boxSide, boxSide, M.cabinet, M.cabinet, M.cabinet, M.cabinet]);
   shell.position.set(0, B.h / 2, -B.d / 2);
   box.add(shell);
   // Aluminium trim round the front.
@@ -1223,13 +1220,14 @@ function buildBackbox(root, M, art, dmdCanvas, anisotropy, handles, maxAnisotrop
 // The LCD's pictures are canvases at the glass's 1.32 : 1, so each maps straight on. `add(name, canvas, action)`
 // registers one; `show(name)` changes to it, wiping the new picture down from the top behind a royal scan line while
 // the backlight dips a little, as a panel does when its source changes; `update(wall)` runs the wipe, in seconds since
-// the last frame. Once a case study's picture is up, a click on the screen opens it.
+// the last frame. Once a case study's picture is up, a click on the screen opens it. The translite's art is live, as
+// a screen's can be: light runs slowly round the rays behind its sun (`still` holds it, for reduced motion).
 function backboxLCD(artTexture, anisotropy) {
-  const uniforms = { tA: { value: artTexture }, tB: { value: artTexture }, uSeq: { value: 1 } };
+  const uniforms = { tA: { value: artTexture }, tB: { value: artTexture }, uSeq: { value: 1 }, uTime: { value: 0 }, uLive: { value: new THREE.Vector2(1, 1) } };
   const material = new THREE.MeshBasicMaterial({ map: artTexture, toneMapped: false, color: new THREE.Color(0, 0, 0) });
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
-    shader.fragmentShader = 'uniform sampler2D tA;\nuniform sampler2D tB;\nuniform float uSeq;\n' + shader.fragmentShader.replace('#include <map_fragment>', `
+    shader.fragmentShader = 'uniform sampler2D tA;\nuniform sampler2D tB;\nuniform float uSeq;\nuniform float uTime;\nuniform vec2 uLive;\n' + shader.fragmentShader.replace('#include <map_fragment>', `
       {
         float down = 1.0 - vMapUv.y;
         float scan = uSeq * 1.08;
@@ -1237,13 +1235,19 @@ function backboxLCD(artTexture, anisotropy) {
         // A negative LOD bias picks the sharper mip: the screen is seen at an angle and somewhat smaller than its
         // pictures, where plain trilinear filtering goes soft.
         vec3 col = mix( texture2D( tA, vMapUv, -0.65 ).rgb, texture2D( tB, vMapUv, -0.65 ).rgb, shown );
+        // The translite's rays (art.js drawBackglass: 14 pairs from the sun at 0.59 of the way down, swirling by
+        // 0.5 (r / 1.1)^1.5): a wave of light running round them, outside the sun.
+        vec2 q = ( vMapUv - vec2( 0.5, 0.41 ) ) * vec2( 1.32, 1.0 );
+        float rr = length( q );
+        float beam = sin( 14.0 * ( -atan( q.y, q.x ) - 0.5 * pow( rr / 1.1, 1.5 ) ) + uTime * 0.8 );
+        col *= 1.0 + mix( uLive.x, uLive.y, shown ) * 0.2 * beam * smoothstep( 0.3, 0.42, rr );
         float live = step( 0.0005, uSeq ) * ( 1.0 - smoothstep( 0.92, 1.08, scan ) );
         col *= 1.0 - 0.18 * live * ( 1.0 - smoothstep( 0.0, 0.25, uSeq ) );
         col += vec3( 0.36, 0.48, 1.0 ) * exp( -pow( ( down - scan ) * 90.0, 2.0 ) ) * 0.7 * live;
         diffuseColor.rgb *= col;
       }`);
   };
-  const lcd = { material, mesh: null, showing: 'art', seq: 1, pictures: { art: { texture: artTexture, action: null } } };
+  const lcd = { material, mesh: null, showing: 'art', seq: 1, still: false, pictures: { art: { texture: artTexture, action: null, live: 1 } } };
   lcd.add = (name, canvas, action) => {
     const t = new THREE.CanvasTexture(canvas);
     t.colorSpace = THREE.SRGBColorSpace;
@@ -1254,15 +1258,17 @@ function backboxLCD(artTexture, anisotropy) {
     const pic = lcd.pictures[name];
     if (!pic || name === lcd.showing) return;
     // Mid-wipe, whichever picture covers more of the screen becomes the one wiped over.
-    if (lcd.seq < 1 && lcd.seq > 0.5) uniforms.tA.value = uniforms.tB.value;
+    if (lcd.seq < 1 && lcd.seq > 0.5) { uniforms.tA.value = uniforms.tB.value; uniforms.uLive.value.x = uniforms.uLive.value.y; }
     uniforms.tB.value = pic.texture;
+    uniforms.uLive.value.y = pic.live || 0;
     lcd.seq = instant ? 1 : 0;
     lcd.showing = name;
   };
   lcd.update = wall => {
     if (lcd.seq < 1) lcd.seq = Math.min(1, lcd.seq + wall / 0.85);
-    if (lcd.seq >= 1) uniforms.tA.value = uniforms.tB.value;
+    if (lcd.seq >= 1) { uniforms.tA.value = uniforms.tB.value; uniforms.uLive.value.x = uniforms.uLive.value.y; }
     uniforms.uSeq.value = lcd.seq;
+    if (!lcd.still) uniforms.uTime.value += wall;
     if (lcd.mesh) lcd.mesh.userData.action = lcd.seq > 0.6 ? lcd.pictures[lcd.showing].action : null;
   };
   return lcd;

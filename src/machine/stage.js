@@ -142,15 +142,25 @@ export function createStage(canvas, quality) {
   lights.key.shadow.camera.near = 1.2;
   lights.key.shadow.camera.far = 4.2;
   scene.add(lights.key, lights.key.target);
-  lights.rim = new THREE.DirectionalLight(0xdde4ff, 1.15);
+  lights.rim = new THREE.DirectionalLight(0xc3d0ff, 1.25);
   lights.rim.position.set(-1.2, 1.6, -2.4);
   scene.add(lights.rim);
+  // Two low fills from the front corners, so the cabinet's stencils read in the dark room.
+  lights.fill = [-1, 1].map(side => {
+    const fill = new THREE.DirectionalLight(0xe6ebff, 0.42);
+    fill.position.set(side * 2.2, 0.5, 2.4);
+    scene.add(fill);
+    return fill;
+  });
   // The focus light: a soft spot that follows the camera to each part, the way a product shot lights its subject.
   lights.focus = new THREE.SpotLight(0xfff8f2, 0, 0, 0.42, 1, 2);
   scene.add(lights.focus, lights.focus.target);
 
   // The floor: a cool mid charcoal, so the key's cone and the machine's shadow make the pool of light.
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x363a42, roughness: 0.85 }));
+  // Printed on it, as on the site's pages: a drawing's grid of registration crosses, lit royal blue from under the
+  // machine.
+  const floorMaps = floorTextures(quality);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: floorMaps.map, emissiveMap: floorMaps.glow, emissive: 0xffffff, emissiveIntensity: 0.5, roughness: 0.85 }));
   floor.position.y = CABINET.floor;
   floor.receiveShadow = quality.shadows;
   scene.add(floor);
@@ -221,6 +231,37 @@ export function createStage(canvas, quality) {
   }
 
   return { renderer, scene, camera, lights, ao, bloom, dof, envMap, resize, render, govern, focusOn, floor };
+}
+
+// The floor's two prints, 12 m square: its colour with the grid of crosses, and the royal light pooled under the
+// machine, which the crosses near it catch.
+function floorTextures(quality) {
+  const size = quality.low ? 1024 : 2048, cell = size / 40, arm = cell * 0.085;
+  const make = () => { const c = document.createElement('canvas'); c.width = c.height = size; return c; };
+  const crosses = (g, alpha) => {
+    g.strokeStyle = `rgba(244, 245, 247, ${alpha})`; g.lineWidth = Math.max(1, size / 1400);
+    g.beginPath();
+    for (let y = cell / 2; y < size; y += cell) for (let x = cell / 2; x < size; x += cell) { g.moveTo(x - arm, y); g.lineTo(x + arm, y); g.moveTo(x, y - arm); g.lineTo(x, y + arm); }
+    g.stroke();
+  };
+  const base = make(), g = base.getContext('2d');
+  g.fillStyle = '#363a42'; g.fillRect(0, 0, size, size);
+  crosses(g, 0.08);
+  const glow = make(), e = glow.getContext('2d');
+  e.fillStyle = '#000'; e.fillRect(0, 0, size, size);
+  const pool = e.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.2);
+  pool.addColorStop(0, 'rgba(43, 89, 255, 0.5)'); pool.addColorStop(0.5, 'rgba(43, 89, 255, 0.16)'); pool.addColorStop(1, 'rgba(43, 89, 255, 0)');
+  e.fillStyle = pool; e.fillRect(0, 0, size, size);
+  // The crosses, in royal, only where the pool reaches.
+  const lit = make(), l = lit.getContext('2d');
+  crosses(l, 1);
+  l.globalCompositeOperation = 'source-in';
+  const reach = l.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.26);
+  reach.addColorStop(0, 'rgba(110, 140, 255, 0.7)'); reach.addColorStop(1, 'rgba(110, 140, 255, 0)');
+  l.fillStyle = reach; l.fillRect(0, 0, size, size);
+  e.drawImage(lit, 0, 0);
+  const tex = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = quality.anisotropy; return t; };
+  return { map: tex(base), glow: tex(glow) };
 }
 
 // Picks a quality level from the device. Phones and small screens render directly with fewer pixels and no passes.

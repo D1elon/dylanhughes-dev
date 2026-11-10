@@ -4,6 +4,7 @@ export const PALETTE = {
   royal: '#2B59FF', // the accent
   light: '#6E8CFF', // a lighter tint, for glows and small lit text
   deep: '#1F46E0',
+  navy: '#0F1B55', // the print's darkest blue, for shadows and the bands between the brighter ones
   ice: '#A9BFFF', // a lit display dot
   black: '#06070A',
   black1: '#0B0C0F',
