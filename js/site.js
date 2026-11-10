@@ -133,6 +133,10 @@
       new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }).observe(canvas);
       document.addEventListener('visibilitychange', sync);
       dmd.sync = sync;
+      // Leaving through the pixel transition (js/pixels.js), the display holds still under the dots; back from the
+      // browser's cache, it carries on.
+      addEventListener('pixels:leave', () => dmd.stop());
+      addEventListener('pixels:reset', sync);
       // With motion, the display powers on as the intro (CSS, site.css) brings its bezel in.
       if (!animate || !$('[data-intro-dmd]')) dmd.boot();
       else setTimeout(() => dmd.boot(), Math.max(0, 850 - performance.now()));

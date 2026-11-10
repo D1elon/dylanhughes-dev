@@ -448,6 +448,14 @@ async function start() {
     if (running) { last = performance.now(); requestAnimationFrame(frame); }
     if (document.hidden) dmd.stop(); else if (!dmdPaused) dmd.start();
   });
+  // Leaving for a case study through the pixel transition (js/pixels.js), the scene holds still once the dots have
+  // mostly covered it, which leaves the frames to the transition. Back from the browser's cache, it carries on.
+  addEventListener('pixels:leave', () => setTimeout(() => { running = false; dmd.stop(); }, 320));
+  addEventListener('pixels:reset', () => {
+    if (running || document.hidden) return;
+    running = true; last = performance.now(); requestAnimationFrame(frame);
+    if (!dmdPaused) dmd.start();
+  });
 
   let lastStation = null;
   function frame(now) {

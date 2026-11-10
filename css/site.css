@@ -775,8 +775,13 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 .px-canvas { position: fixed; left: 0; top: 0; z-index: 151; pointer-events: none; }
 html.px-in::after { content: ''; position: fixed; inset: 0; z-index: 152; pointer-events: none;
   background: radial-gradient(circle, rgba(110, 140, 255, .11) var(--px-r, 4px), transparent calc(var(--px-r, 4px) + .75px)) 0 0 / var(--px, 12px) var(--px, 12px), var(--room); }
-html.px-arriving main, html.px-arriving .site-header { transition: filter .8s var(--ease), transform .55s var(--ease), background-color .35s, color .35s, border-color .35s; }
-html.px-glass-in main, html.px-glass-in .site-header { filter: blur(14px) brightness(.75); }
+/* Behind the opening pixels the page comes up from dim and settles back a touch. Opacity and a transform only, which
+   the compositor animates by itself: blurring the whole page here was the costliest part of the transition. And the
+   headline rises without its wipe, whose mask has to be repainted every frame (html.px-arrived stays for the life
+   of the page, so the headline's animation is never swapped for the other and replayed). */
+html.px-arriving main { transition: opacity .7s var(--ease), transform .9s var(--ease); transform-origin: 50% 0; }
+html.px-glass-in main { opacity: .25; transform: scale(1.014); }
+.motion.px-arrived:not(.px-hold) [data-intro-lines] { animation: intro-rise .9s var(--ease) 60ms backwards; -webkit-mask-image: none; mask-image: none; }
 ::view-transition-old(root) { animation: vt-out .35s var(--ease) both; }
 ::view-transition-new(root) { animation: vt-in .6s var(--ease) both; }
 @keyframes vt-out { to { opacity: 0; transform: translateY(-14px); } }
