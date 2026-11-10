@@ -105,6 +105,10 @@ async function start() {
   const stations = $$('[data-station]');
   if (!canvas || !stations.length) throw new Error('No stage on this page');
   const quality = pickQuality();
+  // The boot screen names what's happening, with a frame between stages so each one shows.
+  const bootLabel = $('[data-boot-label]');
+  const bootStage = async text => { if (bootLabel) bootLabel.textContent = text; await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))); };
+  await bootStage('Printing the playfield');
   await loadArtFonts();
   performance.mark('machine:fonts');
 
@@ -131,6 +135,7 @@ async function start() {
   });
 
   performance.mark('machine:art');
+  await bootStage('Assembling the machine');
   const stage = createStage(canvas, quality);
   const M = makeMaterials(stage.envMap);
   const anisotropy = Math.min(quality.anisotropy, stage.renderer.capabilities.getMaxAnisotropy());
@@ -525,9 +530,11 @@ async function start() {
   // First frame, then reveal. The shaders compile first, in parallel where the browser can, so the first frame
   // doesn't stall the page while the boot light shows.
   director.apply(director.at(0), 0, { instant: true });
+  await bootStage('Warming up the lamps');
   try { await stage.renderer.compileAsync(stage.scene, stage.camera); } catch { /* they compile on first use */ }
   stage.render();
   performance.mark('machine:first-frame');
+  if (bootLabel) bootLabel.textContent = 'Powering on';
   requestAnimationFrame(t => { last = t; frame(t); powerOn(); });
   window.__machine = { stage, h, show, director, dmd, lenis, scrollTo, intro, lcd, exploded };
 }
