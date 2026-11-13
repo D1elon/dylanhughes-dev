@@ -7,6 +7,7 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `index.html`: introduction and dot-matrix display, selected work, about, skills, experience, contact. The same HTML is the 2D home page and the 3D machine's copy.
 - `work/deadbounce.html`: Deadbounce case study, with Deadbounce's own logo animation beside its title
 - `work/tip-top-pinball.html`: Tip Top Pinball case study, with a before-and-after comparison
+- `work/sonic-slings.html`: Sonic Pinball Slings case study, a 3D printed product: looping films of the assembly, the box and a turntable (`assets/video/`, WebM first, each playing only while on screen, with a pause button, and held on its poster with reduced motion), renders and drawings on light plates, a list of the six versions, and the two printed guides (`assets/docs/`)
 - `work/stall-brawl.html`: redirect to Work until the rethemed Stall Brawl case study is ready
 - `404.html`: not-found page, served by GitHub Pages for any missing URL
 - `css/site.css`: the whole design system (tokens at the top)
@@ -69,7 +70,7 @@ At `/?machine`, if the machine can't start, the page falls back to the 2D layout
 
 1. Copy `work/tip-top-pinball.html` to `work/<project>.html` and replace its content. Give the hero image a unique `view-transition-name` (see `.vt-tiptop` in `css/site.css`) so it morphs from the home page.
 2. Add an `<article class="station">` for it in the Work section of `index.html`, with a pose in `STOPS` and a picture for the backbox LCD in `PICTURES` in `src/machine/main.js`.
-3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`.
+3. Add WebP and JPEG images to `assets/img/` with `width` and `height` set on every `<img>`. Re-encode photos on the way in, so they carry no location or camera data.
 4. Add the page to `sitemap.xml`.
 
 ## Motion and accessibility

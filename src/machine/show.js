@@ -23,7 +23,7 @@ const PULL = 44.45, SPRING_W = 99;
 const PLUNGE = { soft: 1300, full: 2600 };
 
 // What the machine plays at each section.
-const PLAYS = { hero: 'play', deadbounce: 'ramp-deadbounce', tiptop: 'ramp-tiptop', about: 'pops', skills: 'hold', experience: 'hold', contact: 'hold' };
+const PLAYS = { hero: 'play', deadbounce: 'ramp-deadbounce', tiptop: 'ramp-tiptop', slings: 'play', about: 'pops', skills: 'hold', experience: 'hold', contact: 'hold' };
 const ROTATION = ['ramp-deadbounce', 'orbit-left', 'ramp-tiptop', 'orbit-right'];
 
 export class Show {

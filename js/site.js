@@ -145,6 +145,32 @@
   if (machine) window.addEventListener('machine:failed', startDisplay, { once: true });
   else startDisplay();
 
+  // Looping films in a case study. Each plays only while it's on screen and has a pause button of its own. With
+  // reduced motion nothing plays by itself: the poster shows, with the browser's controls to play it.
+  const films = $$('video[data-loop]');
+  if (films.length) {
+    if (reduced || !('IntersectionObserver' in window)) films.forEach(v => { v.controls = true; });
+    else {
+      const io = new IntersectionObserver(entries => entries.forEach(({ target: v, isIntersecting }) => {
+        v.dataset.onScreen = isIntersecting ? '1' : '';
+        if (isIntersecting && !v.dataset.paused) v.play().catch(() => {}); else v.pause();
+      }), { threshold: 0.3 });
+      films.forEach(v => {
+        io.observe(v);
+        const toggle = $('[data-loop-toggle]', v.parentElement);
+        if (!toggle) return;
+        toggle.hidden = false;
+        toggle.addEventListener('click', () => {
+          const paused = !v.dataset.paused;
+          v.dataset.paused = paused ? '1' : '';
+          toggle.setAttribute('aria-pressed', String(paused));
+          toggle.firstChild.textContent = paused ? 'Play' : 'Pause';
+          if (paused) v.pause(); else if (v.dataset.onScreen) v.play().catch(() => {});
+        });
+      });
+    }
+  }
+
   // The machine has its own camera, scroll and anchors; everything below is for ordinary pages.
   if (!animate || machine) return;
   // Line splits are measured, so they wait for the web fonts.
