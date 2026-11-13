@@ -24,6 +24,7 @@ const DEG = Math.PI / 180;
 const ACTIONS = {
   'ramp-deadbounce': { label: 'Read the Deadbounce case study', href: '/work/deadbounce.html' },
   'ramp-tiptop': { label: 'Read the Tip Top case study', href: '/work/tip-top-pinball.html' },
+  'case-slings': { label: 'Read the Sonic Pinball Slings case study', href: '/work/sonic-slings.html' },
   'pop-0': { label: 'Fire the pop bumper' },
   'pop-1': { label: 'Fire the pop bumper' },
   'pop-2': { label: 'Fire the pop bumper' },
@@ -50,6 +51,8 @@ const STOPS = {
   // `sharp` holds the whole screen in focus.
   deadbounce: { glass: [-0.05, -0.25], az: -18, el: 18, fit: [0.7, 0.96], side: 'right', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: -12, el: 8, fit: [0.64, 0.5] } },
   tiptop: { glass: [0.05, -0.25], az: 18, el: 18, fit: [0.7, 0.96], side: 'left', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: 12, el: 8, fit: [0.64, 0.5] } },
+  // The third case study has no ramp of its own: its photo on the LCD, from the left again.
+  slings: { glass: [-0.05, -0.25], az: -14, el: 16, fit: [0.7, 0.96], side: 'right', lift: 6, sharp: 1, tall: { glass: [0, -0.03], az: -8, el: 8, fit: [0.64, 0.5] } },
   // About: the back pop bumper, its parts lifting clear in front of the speaker panel, under the player card on the
   // LCD. A long lens keeps the bumper and the screen behind it close in size.
   about: { at: [236, 935, 350], az: 14, el: 13, fit: [0.62, 0.92], fov: 22, side: 'right', lift: 10, sharp: 1, tall: { at: [236, 960, 400], fit: [0.56, 0.74] } },
@@ -93,6 +96,7 @@ function skillTour(p) {
 const PICTURES = {
   deadbounce: { url: '/assets/img/deadbounce-origin.jpg', focus: [0.5, 0.5], action: 'ramp-deadbounce' },
   tiptop: { url: '/assets/img/tiptop.jpg', focus: [0.5, 0], action: 'ramp-tiptop' },
+  slings: { url: '/assets/img/slings.jpg', focus: [0.5, 0.7], action: 'case-slings' },
   about: { url: '/assets/img/dylan.jpg', card: true, action: 'portrait' },
 };
 

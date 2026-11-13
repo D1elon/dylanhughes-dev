@@ -16,7 +16,7 @@
   const UNLIT = 'rgba(110, 140, 255, 0.11)';
   const LIT = [43, 89, 255];
   const ICE = [232, 238, 255];
-  const TITLES = { '/work/deadbounce.html': 'Deadbounce', '/work/tip-top-pinball.html': 'Tip Top Pinball' };
+  const TITLES = { '/work/deadbounce.html': 'Deadbounce', '/work/tip-top-pinball.html': 'Tip Top Pinball', '/work/sonic-slings.html': 'Sonic Slings' };
 
   const clamp = v => Math.min(1, Math.max(0, v));
   const ease = t => 1 - Math.pow(1 - t, 3);

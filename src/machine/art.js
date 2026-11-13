@@ -551,7 +551,7 @@ export function drawPlayfield(scale) {
     poster(g, name, X(ins.x - ins.w / 2 - 6), Y(ins.y), S(3.5), { ...small, fill: INK.ice, align: 'right' });
     mm(() => { g.fillStyle = INK.white; g.fill(twinklePath(ins.x + ins.w / 2 + 12, ins.y, 5 - i * 0.6)); g.fillStyle = INK.light; g.fill(twinklePath(ins.x + ins.w / 2 + 23, ins.y + (i - 1) * 3, 2.6)); });
   });
-  arcText(g, '03 About', X(pcx), Y(pcy), S(104.5), 124 * DEG, S(7), { fills: [[2, INK.ice]], weight: 0.2, track: 0.08 });
+  arcText(g, '04 About', X(pcx), Y(pcy), S(104.5), 124 * DEG, S(7), { fills: [[2, INK.ice]], weight: 0.2, track: 0.08 });
   arcText(g, 'Player one', X(pcx), Y(pcy), S(104.5), 56 * DEG, S(7), { weight: 0.2, track: 0.08 });
   {
     // The ribbon: a band bowed up in the middle, its swallow tails folded back behind it.
@@ -567,10 +567,12 @@ export function drawPlayfield(scale) {
       printShape(g, band, { fill: INK.white, key: K });
     });
     const r = (half * half + 9) / 6;
-    arcText(g, '04 Skills', X(cx), Y(y + 2.2 - r), S(r), 90 * DEG, S(9.4), { fill: INK.k, stroke: null, shadow: null, fills: [[2, INK.royal]], track: 0.08 });
+    arcText(g, '05 Skills', X(cx), Y(y + 2.2 - r), S(r), 90 * DEG, S(9.4), { fill: INK.k, stroke: null, shadow: null, fills: [[2, INK.royal]], track: 0.08 });
   }
-  arcText(g, '05 Experience', X(236), Y(760), S(291.5), 90 * DEG, S(7.4), { fills: [[2, INK.ice]], track: 0.12 });
-  poster(g, '06 Contact', X(again.x), Y(again.y - again.l / 2 - 6), S(3.3), { ...small, fill: INK.white });
+  arcText(g, '06 Experience', X(236), Y(760), S(291.5), 90 * DEG, S(7.4), { fills: [[2, INK.ice]], track: 0.12 });
+  poster(g, '07 Contact', X(again.x), Y(again.y - again.l / 2 - 6), S(3.3), { ...small, fill: INK.white });
+  // The third case study is a pair of slingshot plastics, so it's lettered over the machine's own.
+  for (const x of [112, 2 * cx - 112]) arcText(g, '03 Slings', X(x), Y(376 - 60), S(60), 90 * DEG, S(4.2), { fills: [[2, INK.ice]], weight: 0.22, shadow: null, track: 0.1 });
   poster(g, 'Shoot', X(again.x), Y(again.y + 26), S(3.4), { ...small, fill: INK.ice });
   poster(g, 'again', X(again.x), Y(again.y + 21), S(3.4), { ...small, fill: INK.ice });
   g.save();
