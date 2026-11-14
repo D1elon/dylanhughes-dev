@@ -635,9 +635,9 @@ html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opaci
 /* The display's controls ride in the hero's panel. */
 .machine.panel .dmd-strip { position: static; margin-top: 20px; width: 100%; justify-content: space-between; opacity: 1; transform: none; pointer-events: auto; }
 .machine.panel .site-footer { z-index: 3; background: linear-gradient(rgba(6, 7, 10, 0), var(--room) 56px); padding-top: 64px; }
-}
 
-/* Cursor label over interactive parts and the featured project, for fine pointers only. */
+/* Cursor label over interactive parts and the featured project, for fine pointers only. It is fixed to the screen, so
+   following the pointer never changes the page's size. */
 .cursor { position: fixed; z-index: 60; left: 0; top: 0; pointer-events: none; padding: 11px 15px; border-radius: 999px; background: var(--royal); color: var(--on-royal); font: 600 14px/1 var(--body); white-space: nowrap; transform: translate(-50%, -50%) scale(0); opacity: 0; }
 
 /* --- Footer --------------------------------------------------------------------------------------------------- */
