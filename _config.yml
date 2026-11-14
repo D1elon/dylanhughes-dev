@@ -1,0 +1,9 @@
+# GitHub Pages publishes every committed file unless it is listed here. These are the site's sources and tooling, not
+# pages: the 3D machine's source (kept for later, off the published site), the build scripts and the résumé's source.
+exclude:
+  - src
+  - tools
+  - node_modules
+  - package.json
+  - package-lock.json
+  - README.md

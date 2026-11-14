@@ -17,13 +17,6 @@
   setInterval(tick, 15000);
   $$('[data-year]').forEach(el => { el.textContent = new Date().getFullYear(); });
 
-  // Small dot-matrix icons, drawn from row patterns like "0110/1001".
-  $$('[data-dots]').forEach(el => {
-    const rows = el.dataset.dots.split('/');
-    const cells = rows.flatMap((row, y) => [...row].map((on, x) => `<circle cx="${x + .5}" cy="${y + .5}" r=".36" fill="${on === '1' ? '#2B59FF' : 'currentColor'}" fill-opacity="${on === '1' ? 1 : .14}"/>`));
-    el.innerHTML = `<svg viewBox="0 0 ${rows[0].length} ${rows.length}">${cells.join('')}</svg>`;
-  });
-
   // Header: hides while reading down, returns on the way up, and darkens over dark sections.
   const header = $('[data-header]');
   const menuButton = $('[data-menu]');
@@ -230,6 +223,31 @@
     // (site.css), so the hover zoom still composes with it.
     $$('[data-settle]').forEach(media => {
       gsap.fromTo($('img', media), { '--settle': 1.14 }, { '--settle': 1, ease: 'none', scrollTrigger: { trigger: media, start: 'top 100%', end: 'top 40%', scrub: true } });
+    });
+
+    // The home page's sections. A skill's icon is drawn on, stroke by stroke, as its card arrives (the stylesheet
+    // runs it).
+    $$('.skill-list > li').forEach(li => ScrollTrigger.create({ trigger: li, start: 'top 86%', once: true, onEnter: () => li.classList.add('is-in') }));
+
+    // About: the portrait is uncovered from the top as it settles back into its frame, and the figures count up.
+    $$('.about-portrait').forEach(frame => {
+      const st = { trigger: frame, start: 'top 85%', once: true };
+      gsap.fromTo(frame, { clipPath: 'inset(0 0 100% 0 round 12px)' }, { clipPath: 'inset(0 0 0% 0 round 12px)', duration: 1.3, ease: 'expo.inOut', scrollTrigger: st, clearProps: 'clipPath' });
+      gsap.fromTo($('img', frame), { scale: 1.18 }, { scale: 1, duration: 1.8, ease, scrollTrigger: st, clearProps: 'transform' });
+    });
+    $$('[data-count]').forEach(el => {
+      const end = +el.textContent, n = { v: 0 };
+      if (!end) return;
+      el.textContent = '0';
+      gsap.to(n, { v: end, duration: 1.1 + end * .08, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 90%', once: true }, onUpdate: () => { el.textContent = Math.round(n.v); } });
+    });
+
+    // Experience: the line through the years fills in as the list scrolls by, and each role's dot comes on as the
+    // line reaches it.
+    $$('.home .timeline').forEach(list => {
+      list.classList.add('is-live');
+      gsap.fromTo(list, { '--draw': 0 }, { '--draw': 1, ease: 'none', scrollTrigger: { trigger: list, start: 'top 72%', end: 'bottom 62%', scrub: .4 } });
+      $$('li', list).forEach(li => ScrollTrigger.create({ trigger: li, start: 'top 70%', onEnter: () => li.classList.add('reached'), onLeaveBack: () => li.classList.remove('reached') }));
     });
 
     // Rules draw across as their rows arrive.

@@ -5,7 +5,8 @@
   "description": "Portfolio for Dylan Hughes. Static site; the 3D machine is bundled from src/machine into js/machine.js.",
   "scripts": {
     "build": "node tools/build-machine.mjs",
-    "watch": "node tools/build-machine.mjs --watch"
+    "watch": "node tools/build-machine.mjs --watch",
+    "resume": "node tools/build-resume.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

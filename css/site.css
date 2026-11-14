@@ -176,8 +176,10 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 .dmd-strip { display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; flex-wrap: wrap; }
 .dmd-status { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-mute); }
 .dmd-controls { display: flex; gap: 8px; }
-.dots { display: block; width: 30px; height: 30px; }
-.dots svg { display: block; width: 100%; height: 100%; }
+/* A skill's icon: a line drawing in royal blue, lit like the machine's lamps. */
+.skill-icon { display: block; width: 30px; height: 30px; overflow: visible; fill: none; stroke: var(--royal); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(43, 89, 255, .85)) drop-shadow(0 0 14px rgba(43, 89, 255, .4)); }
+.skill-icon .fill { fill: var(--royal); stroke: none; }
+.skill-icon .soft { stroke: var(--royal-soft); stroke-width: 1.2; }
 
 /* --- Shared section type --------------------------------------------------------------------------------------- */
 .band-dark { background: var(--cab); color: var(--chalk); }
@@ -225,12 +227,13 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 .story p:first-child { color: var(--ink); font-size: var(--t-lede); line-height: 1.45; font-weight: 500; }
 
 .skill-list { display: grid; gap: 2px; margin-top: 22px; }
-.skill-list li { display: grid; grid-template-columns: 24px 1fr; gap: 16px; padding: 12px 12px 12px 12px; border-radius: 6px; border-left: 2px solid transparent; transition: background-color .4s, border-color .4s; }
-.skill-list li.lit { background: rgba(43, 89, 255, .1); border-left-color: var(--royal); }
-.skill-list .dots { width: 22px; height: 22px; margin-top: 2px; color: var(--ink); }
+.skill-list > li { display: grid; grid-template-columns: 24px 1fr; gap: 16px; padding: 12px 12px 12px 12px; border-radius: 6px; border-left: 2px solid transparent; transition: background-color .4s, border-color .4s; }
+.skill-list > li.lit { background: rgba(43, 89, 255, .1); border-left-color: var(--royal); }
+.skill-list .skill-icon { width: 24px; height: 24px; margin-top: 1px; }
 .skill-list h3 { font-size: var(--d-xs); letter-spacing: -.015em; line-height: 1.25; }
 .skill-list p { color: var(--ink-mute); font-size: var(--t-small); line-height: 1.5; margin-top: 3px; }
-.skill-list .chips { color: var(--ink); font-size: var(--t-label-s); margin-top: 8px; line-height: 1.6; }
+.skill-list .chips { display: flex; flex-wrap: wrap; color: var(--ink); font-size: var(--t-label-s); margin-top: 8px; line-height: 1.6; }
+.skill-list .chips li:not(:last-child)::after { content: '·'; margin-inline: .7em; }
 
 .timeline { display: grid; margin-top: 20px; }
 .timeline li { position: relative; padding: 11px 0 12px 22px; border-top: 1px solid var(--rule); }
@@ -260,12 +263,13 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 /* --- The home page ----------------------------------------------------------------------------------------------
    The site as published: the same title blocks as the case studies, on the machine's black. The hero sits on a
    drawing's grid lit from behind the display; the work leads with its pictures; contact closes on the hero's grid.
-   (html.machine is the 3D machine, kept for later at /?machine.)
+   (html.machine is the 3D machine, kept for later and off the published site.)
 
    By screen: phones stack everything in one column. Tablets (700px and up) keep one column with room to breathe,
-   and set the skills as cards. Desktops (1100px and up) lay each section on a 12-column grid: its label holds in the
-   first three columns while it scrolls by, its content takes the other nine, and the work sets its picture and its
-   title block side by side. Large monitors (1800px and up) widen the container and step the type up. */
+   and set the skills as cards with their tools as tags. Desktops (1100px and up) lay each section across a
+   12-column grid, its label along the top: the work sets its picture and its title block side by side; About sets
+   the portrait against the story; the skills run four cards across; Experience reads as a CV in three columns; and
+   Contact closes the page in the middle. Large monitors (1800px and up) widen the container and step the type up. */
 html:not(.machine) .home main { width: 100%; max-width: var(--wrap); margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 176px); display: grid; gap: clamp(104px, 12vw, 200px); }
 html:not(.machine) .home .work { display: grid; gap: clamp(96px, 11vw, 184px); }
 /* A drawing's grid of faint registration crosses, lit royal from below, fading out downward. */
@@ -285,16 +289,35 @@ html:not(.machine) .home .dmd-strip { margin-top: 16px; }
 /* The work's pictures: a hairline frame that lights royal on hover as the picture settles closer. */
 html:not(.machine) .home .placard-media { box-shadow: 0 0 0 1px var(--rule-dark); transition: box-shadow .4s var(--ease); }
 @media (hover: hover) { html:not(.machine) .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); } }
-/* About: the portrait at a size you can see. */
+/* About: the portrait at a size you can see, in a hairline frame, and three figures under the story. */
 html:not(.machine) .home .about-head { grid-template-columns: clamp(96px, 22vw, 176px) 1fr; gap: clamp(18px, 3vw, 36px); }
 html:not(.machine) .home .about-portrait { border-radius: 10px; box-shadow: 0 0 0 1px var(--rule-dark); }
 html:not(.machine) .home .story { max-width: 62ch; margin-top: clamp(24px, 3vw, 40px); }
 html:not(.machine) .home .story p:first-child { font-size: clamp(19px, 1.6vw, 26px); }
 html:not(.machine) .home .story p { font-size: clamp(15.5px, 1.05vw, 17px); }
-/* Experience: a line through the years, the roles still running lit. */
+.about-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(16px, 2vw, 32px); margin-top: clamp(32px, 4vw, 56px); border-top: 1px solid var(--rule-strong); }
+.about-facts div { padding-top: 16px; }
+.about-facts dt { color: var(--ink-mute); }
+.about-facts dd { font-family: var(--display); font-stretch: var(--display-wdth); font-weight: var(--display-wght); letter-spacing: var(--display-track); font-size: clamp(40px, 4.4vw, 76px); line-height: 1; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.about-facts dd small { display: block; font-family: var(--body); font-stretch: 100%; font-weight: 400; font-size: var(--t-small); letter-spacing: 0; line-height: 1.5; color: var(--ink-mute); margin-top: 10px; max-width: 26ch; }
+/* Skills: the tools as tags. */
+html:not(.machine) .home .skill-list .chips { gap: 6px; margin-top: 12px; }
+html:not(.machine) .home .skill-list .chips li { padding: 5px 9px 4px; border: 1px solid var(--rule); border-radius: 999px; line-height: 1.3; transition: border-color .35s var(--ease); }
+html:not(.machine) .home .skill-list .chips li::after { content: none; }
+/* Experience: a line through the years. The roles still running are lit and beat slowly; with motion, the line fills
+   in blue as the list scrolls by and each role's dot comes on as it's reached (site.js). */
 html:not(.machine) .home .timeline { position: relative; margin-top: 28px; }
-html:not(.machine) .home .timeline::before { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
+html:not(.machine) .home .timeline::before, html:not(.machine) .home .timeline::after { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
+html:not(.machine) .home .timeline::after { background: var(--royal); transform: scaleY(var(--draw, 0)); transform-origin: 50% 0; }
+html:not(.machine) .home .timeline li { transition: background-color .35s var(--ease); }
+html:not(.machine) .home .timeline li::before { z-index: 1; }
 html:not(.machine) .home .timeline li:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
+html:not(.machine) .home .timeline.is-live li::before { background: #2a2e36; box-shadow: none; }
+html:not(.machine) .home .timeline.is-live li.reached::before { background: var(--chalk); }
+html:not(.machine) .home .timeline.is-live li.reached:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
+html.motion:not(.machine) .home .timeline li:nth-child(-n+2)::after { content: ''; position: absolute; left: 0; top: 17px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--royal-soft); animation: role-beat 2.6s var(--ease) infinite; }
+html.motion:not(.machine) .home .timeline li:nth-child(2)::after { animation-delay: .5s; }
+@keyframes role-beat { 0% { transform: scale(1); opacity: .9; } 70%, 100% { transform: scale(3.4); opacity: 0; } }
 html:not(.machine) .home .timeline + .btn { margin-top: 32px; }
 /* Contact closes the page, as large as the hero. */
 html:not(.machine) .home #contact { padding-top: clamp(24px, 4vw, 64px); }
@@ -305,21 +328,33 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 /* Tablets and up: skills as cards, two by two. */
 @media (min-width: 700px) {
   html:not(.machine) .home .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
-  html:not(.machine) .home .skill-list li { padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 10px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease); }
-  html:not(.machine) .home .skill-list .dots { width: 26px; height: 26px; }
+  html:not(.machine) .home .skill-list { counter-reset: skill; }
+  html:not(.machine) .home .skill-list > li { position: relative; counter-increment: skill; padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 12px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease), transform .5s var(--ease), box-shadow .5s var(--ease); }
+  html:not(.machine) .home .skill-list > li::after { content: counter(skill, decimal-leading-zero); position: absolute; top: 22px; right: 22px; font: 500 var(--t-label)/1 var(--mono); font-stretch: 87.5%; letter-spacing: var(--label-track); color: var(--ink-mute); }
+  html:not(.machine) .home .skill-list .skill-icon { width: 30px; height: 30px; transition: filter .4s var(--ease); }
+  html:not(.machine) .home .skill-list h3 { padding-right: 2.4em; }
   html:not(.machine) .home .work .placard-media { aspect-ratio: 16 / 10; }
 }
 @media (min-width: 700px) and (hover: hover) {
-  html:not(.machine) .home .skill-list li:hover { border-color: rgba(110, 140, 255, .5); }
+  html:not(.machine) .home .skill-list > li:hover { border-color: rgba(110, 140, 255, .55); transform: translateY(-4px); box-shadow: 0 28px 60px -36px rgba(43, 89, 255, .7); }
+  html:not(.machine) .home .skill-list > li:hover .chips li { border-color: rgba(110, 140, 255, .32); }
+  html:not(.machine) .home .skill-list > li:hover .skill-icon { filter: drop-shadow(0 0 4px rgba(110, 140, 255, 1)) drop-shadow(0 0 20px rgba(43, 89, 255, .75)); }
+  html:not(.machine) .home .timeline li:hover { background: linear-gradient(90deg, rgba(43, 89, 255, .07), rgba(43, 89, 255, 0) 70%); }
 }
+/* With motion, a skill's icon is drawn on stroke by stroke as its card arrives (site.js adds .is-in): every stroke
+   is one unit long (pathLength), so one dash covers it. */
+html.motion:not(.machine) .home .skill-icon path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s var(--ease); transition-delay: calc(var(--i) * 70ms + .15s); }
+html.motion:not(.machine) .home .skill-icon .fill { opacity: 0; transition: opacity .4s linear; transition-delay: calc(var(--i) * 70ms + .35s); }
+html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon path { stroke-dashoffset: 0; }
+html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opacity: 1; }
 
 /* Desktops: every section on a 12-column grid. */
 @media (min-width: 1100px) {
   html:not(.machine) .home .placard { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-content: start; }
-  html:not(.machine) .home .placard > * { grid-column: 4 / -1; }
-  /* The label holds still in its columns while its section scrolls by. */
-  html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-column: 1 / span 3; grid-row: 1 / span 9; align-self: start; position: sticky; top: calc(var(--header) + 24px); margin-bottom: 0; flex-wrap: wrap; }
-  html:not(.machine) .home .station:not(.station-hero) .label-count { margin-left: 0; flex-basis: 100%; padding-left: calc(2.4em + 12px); }
+  html:not(.machine) .home .placard > * { grid-column: 1 / -1; }
+  /* Every section's label runs along its top, its number at the left. */
+  html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-row: 1; }
+  html:not(.machine) .home .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
   html:not(.machine) .home .placard > .btn, html:not(.machine) .home .placard > .actions { justify-self: start; }
 
   /* The hero: the label across the top, the headline wide, and under it the lede and the actions side by side. */
@@ -339,21 +374,53 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   html:not(.machine) .home .work .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
   html:not(.machine) .home .work .station:not(.station-hero) .placard-title { margin-top: 4px; }
 
-  /* About: the title and the story, with the portrait in a column of its own beside them. */
+  /* About: the portrait holds the left of the section while the title, the story and the figures run down the
+     right. */
   html:not(.machine) .home .about-head { display: contents; }
-  html:not(.machine) .home #about .placard-title { grid-column: 4 / span 6; grid-row: 1; }
-  html:not(.machine) .home #about .story { grid-column: 4 / span 6; grid-row: 2; }
-  html:not(.machine) .home #about .about-portrait { grid-column: 10 / -1; grid-row: 1 / span 2; align-self: start; position: sticky; top: calc(var(--header) + 24px); }
+  html:not(.machine) .home #about .about-portrait { grid-column: 1 / span 4; grid-row: 2 / span 3; align-self: start; position: sticky; top: calc(var(--header) + 24px); max-width: 540px; border-radius: 12px; }
+  html:not(.machine) .home #about .placard-title { grid-column: 6 / -1; grid-row: 2; }
+  html:not(.machine) .home #about .story { grid-column: 6 / -1; grid-row: 3; }
+  html:not(.machine) .home #about .about-facts { grid-column: 6 / -1; grid-row: 4; }
 
-  /* Experience, read like a CV: the dates in a column of their own. */
-  html:not(.machine) .home .timeline li { grid-template-columns: minmax(150px, 2fr) minmax(0, 7fr); column-gap: 32px; padding-block: 16px 18px; }
-  html:not(.machine) .home .timeline li > .mono { grid-column: 1; grid-row: 1 / span 3; text-align: left; padding-top: 3px; }
-  html:not(.machine) .home .timeline li > h3 { grid-column: 2; grid-row: 1; font-size: 17px; }
-  html:not(.machine) .home .timeline li > p:not(.mono) { grid-column: 2; }
-  html:not(.machine) .home .timeline li::before { top: 23px; }
-  html:not(.machine) .home .timeline::before { top: 27px; }
-  html:not(.machine) .home .timeline p:last-child { max-width: 70ch; }
+  /* Skills: the title wide, then the four cards across the whole section, each with its icon over its copy and its
+     tools along its foot. */
+  html:not(.machine) .home #skills .placard-title { grid-column: 1 / span 9; }
+  html:not(.machine) .home .skill-list { gap: clamp(14px, 1.4vw, 24px); margin-top: clamp(36px, 3.6vw, 56px); }
+  html:not(.machine) .home .skill-list > li { padding: clamp(24px, 2vw, 34px); }
+  html:not(.machine) .home .skill-list > li::after { top: clamp(24px, 2vw, 34px); right: clamp(24px, 2vw, 34px); }
+  html:not(.machine) .home .skill-list h3 { font-size: var(--d-s); }
+  html:not(.machine) .home .skill-list p { font-size: 15px; margin-top: 8px; }
+
+  /* Experience, read like a CV across the whole section: the dates, then the role and where, then what it was. The
+     résumé's button sits level with the title. */
+  html:not(.machine) .home #experience .placard-title { grid-column: 1 / span 8; grid-row: 2; }
+  html:not(.machine) .home #experience .placard > .btn { grid-column: 9 / -1; grid-row: 2; justify-self: end; align-self: end; margin-top: 0; }
+  html:not(.machine) .home #experience .timeline { grid-row: 3; margin-top: clamp(36px, 3.6vw, 56px); }
+  html:not(.machine) .home .timeline li { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-items: start; padding-block: clamp(20px, 1.8vw, 30px); }
+  html:not(.machine) .home .timeline li > .mono { grid-column: 1 / span 3; grid-row: 1 / span 2; text-align: left; padding-top: 5px; }
+  html:not(.machine) .home .timeline li > h3 { grid-column: 4 / span 5; grid-row: 1; font-size: clamp(18px, 1.5vw, 24px); line-height: 1.2; }
+  html:not(.machine) .home .timeline li > .org { grid-column: 4 / span 5; grid-row: 2; font-size: 14.5px; margin-top: 6px; }
+  html:not(.machine) .home .timeline li > p:last-child { grid-column: 9 / -1; grid-row: 1 / span 2; font-size: 15px; line-height: 1.55; color: var(--ink-mute); margin-top: 3px; }
+  html:not(.machine) .home .timeline li::before { top: clamp(27px, calc(1.8vw + 7px), 37px); }
+  html:not(.machine) .home .timeline li:nth-child(-n+2)::after { top: clamp(27px, calc(1.8vw + 7px), 37px); }
+  html:not(.machine) .home .timeline::before, html:not(.machine) .home .timeline::after { top: clamp(31px, calc(1.8vw + 11px), 41px); bottom: 40px; }
+
+  /* Contact: the close of the page, in the middle of it, over the light from below. */
+  html:not(.machine) .home #contact .placard > :not(.label) { justify-self: center; text-align: center; }
+  html:not(.machine) .home #contact .placard-title { max-width: 16ch; }
+  html:not(.machine) .home #contact .placard-lede { max-width: 46ch; }
+  html:not(.machine) .home #contact .contact-row, html:not(.machine) .home #contact .contact-links { justify-content: center; }
 }
+/* Wide desktops: the four skills in one row. Below that they stay two by two. */
+@media (min-width: 1300px) {
+  html:not(.machine) .home .skill-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  html:not(.machine) .home .skill-list > li { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: clamp(22px, 2vw, 34px); }
+  html:not(.machine) .home .skill-list > li > div { display: flex; flex-direction: column; }
+  html:not(.machine) .home .skill-list .skill-icon { width: clamp(40px, 3vw, 52px); height: clamp(40px, 3vw, 52px); }
+  html:not(.machine) .home .skill-list .chips { margin-top: auto; padding-top: 22px; }
+}
+
+/* Laptops (1100–1499px)}
 
 /* Laptops (1100–1499px): the work's title block takes half the width, so its details aren't cramped. */
 @media (min-width: 1100px) and (max-width: 1499px) {
@@ -368,7 +435,7 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   :root { --wrap: 1720px; --gutter: 112px; --header: 76px; --t-lede: 21px; --t-body: 17px; --t-small: 15px; --t-label: 11.5px; --d-xs: 19px; --d-s: 32px; --d-m: 52px; --d-l: 76px; --d-xl: 112px; }
   .nav a { font-size: 15px; }
   .wordmark { font-size: 18px; }
-  html:not(.machine) .home .skill-list li { padding: 28px 28px 30px; }
+  html:not(.machine) .home .skill-list > li { padding: 28px 28px 30px; }
 }
 /* Very large monitors (1440p ultrawide, 4K at 100%): wider again, and larger type throughout. */
 @media (min-width: 2400px) {
@@ -477,13 +544,13 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
 .machine .key[aria-pressed="true"] { background: var(--royal); border-color: var(--royal); color: var(--on-royal); text-shadow: none; }
 .machine .link-out:hover, .machine .contact-links a:hover { color: var(--royal-soft); }
 /* Long lists follow the machine: the entry its part is showing stays bright and the rest step back. */
-.machine .skill-list li, .machine .timeline li { transition: opacity .5s var(--ease), background-color .4s, border-color .4s; }
+.machine .skill-list > li, .machine .timeline li { transition: opacity .5s var(--ease), background-color .4s, border-color .4s; }
 .machine .has-current > li:not(.current) { opacity: .4; }
 .machine .skill-list { margin-top: 18px; }
-.machine .skill-list li { padding: 11px 12px 11px 14px; }
-.machine .skill-list li.lit { background: rgba(43, 89, 255, .1); border-left-color: var(--royal); }
-.machine .skill-list .dots { color: var(--chalk); }
-.machine .dots circle[fill-opacity="1"] { fill: var(--royal-soft); }
+.machine .skill-list > li { padding: 11px 12px 11px 14px; }
+.machine .skill-list > li.lit { background: rgba(43, 89, 255, .1); border-left-color: var(--royal); }
+.machine .skill-icon { stroke: var(--royal-soft); filter: drop-shadow(0 0 5px rgba(43, 89, 255, .9)); }
+.machine .skill-icon .fill { fill: var(--royal-soft); }
 .machine .skill-list .chips { color: var(--chalk); opacity: .82; }
 .machine .timeline li { border-top-color: var(--hair-scene-soft); }
 .machine .timeline li::before { background: rgba(244, 245, 247, .25); }
@@ -529,7 +596,7 @@ html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); b
   .machine .placard-title { font-size: clamp(28px, 5.4vh, 44px); }
   .machine .placard-lede, .machine .hero-lede { font-size: 17px; }
   .machine .skill-list, .machine .timeline { margin-top: 12px; }
-  .machine .skill-list li { padding-block: 8px; }
+  .machine .skill-list > li { padding-block: 8px; }
   .machine .skill-list .chips { margin-top: 5px; }
   .machine .timeline li { padding-block: 8px 9px; }
   .machine .timeline li::before { top: 14px; }
@@ -879,6 +946,10 @@ html.px-glass-in main { opacity: .25; transform: scale(1.014); }
   .facts { grid-template-columns: 1fr; }
   .facts div { padding-right: 0; }
   .facts-3 dd { white-space: normal; }
+  .about-facts { grid-template-columns: 1fr; border-top: 0; }
+  .about-facts div { border-top: 1px solid var(--rule-strong); padding-block: 14px 16px; }
+  .about-facts dd { display: grid; grid-template-columns: 1.6ch 1fr; align-items: center; column-gap: 18px; margin-top: 8px; }
+  .about-facts dd small { margin-top: 0; max-width: none; }
   .about-head { grid-template-columns: 72px 1fr; gap: 16px; }
 }
 

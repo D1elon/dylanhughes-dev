@@ -14,11 +14,13 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion. The page's intro is CSS (`css/site.css`), so it starts with the first paint and doesn't wait for the animation libraries.
 - `js/pixels.js`: the page change into a case study. The page frosts over like glass under a wave of dot-matrix pixels; the case study's name lights up in the display's lettering, then the dots open outward and the page is built out of them. A short script in each case study's head draws the first frame in CSS, so the hand-over doesn't show. With reduced motion it stays an ordinary link.
 - `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its hand-drawn bitmap fonts
-- `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Commit it after every change to the source.
+- `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Built locally and not committed while the machine is off the published site.
+- `_config.yml`: keeps the sources and tooling (`src/`, `tools/`, the package files and this README) out of what GitHub Pages publishes
 - `src/machine/`: the machine's source, and `tools/build-machine.mjs`, its build script
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
 - `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
 - `assets/`: résumé PDF, favicon, social share image (`og.jpg`), touch and manifest icons and photographs
+- `tools/resume.html` and `tools/build-resume.mjs`: the résumé's source and the script that prints it to the PDF (`npm run resume`)
 - `CNAME`, `robots.txt` and `sitemap.xml`: domain and search-engine configuration
 
 Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.
@@ -36,13 +38,13 @@ Type is three self-hosted families, one job each:
 - **Instrument Sans** for text: `--t-lede` (18–19.5px, 1.5), `--t-body` (16px, 1.6) and `--t-small` (14px, 1.5).
 - **Martian Mono** only for small technical labels: 11px (`--t-label`), 10.5px for tool lists, uppercase, 0.08em tracking.
 
-Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page the label row moves into a left column and holds still while its section scrolls by.
+Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page each section runs the full width of the container under its label row. On desktops About sets the portrait against the story with three figures under it, the skills run four cards across (each with a line-drawn icon in royal blue that is drawn on as the card arrives, and its tools as tags), Experience reads as a CV in three columns beside a line that fills in as it scrolls, and Contact closes the page in the middle.
 
 The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball on a little playfield with pop bumpers and flippers drawn as real bats, Richmond and the local time) with lamp persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
 
 ## The 3D machine (switched off for now)
 
-The 3D machine is kept for later, once it has had more optimisation and polish. The published site doesn't load it: it runs only at `/?machine`, where the head script loads `js/machine.js`, and only with WebGL 2 and data saving off.
+The 3D machine is kept for later, once it has had more optimisation and polish. It is off the published site entirely: its bundle `js/machine.js` is not committed (it's in `.gitignore`), `_config.yml` keeps `src/` and `tools/` out of what GitHub Pages publishes, and the head script in `index.html` starts the machine only on a local copy. To run it, `npm install && npm run build`, serve the repository root (see Local preview) and open `http://localhost:8765/?machine`; it needs WebGL 2 and data saving off. To publish it again, commit the bundle and let the head script start it on the site's own hostname.
 
 
 `src/machine/` is plain ES modules on Three.js, bundled by esbuild into `js/machine.js`:
@@ -64,7 +66,7 @@ npm run build     # or: npm run watch
 - `hud.js`: the leader lines from parts to the copy about them
 - `main.js`: starts it all and connects scrolling, pointer, keyboard and clicks
 
-At `/?machine`, if the machine can't start, the page falls back to the 2D layout and display. With reduced motion, the camera cuts between stations and nothing animates.
+At `/?machine` on a local copy, if the machine can't start, the page falls back to the 2D layout and display. With reduced motion, the camera cuts between stations and nothing animates.
 
 ## Adding a project
 
@@ -91,7 +93,7 @@ The display uses two bitmap fonts drawn dot by dot in `js/dmd-glyphs.js`, the wa
 
 ## Résumé updates
 
-The PDF is the approved revised résumé, not a generated copy of site HTML. When it changes, replace `assets/dylan-hughes-resume.pdf` and align the experience, skills and education in `index.html`.
+The PDF is printed from `tools/resume.html`, which says what the site says: the same positioning, roles and dates, and the skills under the site's four kinds of work. Selected projects are left off for now. Edit the source, run `npm run resume` (it needs Playwright's Chromium; or print the page from a browser at US Letter with no margins and background graphics on), check it still fits one page, and keep the experience, skills and education in `index.html` in step with it.
 
 ## Deployment
 
