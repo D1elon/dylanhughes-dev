@@ -19,6 +19,7 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
 - `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
 - `assets/`: résumé PDF, favicon, social share image (`og.jpg`), touch and manifest icons and photographs
+- `tools/resume.html` and `tools/build-resume.mjs`: the résumé's source and the script that prints it to the PDF (`npm run resume`)
 - `CNAME`, `robots.txt` and `sitemap.xml`: domain and search-engine configuration
 
 Only original work and client work is published here. Retheme projects built on licensed properties (Zelda, Marvel, Pokémon and similar) stay out of the repository, because GitHub Pages serves every committed file, linked or not.
@@ -36,7 +37,7 @@ Type is three self-hosted families, one job each:
 - **Instrument Sans** for text: `--t-lede` (18–19.5px, 1.5), `--t-body` (16px, 1.6) and `--t-small` (14px, 1.5).
 - **Martian Mono** only for small technical labels: 11px (`--t-label`), 10.5px for tool lists, uppercase, 0.08em tracking.
 
-Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page the label row moves into a left column and holds still while its section scrolls by.
+Each section's copy is set like a drawing's title block, the same on the machine, the plain page and the case studies: a hairline with a short lit tab at its start, then one label row (the section's number in blue, its name and, for the work, its place in the set), the title, a status line (category, and a chip whose lamp is lit when the project is live and an open ring while it's in development), the lede, the details and the actions. On the plain page each section runs the full width of the container under its label row. On desktops About sets the portrait against the story with three figures under it, the skills run four cards across (each with a line-drawn icon in royal blue that is drawn on as the card arrives, and its tools as tags), Experience reads as a CV in three columns beside a line that fills in as it scrolls, and Contact closes the page in the middle.
 
 The display in the hero is the signature: an attract-mode loop of four scenes (name, what I build, a game of pinball on a little playfield with pop bumpers and flippers drawn as real bats, Richmond and the local time) with lamp persistence and pixel-dissolve transitions. Visitors can pause it or step through scenes. The 404 page reuses it to show TILT.
 
@@ -91,7 +92,7 @@ The display uses two bitmap fonts drawn dot by dot in `js/dmd-glyphs.js`, the wa
 
 ## Résumé updates
 
-The PDF is the approved revised résumé, not a generated copy of site HTML. When it changes, replace `assets/dylan-hughes-resume.pdf` and align the experience, skills and education in `index.html`.
+The PDF is printed from `tools/resume.html`, which says what the site says: the same positioning, roles and dates, and the skills under the site's four kinds of work. Selected projects are left off for now. Edit the source, run `npm run resume` (it needs Playwright's Chromium; or print the page from a browser at US Letter with no margins and background graphics on), check it still fits one page, and keep the experience, skills and education in `index.html` in step with it.
 
 ## Deployment
 

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <!-- The source of assets/dylan-hughes-resume.pdf. Build it with `npm run resume` (tools/build-resume.mjs), or print
+       this page from a browser: US Letter, no margins, background graphics on. It says what the site says: the same
+       positioning, roles and dates, and the skills under the site's four kinds of work. Selected projects are left
+       off for now. -->
+  <title>Dylan Hughes Résumé</title>
+  <meta name="author" content="Dylan Hughes">
+  <meta name="description" content="Creative Technologist and Developer">
+  <style>
+    @font-face { font-family: 'Archivo'; src: url('../fonts/archivo.woff2') format('woff2'); font-weight: 100 900; font-stretch: 62% 125%; }
+    @font-face { font-family: 'Instrument Sans'; src: url('../fonts/instrument-sans.woff2') format('woff2'); font-weight: 400 700; font-stretch: 75% 100%; }
+    @page { size: Letter; margin: 0; }
+    * { box-sizing: border-box; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { margin: 0; background: #e9eaee; color: #14161a; font: 400 9.5pt/1.42 'Instrument Sans', system-ui, sans-serif; }
+    .page { width: 8.5in; min-height: 11in; margin: 0 auto; padding: .56in .7in .5in; background: #fff; }
+    h1, h2, h3, p, ul, dl, dd { margin: 0; padding: 0; }
+    a { color: inherit; text-decoration: none; }
+
+    header { padding-bottom: 12pt; border-bottom: 1.4pt solid #14161a; position: relative; }
+    header::after { content: ''; position: absolute; left: 0; bottom: -1.4pt; width: 40pt; height: 1.4pt; background: #2b59ff; }
+    h1 { font: 700 27pt/1 'Archivo', sans-serif; font-stretch: 108%; letter-spacing: -.03em; }
+    .role { margin-top: 6pt; font: 650 9pt/1.2 'Archivo', sans-serif; font-stretch: 104%; letter-spacing: .07em; text-transform: uppercase; color: #1f46e0; }
+    .contact { display: flex; flex-wrap: wrap; gap: 2pt 0; margin-top: 8pt; font-size: 9pt; color: #3a3f48; list-style: none; }
+    .contact li + li::before { content: '|'; margin-inline: 6.5pt; color: #b3b8c1; }
+
+    .summary { margin-top: 12pt; font-size: 9.9pt; line-height: 1.48; }
+
+    section { margin-top: 13pt; }
+    h2 { font: 700 8.8pt/1.2 'Archivo', sans-serif; font-stretch: 104%; letter-spacing: .07em; text-transform: uppercase; color: #14161a; padding-bottom: 5pt; border-bottom: .6pt solid #c9cdd4; }
+
+    .job { margin-top: 9pt; break-inside: avoid; }
+    .job-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16pt; }
+    h3 { font: 650 10.6pt/1.25 'Archivo', sans-serif; font-stretch: 104%; letter-spacing: -.012em; }
+    .dates { flex: none; font-size: 9.1pt; font-weight: 600; color: #1f46e0; white-space: nowrap; }
+    .org { margin-top: 1pt; font-size: 9.2pt; color: #4a505a; }
+    .job ul { margin-top: 4pt; padding-left: 12pt; list-style: none; }
+    .job li { position: relative; margin-top: 2pt; }
+    .job li::before { content: ''; position: absolute; left: -11pt; top: .56em; width: 3.4pt; height: 3.4pt; border-radius: 50%; background: #2b59ff; }
+
+    .skills { display: grid; grid-template-columns: max-content 1fr; gap: 3.5pt 16pt; margin-top: 8pt; }
+    .skills dt { font: 650 9.3pt/1.45 'Archivo', sans-serif; font-stretch: 104%; }
+    .skills dd { color: #24282f; }
+
+    .school { display: flex; justify-content: space-between; align-items: baseline; gap: 16pt; margin-top: 8pt; }
+    .school p { color: #4a505a; font-size: 9.2pt; margin-top: 1.5pt; }
+
+    @media print { body { background: #fff; } .page { margin: 0; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>Dylan Hughes</h1>
+      <p class="role">Creative Technologist and Developer</p>
+      <ul class="contact">
+        <li>Richmond, VA</li>
+        <li><a href="mailto:dyl.harrell@gmail.com">dyl.harrell@gmail.com</a></li>
+        <li><a href="https://dylanhughes.dev">dylanhughes.dev</a></li>
+        <li><a href="https://github.com/d1elon">github.com/d1elon</a></li>
+        <li><a href="https://www.linkedin.com/in/dylan-hughes-va/">linkedin.com/in/dylan-hughes-va</a></li>
+      </ul>
+    </header>
+
+    <p class="summary">Creative technologist and developer who designs and builds products that work, on screen and off: websites for local businesses, game software for pinball machines, and 3D-printed parts. Takes each one from first sketch to final product, combining development with digital media, hardware integration and fabrication.</p>
+
+    <section aria-labelledby="experience">
+      <h2 id="experience">Experience</h2>
+
+      <div class="job">
+        <div class="job-head"><h3>Freelance Technical Consultant and Developer</h3><p class="dates">2025–Present</p></div>
+        <p class="org">Self-employed | Richmond, VA</p>
+        <ul>
+          <li>Design, build and launch small-business websites, with five projects delivered to local clients.</li>
+          <li>Create service-focused content, configure local SEO and Google Business Profiles, and provide ongoing website maintenance under retainer.</li>
+        </ul>
+      </div>
+
+      <div class="job">
+        <div class="job-head"><h3>Digital Content Specialist and Personal Assistant</h3><p class="dates">Jul 2023–Present</p></div>
+        <p class="org">Alex Glaser / The Glaser Group | Richmond, VA</p>
+        <ul>
+          <li>Develop original game software in C# and Unity and customize interactive experiences across Multimorphic P3, Stern Spike 2 and Stern SAM platforms.</li>
+          <li>Produce and integrate game interfaces, animation, audio and lighting; organize asset libraries and replacement workflows for custom game projects.</li>
+          <li>Created a 3D-printed product line spanning CAD, 3D scanning, print tuning, packaging and installation documentation.</li>
+          <li>Improve workflows for a multi-business owner, automate recurring work and introduce AI tools for daily productivity; coordinate clients, scheduling, travel and purchasing.</li>
+        </ul>
+      </div>
+
+      <div class="job">
+        <div class="job-head"><h3>Marketing Coordinator and Lead Server</h3><p class="dates">Dec 2021–Jul 2023</p></div>
+        <p class="org">Origin Beer Lab and Center of the Universe Brewing | Ashland, VA</p>
+        <ul>
+          <li>Produced social media, photo and video content; promoted events and led front-of-house shifts.</li>
+        </ul>
+      </div>
+
+      <div class="job">
+        <div class="job-head"><h3>Operations Assistant</h3><p class="dates">Jun 2018–Jan 2021</p></div>
+        <p class="org">T&amp;B Equipment / InProduction | Ashland, VA</p>
+        <ul>
+          <li>Supported inventory and event installations; provided desktop and hardware support to staff.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="skills">
+      <h2 id="skills">Skills and Tools</h2>
+      <dl class="skills">
+        <dt>Web</dt><dd>HTML, CSS, JavaScript, React, Astro, Node.js, Supabase, WordPress, Shopify, Squarespace, GitHub Pages, Apps Script, local SEO, Google Analytics</dd>
+        <dt>Game software</dt><dd>C#, Unity, Python, Multimorphic P3, Stern Spike 2, Stern SAM</dd>
+        <dt>Media</dt><dd>Figma, Photoshop, Illustrator, Premiere Pro, After Effects</dd>
+        <dt>Fabrication</dt><dd>Fusion, 3D scanning, Bambu Studio, multi-material 3D printing</dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="education">
+      <h2 id="education">Education</h2>
+      <div class="school">
+        <div><h3>Advanced Studies Diploma</h3><p>Atlee High School | Mechanicsville, VA</p></div>
+        <p class="dates">2018</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
