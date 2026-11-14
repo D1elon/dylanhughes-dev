@@ -14,7 +14,8 @@ Portfolio for Dylan Hughes, creative technologist and developer in Richmond, Vir
 - `js/site.js`: navigation, clock, copy-email, comparison slider and all scroll motion. The page's intro is CSS (`css/site.css`), so it starts with the first paint and doesn't wait for the animation libraries.
 - `js/pixels.js`: the page change into a case study. The page frosts over like glass under a wave of dot-matrix pixels; the case study's name lights up in the display's lettering, then the dots open outward and the page is built out of them. A short script in each case study's head draws the first frame in CSS, so the hand-over doesn't show. With reduced motion it stays an ordinary link.
 - `js/dmd.js` and `js/dmd-glyphs.js`: the 128 × 32 pinball dot-matrix display and its hand-drawn bitmap fonts
-- `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Commit it after every change to the source.
+- `js/machine.js`: the 3D machine, bundled from `src/machine/` (see below). Built locally and not committed while the machine is off the published site.
+- `_config.yml`: keeps the sources and tooling (`src/`, `tools/`, the package files and this README) out of what GitHub Pages publishes
 - `src/machine/`: the machine's source, and `tools/build-machine.mjs`, its build script
 - `js/vendor/`: GSAP 3.15 with ScrollTrigger and SplitText, and Lenis 1.3 for inertial scrolling
 - `fonts/`: Archivo (headlines), Instrument Sans (body), Martian Mono (labels)
@@ -43,7 +44,7 @@ The display in the hero is the signature: an attract-mode loop of four scenes (n
 
 ## The 3D machine (switched off for now)
 
-The 3D machine is kept for later, once it has had more optimisation and polish. The published site doesn't load it: it runs only at `/?machine`, where the head script loads `js/machine.js`, and only with WebGL 2 and data saving off.
+The 3D machine is kept for later, once it has had more optimisation and polish. It is off the published site entirely: its bundle `js/machine.js` is not committed (it's in `.gitignore`), `_config.yml` keeps `src/` and `tools/` out of what GitHub Pages publishes, and the head script in `index.html` starts the machine only on a local copy. To run it, `npm install && npm run build`, serve the repository root (see Local preview) and open `http://localhost:8765/?machine`; it needs WebGL 2 and data saving off. To publish it again, commit the bundle and let the head script start it on the site's own hostname.
 
 
 `src/machine/` is plain ES modules on Three.js, bundled by esbuild into `js/machine.js`:
@@ -65,7 +66,7 @@ npm run build     # or: npm run watch
 - `hud.js`: the leader lines from parts to the copy about them
 - `main.js`: starts it all and connects scrolling, pointer, keyboard and clicks
 
-At `/?machine`, if the machine can't start, the page falls back to the 2D layout and display. With reduced motion, the camera cuts between stations and nothing animates.
+At `/?machine` on a local copy, if the machine can't start, the page falls back to the 2D layout and display. With reduced motion, the camera cuts between stations and nothing animates.
 
 ## Adding a project
 

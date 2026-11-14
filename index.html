@@ -24,12 +24,12 @@
   <link rel="preload" href="/fonts/martian-mono.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/site.css">
   <script>
-    // The site is the 2D page. The 3D pinball machine is kept for later and runs only at /?machine (it needs WebGL 2
-    // and data saving off); only then is its bundle downloaded.
+    // The site is the 2D page. The 3D pinball machine is kept for later and is off the published site: its bundle
+    // isn't published, and /?machine starts it only on a local copy (localhost), with WebGL 2 and data saving off.
     (function () {
       var d = document.documentElement, gl = false;
       d.classList.add('js');
-      if (/[?&]machine\b/.test(location.search)) {
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]machine\b/.test(location.search)) {
         try { gl = !!document.createElement('canvas').getContext('webgl2'); } catch (e) {}
         var save = navigator.connection && navigator.connection.saveData;
         if (gl && !save) {

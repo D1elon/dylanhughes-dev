@@ -1,2 +1,4 @@
 _testfonts/
 node_modules/
+# The 3D machine's bundle: built locally with `npm run build`, and kept off the published site for now.
+js/machine.js

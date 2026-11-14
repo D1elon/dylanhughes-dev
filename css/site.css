@@ -263,7 +263,7 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 /* --- The home page ----------------------------------------------------------------------------------------------
    The site as published: the same title blocks as the case studies, on the machine's black. The hero sits on a
    drawing's grid lit from behind the display; the work leads with its pictures; contact closes on the hero's grid.
-   (html.machine is the 3D machine, kept for later at /?machine.)
+   (html.machine is the 3D machine, kept for later and off the published site.)
 
    By screen: phones stack everything in one column. Tablets (700px and up) keep one column with room to breathe,
    and set the skills as cards with their tools as tags. Desktops (1100px and up) lay each section across a
