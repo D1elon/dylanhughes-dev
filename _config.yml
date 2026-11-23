@@ -1,8 +1,9 @@
 # GitHub Pages publishes every committed file unless it is listed here. These are the site's tooling, not pages:
-# the résumé's source and the script that prints it.
+# the résumé's source and the script that prints it, and the maintainer notes.
 exclude:
   - tools
   - node_modules
   - package.json
   - package-lock.json
+  - docs
   - README.md
