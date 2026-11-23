@@ -409,6 +409,19 @@ body.home { overflow-x: clip; }
   .home #contact .placard-lede { max-width: 46ch; }
   .home #contact .contact-row, .home #contact .contact-links { justify-content: center; }
 }
+/* More work: the jobs without a case study, as three cards under the case studies. Its title block runs the full width at every size. */
+.more-list { display: grid; gap: clamp(14px, 1.4vw, 24px); margin-top: clamp(28px, 3.4vw, 52px); }
+.more-list > li { display: flex; flex-direction: column; padding: clamp(22px, 2vw, 32px); border: 1px solid var(--rule); border-radius: 12px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); }
+.more-body { flex: 1; }
+.more-list h4 { font-size: var(--d-s); line-height: 1.1; margin: 14px 0 0; }
+.more-lede { color: var(--ink-mute); font-size: 15px; line-height: 1.55; margin-top: 12px; }
+.more-quote { margin: 18px 0 0; padding-left: 14px; border-left: 2px solid var(--royal); }
+.more-quote p { font-size: 15px; line-height: 1.5; }
+.more-quote cite { display: block; font-style: normal; color: var(--ink-mute); margin-top: 8px; }
+.more-list .spec { margin-top: 24px; }
+@media (min-width: 900px) { .more-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .home .work #more.station .placard > * { grid-column: 1 / -1; } }
+
 /* Wide desktops: the four skills in one row. Below that they stay two by two. */
 @media (min-width: 1300px) {
   .home .skill-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
