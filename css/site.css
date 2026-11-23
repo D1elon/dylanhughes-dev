@@ -1,7 +1,6 @@
-/* Dylan Hughes. Black and white, with one accent: royal blue, the colour of the machine's lamps. The home page is a
-   pinball machine (html.machine) with ordinary HTML underneath; without WebGL it is a plain page in the machine's
-   room, black, set in the same title-block grid as the machine's copy, and so are the case studies. Tokens first:
-   colour, type, space. */
+/* Dylan Hughes. Black and white, with one accent: royal blue, the colour of the display's lit dots. Every page is
+   black, set in the same title-block grid, the home page and the case studies alike. Tokens first: colour, type,
+   space. */
 
 @font-face { font-family: 'Archivo'; src: url('../fonts/archivo.woff2') format('woff2'); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
 @font-face { font-family: 'Instrument Sans'; src: url('../fonts/instrument-sans.woff2') format('woff2'); font-weight: 400 700; font-stretch: 75% 100%; font-display: swap; }
@@ -14,14 +13,14 @@
   --royal-soft: #6E8CFF;    /* blue text on black: 6.5:1 */
   --royal-deep: #1F46E0;    /* a royal fill, pressed */
 
-  --room: #06070A;          /* behind the machine */
-  --cab: #0B0C0F;           /* cabinet black: dark bands, footer, menu */
+  --room: #06070A;          /* the darkest black */
+  --cab: #0B0C0F;           /* panel black: dark bands, footer, menu */
   --raised: #14161A;        /* surfaces raised off black */
   --rule-dark: #262A31;     /* rules on black */
   --chalk: #F4F5F7;         /* text on black */
   --chalk-mute: #9AA1AB;    /* secondary text on black */
 
-  /* The page: every page sits in the machine's room, so going from the machine to a case study stays dark. */
+  /* The page: every page shares one dark ground, so going from the home page to a case study stays dark. */
   --paper: #06070A;         /* the page */
   --band: #101216;          /* bands and wells on the page */
   --ink: #F4F5F7;           /* text */
@@ -31,9 +30,8 @@
   --on-royal: #FFFFFF;      /* text on royal fills */
   --royal-ink: #6E8CFF;     /* blue as text on the page: 6.5:1 */
 
-  /* Lines set straight onto the 3D scene, where an opaque rule would disappear into the playfield. */
+  /* Hairlines over dark bands, where an opaque rule would disappear. */
   --hair-scene: rgba(244, 245, 247, .3);
-  --hair-scene-soft: rgba(244, 245, 247, .16);
 
   /* Type. Three families, one job each. */
   --display: 'Archivo', 'Arial Narrow', sans-serif;
@@ -123,7 +121,6 @@ main { counter-reset: station; }
 .btn-arrow { display: inline-block; transition: transform .45s var(--ease); }
 .btn:hover .btn-arrow { transform: translateY(2px); }
 .btn[href^="/work"]:hover .btn-arrow, .btn[href="/"]:hover .btn-arrow, .btn[target]:hover .btn-arrow { transform: translateX(3px); }
-.btn[data-launch]:hover .btn-arrow { transform: translateY(-2px); }
 .btn-royal { background: var(--royal); color: var(--on-royal); }
 .btn-royal:hover { background: var(--royal-deep); }
 .btn-solid { background: var(--ink); color: var(--paper); }
@@ -145,17 +142,17 @@ main { counter-reset: station; }
 .site-header.is-scrolled { border-bottom-color: var(--rule); }
 /* Once the page scrolls under it the header is glass: the page shows through, blurred. (On a layer of its own, so
    the header stays the phone menu's containing block.) Along its lower edge, a hairline of how far down you are. */
-html:not(.machine) .site-header { background: transparent; }
-html:not(.machine) .site-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(6, 7, 10, .74); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); opacity: 0; transition: opacity .35s; }
-html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
+.site-header { background: transparent; }
+.site-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(6, 7, 10, .74); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); opacity: 0; transition: opacity .35s; }
+.site-header.is-scrolled::before { opacity: 1; }
 @supports (animation-timeline: scroll()) {
-  html:not(.machine) .site-header::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--royal); transform-origin: 0 50%; animation: read-progress linear both; animation-timeline: scroll(root); }
-  html:not(.machine) .site-header.menu-open::after { display: none; }
+  .site-header::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--royal); transform-origin: 0 50%; animation: read-progress linear both; animation-timeline: scroll(root); }
+  .site-header.menu-open::after { display: none; }
   @keyframes read-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 }
 .site-header.is-hidden { transform: translateY(-100%); }
 .site-header.on-dark, .site-header.menu-open { color: var(--chalk); border-bottom-color: var(--rule-dark); }
-.site-header.menu-open, html:not(.machine) .site-header.menu-open { background: var(--cab); }
+.site-header.menu-open { background: var(--cab); }
 .header-row { display: flex; align-items: center; gap: 32px; height: var(--header); }
 .wordmark { display: inline-flex; align-items: center; gap: 12px; font-size: 17px; letter-spacing: -.02em; line-height: 1; text-decoration: none; }
 /* The mark: a corner of the dot-matrix display, lit. */
@@ -176,7 +173,7 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 .dmd-strip { display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; flex-wrap: wrap; }
 .dmd-status { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-mute); }
 .dmd-controls { display: flex; gap: 8px; }
-/* A skill's icon: a line drawing in royal blue, lit like the machine's lamps. */
+/* A skill's icon: a line drawing in royal blue, lit like a pinball lamp. */
 .skill-icon { display: block; width: 30px; height: 30px; overflow: visible; fill: none; stroke: var(--royal); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(43, 89, 255, .85)) drop-shadow(0 0 14px rgba(43, 89, 255, .4)); }
 .skill-icon .fill { fill: var(--royal); stroke: none; }
 .skill-icon .soft { stroke: var(--royal-soft); stroke-width: 1.2; }
@@ -195,7 +192,7 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 .band-dark .spec dt { color: var(--chalk-mute); }
 
 /* --- Home page copy: placards ---------------------------------------------------------------------------------- */
-/* Every section's copy reads like a drawing's title block, on the plain page and on the machine alike: a hairline
+/* Every section's copy reads like a drawing's title block: a hairline
    with a lit tab at its start, the section's number and label, then title, status, lede, details and actions. */
 .placard { position: relative; border-top: 1px solid var(--rule-strong); padding-top: var(--r-rule); }
 .placard::after { content: ''; position: absolute; left: 0; top: -2px; width: 24px; height: 3px; background: var(--royal); }
@@ -261,173 +258,172 @@ html:not(.machine) .site-header.is-scrolled::before { opacity: 1; }
 .play-row .hint { color: var(--ink-mute); }
 
 /* --- The home page ----------------------------------------------------------------------------------------------
-   The site as published: the same title blocks as the case studies, on the machine's black. The hero sits on a
-   drawing's grid lit from behind the display; the work leads with its pictures; contact closes on the hero's grid.
-   (html.machine is the 3D machine, kept for later and off the published site.)
+   The same title blocks as the case studies, on black. The hero sits on a drawing's grid lit from behind the
+   display; the work leads with its pictures; contact closes on the hero's grid.
 
    By screen: phones stack everything in one column. Tablets (700px and up) keep one column with room to breathe,
    and set the skills as cards with their tools as tags. Desktops (1100px and up) lay each section across a
    12-column grid, its label along the top: the work sets its picture and its title block side by side; About sets
    the portrait against the story; the skills run four cards across; Experience reads as a CV in three columns; and
    Contact closes the page in the middle. Large monitors (1800px and up) widen the container and step the type up. */
-html:not(.machine) .home main { width: 100%; max-width: var(--wrap); margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 176px); display: grid; gap: clamp(104px, 12vw, 200px); }
-html:not(.machine) .home .work { display: grid; gap: clamp(96px, 11vw, 184px); }
+.home main { width: 100%; max-width: var(--wrap); margin-inline: auto; padding: 0 var(--gutter) clamp(96px, 12vw, 176px); display: grid; gap: clamp(104px, 12vw, 200px); }
+.home .work { display: grid; gap: clamp(96px, 11vw, 184px); }
 /* A drawing's grid of faint registration crosses, lit royal from below, fading out downward. */
-html:not(.machine) .home .station-hero, html:not(.machine) .home #contact { position: relative; isolation: isolate; }
-html:not(.machine) .home .station-hero::before, html:not(.machine) .home #contact::before { content: ''; position: absolute; z-index: -1; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
+.home .station-hero, .home #contact { position: relative; isolation: isolate; }
+.home .station-hero::before, .home #contact::before { content: ''; position: absolute; z-index: -1; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
   background: radial-gradient(48% 46% at 50% 80%, rgba(43, 89, 255, .2), rgba(43, 89, 255, 0) 72%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 24v8M24 28h8' stroke='%23F4F5F7' stroke-opacity='.12'/%3E%3C/svg%3E") 50% 0 / 56px 56px; }
-html:not(.machine) .home .station-hero::before { top: 0; bottom: -10%; -webkit-mask: linear-gradient(#000 60%, transparent); mask: linear-gradient(#000 60%, transparent); }
-html:not(.machine) .home #contact::before { top: -18%; bottom: calc(-1 * clamp(96px, 12vw, 176px)); background-position: 50% 0, 50% 0; -webkit-mask: linear-gradient(transparent, #000 40%); mask: linear-gradient(transparent, #000 40%); }
+.home .station-hero::before { top: 0; bottom: -10%; -webkit-mask: linear-gradient(#000 60%, transparent); mask: linear-gradient(#000 60%, transparent); }
+.home #contact::before { top: -18%; bottom: calc(-1 * clamp(96px, 12vw, 176px)); background-position: 50% 0, 50% 0; -webkit-mask: linear-gradient(transparent, #000 40%); mask: linear-gradient(transparent, #000 40%); }
 /* The hero. */
-html:not(.machine) .home .station-hero { padding-top: clamp(40px, 7vw, 128px); }
-html:not(.machine) .home .hero-title { font-size: clamp(40px, 6.2vw, 112px); max-width: 15ch; }
-html:not(.machine) .home .hero-lede { font-size: clamp(17px, 1.35vw, 22px); max-width: 44ch; }
-html:not(.machine) .home .station-hero .dmd { margin-top: clamp(48px, 6vw, 104px); }
-html:not(.machine) .home .dmd-bezel { box-shadow: 0 0 0 1px var(--rule-dark), 0 50px 120px -48px rgba(43, 89, 255, .55); }
-html:not(.machine) .home .dmd-strip { margin-top: 16px; }
+.home .station-hero { padding-top: clamp(40px, 7vw, 128px); }
+.home .hero-title { font-size: clamp(40px, 6.2vw, 112px); max-width: 15ch; }
+.home .hero-lede { font-size: clamp(17px, 1.35vw, 22px); max-width: 44ch; }
+.home .station-hero .dmd { margin-top: clamp(48px, 6vw, 104px); }
+.home .dmd-bezel { box-shadow: 0 0 0 1px var(--rule-dark), 0 50px 120px -48px rgba(43, 89, 255, .55); }
+.home .dmd-strip { margin-top: 16px; }
 /* The work's pictures: a hairline frame that lights royal on hover as the picture settles closer. */
-html:not(.machine) .home .placard-media { box-shadow: 0 0 0 1px var(--rule-dark); transition: box-shadow .4s var(--ease); }
-@media (hover: hover) { html:not(.machine) .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); } }
+.home .placard-media { box-shadow: 0 0 0 1px var(--rule-dark); transition: box-shadow .4s var(--ease); }
+@media (hover: hover) { .home .placard-media:hover { box-shadow: 0 0 0 1px rgba(110, 140, 255, .7), 0 30px 80px -40px rgba(43, 89, 255, .6); } }
 /* About: the portrait at a size you can see, in a hairline frame, and three figures under the story. */
-html:not(.machine) .home .about-head { grid-template-columns: clamp(96px, 22vw, 176px) 1fr; gap: clamp(18px, 3vw, 36px); }
-html:not(.machine) .home .about-portrait { border-radius: 10px; box-shadow: 0 0 0 1px var(--rule-dark); }
-html:not(.machine) .home .story { max-width: 62ch; margin-top: clamp(24px, 3vw, 40px); }
-html:not(.machine) .home .story p:first-child { font-size: clamp(19px, 1.6vw, 26px); }
-html:not(.machine) .home .story p { font-size: clamp(15.5px, 1.05vw, 17px); }
+.home .about-head { grid-template-columns: clamp(96px, 22vw, 176px) 1fr; gap: clamp(18px, 3vw, 36px); }
+.home .about-portrait { border-radius: 10px; box-shadow: 0 0 0 1px var(--rule-dark); }
+.home .story { max-width: 62ch; margin-top: clamp(24px, 3vw, 40px); }
+.home .story p:first-child { font-size: clamp(19px, 1.6vw, 26px); }
+.home .story p { font-size: clamp(15.5px, 1.05vw, 17px); }
 .about-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(16px, 2vw, 32px); margin-top: clamp(32px, 4vw, 56px); border-top: 1px solid var(--rule-strong); }
 .about-facts div { padding-top: 16px; }
 .about-facts dt { color: var(--ink-mute); }
 .about-facts dd { font-family: var(--display); font-stretch: var(--display-wdth); font-weight: var(--display-wght); letter-spacing: var(--display-track); font-size: clamp(40px, 4.4vw, 76px); line-height: 1; margin-top: 12px; font-variant-numeric: tabular-nums; }
 .about-facts dd small { display: block; font-family: var(--body); font-stretch: 100%; font-weight: 400; font-size: var(--t-small); letter-spacing: 0; line-height: 1.5; color: var(--ink-mute); margin-top: 10px; max-width: 26ch; }
 /* Skills: the tools as tags. */
-html:not(.machine) .home .skill-list .chips { gap: 6px; margin-top: 12px; }
-html:not(.machine) .home .skill-list .chips li { padding: 5px 9px 4px; border: 1px solid var(--rule); border-radius: 999px; line-height: 1.3; transition: border-color .35s var(--ease); }
-html:not(.machine) .home .skill-list .chips li::after { content: none; }
+.home .skill-list .chips { gap: 6px; margin-top: 12px; }
+.home .skill-list .chips li { padding: 5px 9px 4px; border: 1px solid var(--rule); border-radius: 999px; line-height: 1.3; transition: border-color .35s var(--ease); }
+.home .skill-list .chips li::after { content: none; }
 /* Experience: a line through the years. The roles still running are lit and beat slowly; with motion, the line fills
    in blue as the list scrolls by and each role's dot comes on as it's reached (site.js). */
-html:not(.machine) .home .timeline { position: relative; margin-top: 28px; }
-html:not(.machine) .home .timeline::before, html:not(.machine) .home .timeline::after { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
-html:not(.machine) .home .timeline::after { background: var(--royal); transform: scaleY(var(--draw, 0)); transform-origin: 50% 0; }
-html:not(.machine) .home .timeline li { transition: background-color .35s var(--ease); }
-html:not(.machine) .home .timeline li::before { z-index: 1; }
-html:not(.machine) .home .timeline li:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
-html:not(.machine) .home .timeline.is-live li::before { background: #2a2e36; box-shadow: none; }
-html:not(.machine) .home .timeline.is-live li.reached::before { background: var(--chalk); }
-html:not(.machine) .home .timeline.is-live li.reached:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
-html.motion:not(.machine) .home .timeline li:nth-child(-n+2)::after { content: ''; position: absolute; left: 0; top: 17px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--royal-soft); animation: role-beat 2.6s var(--ease) infinite; }
-html.motion:not(.machine) .home .timeline li:nth-child(2)::after { animation-delay: .5s; }
+.home .timeline { position: relative; margin-top: 28px; }
+.home .timeline::before, .home .timeline::after { content: ''; position: absolute; left: 3.5px; top: 21px; bottom: 28px; width: 1px; background: var(--rule); }
+.home .timeline::after { background: var(--royal); transform: scaleY(var(--draw, 0)); transform-origin: 50% 0; }
+.home .timeline li { transition: background-color .35s var(--ease); }
+.home .timeline li::before { z-index: 1; }
+.home .timeline li:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
+.home .timeline.is-live li::before { background: #2a2e36; box-shadow: none; }
+.home .timeline.is-live li.reached::before { background: var(--chalk); }
+.home .timeline.is-live li.reached:nth-child(-n+2)::before { background: var(--royal); box-shadow: 0 0 0 3px rgba(43, 89, 255, .18), 0 0 10px rgba(43, 89, 255, .6); }
+.motion .home .timeline li:nth-child(-n+2)::after { content: ''; position: absolute; left: 0; top: 17px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--royal-soft); animation: role-beat 2.6s var(--ease) infinite; }
+.motion .home .timeline li:nth-child(2)::after { animation-delay: .5s; }
 @keyframes role-beat { 0% { transform: scale(1); opacity: .9; } 70%, 100% { transform: scale(3.4); opacity: 0; } }
-html:not(.machine) .home .timeline + .btn { margin-top: 32px; }
+.home .timeline + .btn { margin-top: 32px; }
 /* Contact closes the page, as large as the hero. */
-html:not(.machine) .home #contact { padding-top: clamp(24px, 4vw, 64px); }
-html:not(.machine) .home #contact .placard-title { font-size: clamp(36px, 5vw, 88px); max-width: 14ch; }
-html:not(.machine) .home .contact-email { font-size: clamp(24px, 3.4vw, 56px); }
-html:not(.machine) .home .site-footer { margin-top: 0; background: var(--cab); box-shadow: 0 0 0 100vmax var(--cab); clip-path: inset(0 -100vmax); }
+.home #contact { padding-top: clamp(24px, 4vw, 64px); }
+.home #contact .placard-title { font-size: clamp(36px, 5vw, 88px); max-width: 14ch; }
+.home .contact-email { font-size: clamp(24px, 3.4vw, 56px); }
+.home .site-footer { margin-top: 0; background: var(--cab); box-shadow: 0 0 0 100vmax var(--cab); clip-path: inset(0 -100vmax); }
 
 /* Tablets and up: skills as cards, two by two. */
 @media (min-width: 700px) {
-  html:not(.machine) .home .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
-  html:not(.machine) .home .skill-list { counter-reset: skill; }
-  html:not(.machine) .home .skill-list > li { position: relative; counter-increment: skill; padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 12px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease), transform .5s var(--ease), box-shadow .5s var(--ease); }
-  html:not(.machine) .home .skill-list > li::after { content: counter(skill, decimal-leading-zero); position: absolute; top: 22px; right: 22px; font: 500 var(--t-label)/1 var(--mono); font-stretch: 87.5%; letter-spacing: var(--label-track); color: var(--ink-mute); }
-  html:not(.machine) .home .skill-list .skill-icon { width: 30px; height: 30px; transition: filter .4s var(--ease); }
-  html:not(.machine) .home .skill-list h3 { padding-right: 2.4em; }
-  html:not(.machine) .home .work .placard-media { aspect-ratio: 16 / 10; }
+  .home .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
+  .home .skill-list { counter-reset: skill; }
+  .home .skill-list > li { position: relative; counter-increment: skill; padding: 22px 22px 24px; border: 1px solid var(--rule); border-radius: 12px; background: linear-gradient(var(--band), rgba(16, 18, 22, 0) 70%); transition: border-color .35s var(--ease), transform .5s var(--ease), box-shadow .5s var(--ease); }
+  .home .skill-list > li::after { content: counter(skill, decimal-leading-zero); position: absolute; top: 22px; right: 22px; font: 500 var(--t-label)/1 var(--mono); font-stretch: 87.5%; letter-spacing: var(--label-track); color: var(--ink-mute); }
+  .home .skill-list .skill-icon { width: 30px; height: 30px; transition: filter .4s var(--ease); }
+  .home .skill-list h3 { padding-right: 2.4em; }
+  .home .work .placard-media { aspect-ratio: 16 / 10; }
 }
 @media (min-width: 700px) and (hover: hover) {
-  html:not(.machine) .home .skill-list > li:hover { border-color: rgba(110, 140, 255, .55); transform: translateY(-4px); box-shadow: 0 28px 60px -36px rgba(43, 89, 255, .7); }
-  html:not(.machine) .home .skill-list > li:hover .chips li { border-color: rgba(110, 140, 255, .32); }
-  html:not(.machine) .home .skill-list > li:hover .skill-icon { filter: drop-shadow(0 0 4px rgba(110, 140, 255, 1)) drop-shadow(0 0 20px rgba(43, 89, 255, .75)); }
-  html:not(.machine) .home .timeline li:hover { background: linear-gradient(90deg, rgba(43, 89, 255, .07), rgba(43, 89, 255, 0) 70%); }
+  .home .skill-list > li:hover { border-color: rgba(110, 140, 255, .55); transform: translateY(-4px); box-shadow: 0 28px 60px -36px rgba(43, 89, 255, .7); }
+  .home .skill-list > li:hover .chips li { border-color: rgba(110, 140, 255, .32); }
+  .home .skill-list > li:hover .skill-icon { filter: drop-shadow(0 0 4px rgba(110, 140, 255, 1)) drop-shadow(0 0 20px rgba(43, 89, 255, .75)); }
+  .home .timeline li:hover { background: linear-gradient(90deg, rgba(43, 89, 255, .07), rgba(43, 89, 255, 0) 70%); }
 }
 /* With motion, a skill's icon is drawn on stroke by stroke as its card arrives (site.js adds .is-in): every stroke
    is one unit long (pathLength), so one dash covers it. */
-html.motion:not(.machine) .home .skill-icon path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s var(--ease); transition-delay: calc(var(--i) * 70ms + .15s); }
-html.motion:not(.machine) .home .skill-icon .fill { opacity: 0; transition: opacity .4s linear; transition-delay: calc(var(--i) * 70ms + .35s); }
-html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon path { stroke-dashoffset: 0; }
-html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opacity: 1; }
+.motion .home .skill-icon path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s var(--ease); transition-delay: calc(var(--i) * 70ms + .15s); }
+.motion .home .skill-icon .fill { opacity: 0; transition: opacity .4s linear; transition-delay: calc(var(--i) * 70ms + .35s); }
+.motion .home .skill-list > li.is-in .skill-icon path { stroke-dashoffset: 0; }
+.motion .home .skill-list > li.is-in .skill-icon .fill { opacity: 1; }
 
 /* Desktops: every section on a 12-column grid. */
 @media (min-width: 1100px) {
-  html:not(.machine) .home .placard { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-content: start; }
-  html:not(.machine) .home .placard > * { grid-column: 1 / -1; }
+  .home .placard { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-content: start; }
+  .home .placard > * { grid-column: 1 / -1; }
   /* Every section's label runs along its top, its number at the left. */
-  html:not(.machine) .home .station:not(.station-hero) .placard > .label { grid-row: 1; }
-  html:not(.machine) .home .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
-  html:not(.machine) .home .placard > .btn, html:not(.machine) .home .placard > .actions { justify-self: start; }
+  .home .station:not(.station-hero) .placard > .label { grid-row: 1; }
+  .home .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
+  .home .placard > .btn, .home .placard > .actions { justify-self: start; }
 
   /* The hero: the label across the top, the headline wide, and under it the lede and the actions side by side. */
-  html:not(.machine) .home .station-hero .placard > * { grid-column: 1 / -1; }
-  html:not(.machine) .home .station-hero .hero-lede { grid-column: 1 / span 6; }
-  html:not(.machine) .home .station-hero .placard > .actions { grid-column: 8 / -1; grid-row: 3; align-self: end; margin-top: 0; }
+  .home .station-hero .placard > * { grid-column: 1 / -1; }
+  .home .station-hero .hero-lede { grid-column: 1 / span 6; }
+  .home .station-hero .placard > .actions { grid-column: 8 / -1; grid-row: 3; align-self: end; margin-top: 0; }
 
   /* The work: the label across the top, then the picture and the title block side by side, on alternate sides. */
-  html:not(.machine) .home .work .station:not(.station-hero) .placard > .label { grid-column: 1 / -1; grid-row: 1; position: static; flex-wrap: nowrap; margin-bottom: var(--r-label); }
-  html:not(.machine) .home .work .station:not(.station-hero) .label-count { margin-left: auto; flex-basis: auto; padding-left: 0; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard > * { grid-column: 8 / -1; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; grid-row: 2 / span 8; align-self: start; margin-bottom: 0; aspect-ratio: 4 / 3; }
-  html:not(.machine) .home .work #tiptop.station .placard > * { grid-column: 1 / span 5; }
-  html:not(.machine) .home .work #tiptop.station .placard > .label { grid-column: 1 / -1; }
-  html:not(.machine) .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
-  html:not(.machine) .home .work #tiptop.station .placard-media img { object-position: 0 0; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { margin-top: 4px; }
+  .home .work .station:not(.station-hero) .placard > .label { grid-column: 1 / -1; grid-row: 1; position: static; flex-wrap: nowrap; margin-bottom: var(--r-label); }
+  .home .work .station:not(.station-hero) .label-count { margin-left: auto; flex-basis: auto; padding-left: 0; }
+  .home .work .station:not(.station-hero) .placard > * { grid-column: 8 / -1; }
+  .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; grid-row: 2 / span 8; align-self: start; margin-bottom: 0; aspect-ratio: 4 / 3; }
+  .home .work #tiptop.station .placard > * { grid-column: 1 / span 5; }
+  .home .work #tiptop.station .placard > .label { grid-column: 1 / -1; }
+  .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
+  .home .work #tiptop.station .placard-media img { object-position: 0 0; }
+  .home .work .station:not(.station-hero) .placard-title { font-size: clamp(36px, 3.4vw, 60px); }
+  .home .work .station:not(.station-hero) .placard-title { margin-top: 4px; }
 
   /* About: the portrait holds the left of the section while the title, the story and the figures run down the
      right. */
-  html:not(.machine) .home .about-head { display: contents; }
-  html:not(.machine) .home #about .about-portrait { grid-column: 1 / span 4; grid-row: 2 / span 3; align-self: start; position: sticky; top: calc(var(--header) + 24px); max-width: 540px; border-radius: 12px; }
-  html:not(.machine) .home #about .placard-title { grid-column: 6 / -1; grid-row: 2; }
-  html:not(.machine) .home #about .story { grid-column: 6 / -1; grid-row: 3; }
-  html:not(.machine) .home #about .about-facts { grid-column: 6 / -1; grid-row: 4; }
+  .home .about-head { display: contents; }
+  .home #about .about-portrait { grid-column: 1 / span 4; grid-row: 2 / span 3; align-self: start; position: sticky; top: calc(var(--header) + 24px); max-width: 540px; border-radius: 12px; }
+  .home #about .placard-title { grid-column: 6 / -1; grid-row: 2; }
+  .home #about .story { grid-column: 6 / -1; grid-row: 3; }
+  .home #about .about-facts { grid-column: 6 / -1; grid-row: 4; }
 
   /* Skills: the title wide, then the four cards across the whole section, each with its icon over its copy and its
      tools along its foot. */
-  html:not(.machine) .home #skills .placard-title { grid-column: 1 / span 9; }
-  html:not(.machine) .home .skill-list { gap: clamp(14px, 1.4vw, 24px); margin-top: clamp(36px, 3.6vw, 56px); }
-  html:not(.machine) .home .skill-list > li { padding: clamp(24px, 2vw, 34px); }
-  html:not(.machine) .home .skill-list > li::after { top: clamp(24px, 2vw, 34px); right: clamp(24px, 2vw, 34px); }
-  html:not(.machine) .home .skill-list h3 { font-size: var(--d-s); }
-  html:not(.machine) .home .skill-list p { font-size: 15px; margin-top: 8px; }
+  .home #skills .placard-title { grid-column: 1 / span 9; }
+  .home .skill-list { gap: clamp(14px, 1.4vw, 24px); margin-top: clamp(36px, 3.6vw, 56px); }
+  .home .skill-list > li { padding: clamp(24px, 2vw, 34px); }
+  .home .skill-list > li::after { top: clamp(24px, 2vw, 34px); right: clamp(24px, 2vw, 34px); }
+  .home .skill-list h3 { font-size: var(--d-s); }
+  .home .skill-list p { font-size: 15px; margin-top: 8px; }
 
   /* Experience, read like a CV across the whole section: the dates, then the role and where, then what it was. The
      résumé's button sits level with the title. */
-  html:not(.machine) .home #experience .placard-title { grid-column: 1 / span 8; grid-row: 2; }
-  html:not(.machine) .home #experience .placard > .btn { grid-column: 9 / -1; grid-row: 2; justify-self: end; align-self: end; margin-top: 0; }
-  html:not(.machine) .home #experience .timeline { grid-row: 3; margin-top: clamp(36px, 3.6vw, 56px); }
-  html:not(.machine) .home .timeline li { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-items: start; padding-block: clamp(20px, 1.8vw, 30px); }
-  html:not(.machine) .home .timeline li > .mono { grid-column: 1 / span 3; grid-row: 1 / span 2; text-align: left; padding-top: 5px; }
-  html:not(.machine) .home .timeline li > h3 { grid-column: 4 / span 5; grid-row: 1; font-size: clamp(18px, 1.5vw, 24px); line-height: 1.2; }
-  html:not(.machine) .home .timeline li > .org { grid-column: 4 / span 5; grid-row: 2; font-size: 14.5px; margin-top: 6px; }
-  html:not(.machine) .home .timeline li > p:last-child { grid-column: 9 / -1; grid-row: 1 / span 2; font-size: 15px; line-height: 1.55; color: var(--ink-mute); margin-top: 3px; }
-  html:not(.machine) .home .timeline li::before { top: clamp(27px, calc(1.8vw + 7px), 37px); }
-  html:not(.machine) .home .timeline li:nth-child(-n+2)::after { top: clamp(27px, calc(1.8vw + 7px), 37px); }
-  html:not(.machine) .home .timeline::before, html:not(.machine) .home .timeline::after { top: clamp(31px, calc(1.8vw + 11px), 41px); bottom: 40px; }
+  .home #experience .placard-title { grid-column: 1 / span 8; grid-row: 2; }
+  .home #experience .placard > .btn { grid-column: 9 / -1; grid-row: 2; justify-self: end; align-self: end; margin-top: 0; }
+  .home #experience .timeline { grid-row: 3; margin-top: clamp(36px, 3.6vw, 56px); }
+  .home .timeline li { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(24px, 2.2vw, 44px); align-items: start; padding-block: clamp(20px, 1.8vw, 30px); }
+  .home .timeline li > .mono { grid-column: 1 / span 3; grid-row: 1 / span 2; text-align: left; padding-top: 5px; }
+  .home .timeline li > h3 { grid-column: 4 / span 5; grid-row: 1; font-size: clamp(18px, 1.5vw, 24px); line-height: 1.2; }
+  .home .timeline li > .org { grid-column: 4 / span 5; grid-row: 2; font-size: 14.5px; margin-top: 6px; }
+  .home .timeline li > p:last-child { grid-column: 9 / -1; grid-row: 1 / span 2; font-size: 15px; line-height: 1.55; color: var(--ink-mute); margin-top: 3px; }
+  .home .timeline li::before { top: clamp(27px, calc(1.8vw + 7px), 37px); }
+  .home .timeline li:nth-child(-n+2)::after { top: clamp(27px, calc(1.8vw + 7px), 37px); }
+  .home .timeline::before, .home .timeline::after { top: clamp(31px, calc(1.8vw + 11px), 41px); bottom: 40px; }
 
   /* Contact: the close of the page, in the middle of it, over the light from below. */
-  html:not(.machine) .home #contact .placard > :not(.label) { justify-self: center; text-align: center; }
-  html:not(.machine) .home #contact .placard-title { max-width: 16ch; }
-  html:not(.machine) .home #contact .placard-lede { max-width: 46ch; }
-  html:not(.machine) .home #contact .contact-row, html:not(.machine) .home #contact .contact-links { justify-content: center; }
+  .home #contact .placard > :not(.label) { justify-self: center; text-align: center; }
+  .home #contact .placard-title { max-width: 16ch; }
+  .home #contact .placard-lede { max-width: 46ch; }
+  .home #contact .contact-row, .home #contact .contact-links { justify-content: center; }
 }
 /* Wide desktops: the four skills in one row. Below that they stay two by two. */
 @media (min-width: 1300px) {
-  html:not(.machine) .home .skill-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  html:not(.machine) .home .skill-list > li { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: clamp(22px, 2vw, 34px); }
-  html:not(.machine) .home .skill-list > li > div { display: flex; flex-direction: column; }
-  html:not(.machine) .home .skill-list .skill-icon { width: clamp(40px, 3vw, 52px); height: clamp(40px, 3vw, 52px); }
-  html:not(.machine) .home .skill-list .chips { margin-top: auto; padding-top: 22px; }
+  .home .skill-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home .skill-list > li { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: clamp(22px, 2vw, 34px); }
+  .home .skill-list > li > div { display: flex; flex-direction: column; }
+  .home .skill-list .skill-icon { width: clamp(40px, 3vw, 52px); height: clamp(40px, 3vw, 52px); }
+  .home .skill-list .chips { margin-top: auto; padding-top: 22px; }
 }
 
 /* Laptops (1100–1499px)}
 
 /* Laptops (1100–1499px): the work's title block takes half the width, so its details aren't cramped. */
 @media (min-width: 1100px) and (max-width: 1499px) {
-  html:not(.machine) .home .work .station:not(.station-hero) .placard > * { grid-column: 7 / -1; }
-  html:not(.machine) .home .work #tiptop.station .placard > * { grid-column: 1 / span 6; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; }
-  html:not(.machine) .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
+  .home .work .station:not(.station-hero) .placard > * { grid-column: 7 / -1; }
+  .home .work #tiptop.station .placard > * { grid-column: 1 / span 6; }
+  .home .work .station:not(.station-hero) .placard-media { grid-column: 1 / span 6; }
+  .home .work #tiptop.station .placard-media { grid-column: 7 / -1; }
 }
 
 /* Large monitors: a wider container and a step up in type, the header's with it. */
@@ -435,7 +431,7 @@ html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opaci
   :root { --wrap: 1720px; --gutter: 112px; --header: 76px; --t-lede: 21px; --t-body: 17px; --t-small: 15px; --t-label: 11.5px; --d-xs: 19px; --d-s: 32px; --d-m: 52px; --d-l: 76px; --d-xl: 112px; }
   .nav a { font-size: 15px; }
   .wordmark { font-size: 18px; }
-  html:not(.machine) .home .skill-list > li { padding: 28px 28px 30px; }
+  .home .skill-list > li { padding: 28px 28px 30px; }
 }
 /* Very large monitors (1440p ultrawide, 4K at 100%): wider again, and larger type throughout. */
 @media (min-width: 2400px) {
@@ -444,14 +440,14 @@ html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opaci
   .nav a { font-size: 16.5px; }
   .wordmark { font-size: 20px; }
   .btn { min-height: 56px; padding-inline: 24px; font-size: 16.5px; }
-  html:not(.machine) .home .hero-title { font-size: 136px; }
-  html:not(.machine) .home .hero-lede { font-size: 25px; }
-  html:not(.machine) .home .work .station:not(.station-hero) .placard-title { font-size: 72px; }
-  html:not(.machine) .home .story p:first-child { font-size: 30px; }
-  html:not(.machine) .home .story p { font-size: 19px; }
-  html:not(.machine) .home #contact .placard-title { font-size: 104px; }
-  html:not(.machine) .home .contact-email { font-size: 66px; }
-  html:not(.machine) .home .timeline li > h3 { font-size: 19px; }
+  .home .hero-title { font-size: 136px; }
+  .home .hero-lede { font-size: 25px; }
+  .home .work .station:not(.station-hero) .placard-title { font-size: 72px; }
+  .home .story p:first-child { font-size: 30px; }
+  .home .story p { font-size: 19px; }
+  .home #contact .placard-title { font-size: 104px; }
+  .home .contact-email { font-size: 66px; }
+  .home .timeline li > h3 { font-size: 19px; }
 }
 
 /* Touch screens: larger tap targets for the small controls. */
@@ -460,182 +456,6 @@ html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opaci
   .contact-links a, .link-out { display: inline-block; padding-block: 12px; }
 }
 .flat-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.scroll-cue { display: none; }
-.machine .flat-only, html:not(.machine) .machine-only, html:not(.can-machine) .footer-view .flat-only { display: none !important; }
-
-/* --- The machine ---------------------------------------------------------------------------------------------- */
-.stage, .boot, .hud, .shade { display: none; }
-.machine body { background: var(--room); color: var(--chalk); }
-.machine .stage { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100lvh; z-index: 0; }
-.machine .boot { display: flex; position: fixed; inset: 0; z-index: 90; align-items: center; justify-content: center; gap: 12px; background: var(--room); color: var(--chalk-mute); opacity: 0; visibility: hidden; transition: opacity .9s ease, visibility 0s .9s; }
-.machine.booting .boot { opacity: 1; visibility: visible; transition: none; }
-.boot-led { width: 8px; height: 8px; border-radius: 50%; background: var(--royal); box-shadow: 0 0 12px var(--royal); animation: boot-pulse 1.1s ease-in-out infinite; }
-@keyframes boot-pulse { 50% { opacity: .25; } }
-
-/* A soft shade on the side that carries the copy, so type always reads over the playfield. JS sets --l, --r and
-   (on tall screens) --b from the stations in view. */
-.machine .shade { display: block; position: fixed; inset: 0; z-index: 1; pointer-events: none; background:
-  linear-gradient(90deg, rgba(6, 7, 10, calc(var(--l, 0) * .97)), rgba(6, 7, 10, calc(var(--l, 0) * .93)) 34%, rgba(6, 7, 10, calc(var(--l, 0) * .6)) 47%, rgba(6, 7, 10, 0) 62%),
-  linear-gradient(270deg, rgba(6, 7, 10, calc(var(--r, 0) * .97)), rgba(6, 7, 10, calc(var(--r, 0) * .93)) 34%, rgba(6, 7, 10, calc(var(--r, 0) * .6)) 47%, rgba(6, 7, 10, 0) 62%),
-  linear-gradient(0deg, rgba(6, 7, 10, calc(var(--b, 0) * .92)), rgba(6, 7, 10, calc(var(--b, 0) * .8)) 42%, rgba(6, 7, 10, 0) 66%); }
-
-/* Callouts: hairlines from the parts to the copy, like dimension lines on a cut plan. White lines, lit in blue;
-   a blue ring and a white dot on the part; a white tick where the line meets the copy. */
-.machine .hud { display: block; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
-.hud-line { fill: none; stroke: rgba(244, 245, 247, .5); stroke-width: 1; stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linejoin: round; }
-.hud-ring { fill: rgba(43, 89, 255, .16); stroke: var(--royal-soft); stroke-width: 1.4; animation: hud-pulse 2.4s ease-in-out infinite; }
-.hud-dot { fill: var(--chalk); }
-.hud-tick { fill: var(--chalk); }
-.hud-link.lit .hud-line { stroke: var(--royal-soft); stroke-opacity: .95; }
-.hud-link:not(.lit) .hud-ring { stroke: rgba(244, 245, 247, .45); fill: none; animation: none; }
-.hud-link:not(.lit) .hud-dot { fill: rgba(244, 245, 247, .7); }
-@keyframes hud-pulse { 50% { stroke-opacity: .35; } }
-/* The exploded view's callouts: numbered part names on short leaders, like a CAD drawing's balloons. */
-.cad { display: none; }
-.machine .cad { display: block; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; }
-.cad-tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; translate: 0 -50%; white-space: nowrap; font-family: var(--mono); font-size: var(--t-label); font-stretch: 87.5%; font-weight: 500; letter-spacing: var(--label-track); text-transform: uppercase; color: var(--chalk); text-shadow: 0 1px 8px rgba(6, 7, 10, .9); }
-.cad-tag::before { content: ''; width: 26px; height: 1px; background: var(--royal-soft); }
-.cad-tag i { font-style: normal; font-weight: 600; color: var(--royal-soft); }
-.cad.left .cad-tag { flex-direction: row-reverse; translate: -100% -50%; }
-
-.machine .site-header { position: fixed; inset: 0 0 auto; background: linear-gradient(rgba(6, 7, 10, .82), rgba(6, 7, 10, 0)); color: var(--chalk); border-bottom-color: transparent; }
-.machine .site-header.menu-open { background: var(--cab); }
-.machine .clock { color: var(--chalk-mute); }
-.machine .wordmark-mark { box-shadow: inset 0 0 0 3px var(--cab), 0 0 0 1px var(--rule-dark); }
-.machine main { position: relative; z-index: 2; }
-
-/* Each station is a long stretch of scroll. Its copy holds still across from the part, set straight onto the scene
-   over the side shade rather than on a card, in a column of fixed width. */
-.machine .station { display: flex; align-items: flex-start; min-height: 230vh; padding-inline: max(var(--gutter), calc((100vw - 1480px) / 2)); }
-.machine .station[data-side="right"] { justify-content: flex-end; }
-.machine .station-hero { min-height: 135vh; }
-.machine .station[data-hold] { min-height: 330vh; }
-.machine .station .placard {
-  position: sticky; top: max(calc(var(--header) + 24px), calc(50vh + var(--header) / 2 - var(--ph, 320px) / 2));
-  width: min(520px, 36vw); opacity: 0; will-change: opacity, transform; isolation: isolate;
-  border-top-color: var(--hair-scene); color: var(--chalk); text-shadow: 0 1px 16px rgba(6, 7, 10, .6);
-}
-.machine .station .placard::after { box-shadow: 0 0 10px rgba(43, 89, 255, .7); }
-/* Behind the copy the scene goes soft, like a lens focused past it: a feathered blur with no edge, not a card. It
-   follows whichever section's copy is showing. */
-.lens { display: none; }
-.machine .lens { display: block; position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; opacity: 0; background: rgba(6, 7, 10, .3);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  -webkit-mask: radial-gradient(closest-side, #000 58%, transparent); mask: radial-gradient(closest-side, #000 58%, transparent); }
-
-/* The copy, recoloured for the scene. */
-.machine .label { color: var(--chalk-mute); }
-.machine .station:not(.station-hero) .label::before { color: var(--royal-soft); }
-.machine .placard-title, .machine .hero-title, .machine .story p:first-child, .machine .skill-list h3, .machine .timeline h3 { color: var(--chalk); }
-.machine .placard-lede, .machine .hero-lede { color: var(--chalk); }
-.machine .meta, .machine .story p, .machine .skill-list p, .machine .timeline p, .machine .timeline .org, .machine .timeline .mono, .machine .spec dt, .machine .play-row .hint { color: var(--chalk-mute); }
-.machine .timeline p:last-child { color: var(--chalk-mute); }
-.machine .chip { border-color: var(--hair-scene); color: var(--chalk); text-shadow: none; }
-.machine .placard-media, .machine .about-portrait { display: none; }
-.machine .about-head { display: block; }
-.machine .spec { border-top-color: var(--hair-scene-soft); }
-.machine .btn-solid { background: var(--chalk); color: var(--room); text-shadow: none; }
-.machine .btn-solid:hover { background: var(--royal); color: var(--on-royal); }
-.machine .btn-royal { text-shadow: none; }
-.machine .btn-line { border-color: var(--hair-scene); color: var(--chalk); }
-.machine .btn-line:hover { border-color: var(--chalk); }
-.machine .key { border-color: var(--hair-scene); color: var(--chalk); }
-.machine .key:hover { background: rgba(244, 245, 247, .07); border-color: var(--chalk); }
-.machine .key[aria-pressed="true"] { background: var(--royal); border-color: var(--royal); color: var(--on-royal); text-shadow: none; }
-.machine .link-out:hover, .machine .contact-links a:hover { color: var(--royal-soft); }
-/* Long lists follow the machine: the entry its part is showing stays bright and the rest step back. */
-.machine .skill-list > li, .machine .timeline li { transition: opacity .5s var(--ease), background-color .4s, border-color .4s; }
-.machine .has-current > li:not(.current) { opacity: .4; }
-.machine .skill-list { margin-top: 18px; }
-.machine .skill-list > li { padding: 11px 12px 11px 14px; }
-.machine .skill-list > li.lit { background: rgba(43, 89, 255, .1); border-left-color: var(--royal); }
-.machine .skill-icon { stroke: var(--royal-soft); filter: drop-shadow(0 0 5px rgba(43, 89, 255, .9)); }
-.machine .skill-icon .fill { fill: var(--royal-soft); }
-.machine .skill-list .chips { color: var(--chalk); opacity: .82; }
-.machine .timeline li { border-top-color: var(--hair-scene-soft); }
-.machine .timeline li::before { background: rgba(244, 245, 247, .25); }
-.machine .timeline li.lit::before { background: var(--royal); }
-.machine .contact-row { border-color: var(--hair-scene-soft); }
-.machine .story p:first-child { font-size: 20px; }
-
-/* Copy arrives in a short stagger when the camera reaches its station. */
-.machine.motion .placard > * { transition: opacity .7s var(--ease), transform .7s var(--ease); }
-.machine.motion .placard:not(.is-here) > * { opacity: 0; transform: translateY(12px); }
-.machine.motion .placard.is-here > :nth-child(2) { transition-delay: .06s; }
-.machine.motion .placard.is-here > :nth-child(3) { transition-delay: .12s; }
-.machine.motion .placard.is-here > :nth-child(4) { transition-delay: .18s; }
-.machine.motion .placard.is-here > :nth-child(5) { transition-delay: .24s; }
-.machine.motion .placard.is-here > :nth-child(n+6) { transition-delay: .3s; }
-/* The lit tab draws across the hairline as the copy arrives. */
-.machine.motion .placard::after { transition: transform .9s var(--ease) .1s; transform-origin: left; }
-.machine.motion .placard:not(.is-here)::after { transform: scaleX(0); }
-
-/* The hero: the copy beside the backbox, a size up from the sections' and in the same title block. */
-.machine .station-hero .hero-title { font-size: var(--d-l); }
-
-/* Display controls and the scroll cue sit at the foot of the screen while the backbox is in view. */
-.machine .dmd-strip { position: fixed; z-index: 3; left: var(--gutter); bottom: 22px; justify-content: flex-start; padding: 6px 6px 6px 14px; border-radius: 8px; background: rgba(11, 12, 15, .72); border: 1px solid var(--rule-dark); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: opacity .5s var(--ease), transform .5s var(--ease); }
-.machine .dmd-status { color: var(--chalk-mute); }
-.machine .dmd-strip .key { min-height: 30px; border-color: var(--rule-dark); background: var(--raised); }
-.machine .dmd-strip .key:hover { border-color: var(--chalk-mute); }
-.machine .dmd-strip .key[aria-pressed="true"] { background: var(--royal); border-color: var(--royal); color: var(--on-royal); }
-.machine .scroll-cue { display: flex; position: fixed; z-index: 3; right: var(--gutter); bottom: 30px; align-items: center; gap: 12px; color: var(--chalk-mute); transition: opacity .5s var(--ease); }
-.scroll-ball { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #b9bec6 45%, #474c55); box-shadow: 0 0 0 1px rgba(43, 89, 255, .5), 0 0 10px rgba(43, 89, 255, .35); animation: cue-bounce 1.6s var(--ease) infinite; }
-@keyframes cue-bounce { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
-.machine:not([data-station="hero"]) .dmd-strip, .machine.booting .dmd-strip { opacity: 0; transform: translateY(8px); pointer-events: none; }
-.machine:not([data-station="hero"]) .scroll-cue, .machine.scrolled .scroll-cue, .machine.booting .scroll-cue { opacity: 0; }
-
-.machine .site-footer { position: relative; z-index: 2; background: linear-gradient(rgba(6, 7, 10, 0), rgba(6, 7, 10, .9) 40%); border-top: 0; margin-top: 0; }
-.machine .cursor { opacity: 1; transition: transform .14s var(--ease); }
-
-/* Short wide screens (laptops): the column's rhythm and the long lists tighten so the longest section, Experience,
-   still fits on the screen while it holds. */
-@media (min-width: 900px) and (min-aspect-ratio: 21/20) and (max-height: 860px) {
-  .machine .station .placard { --r-label: 18px; --r-lede: 14px; --r-block: 20px; width: min(520px, max(38vw, 440px)); top: max(calc(var(--header) + 12px), calc(50vh + var(--header) / 2 - var(--ph, 320px) / 2)); }
-  .machine .placard .btn { min-height: 44px; }
-  .machine .placard-title { font-size: clamp(28px, 5.4vh, 44px); }
-  .machine .placard-lede, .machine .hero-lede { font-size: 17px; }
-  .machine .skill-list, .machine .timeline { margin-top: 12px; }
-  .machine .skill-list > li { padding-block: 8px; }
-  .machine .skill-list .chips { margin-top: 5px; }
-  .machine .timeline li { padding-block: 8px 9px; }
-  .machine .timeline li::before { top: 14px; }
-  .machine .timeline .org { font-size: 13px; }
-  .machine .timeline p:last-child { font-size: 13.5px; line-height: 1.45; margin-top: 2px; }
-  .machine .story { margin-top: 16px; }
-  .machine .story p { font-size: 14.5px; line-height: 1.55; }
-  .machine .story p:first-child { font-size: 18px; }
-}
-
-/* Panel layouts (phones, tablets, short landscape screens; html.panel, set by the machine): the scene keeps the top of
-   the screen (html.tall) or its left (html.side), and the copy sits in a panel of its own below or beside it, in the
-   same title block as on wide screens, so it never covers the part. Every section's copy shares the panel and
-   crossfades there as the camera travels; copy longer than the panel scrolls inside it while the camera holds. The
-   machine sets --panel-top and --panel-left, each section's length and each placard's --scroll. */
-.machine.panel .station, .machine.panel .station[data-hold], .machine.panel .station-hero { display: block; min-height: 0; padding: 0; }
-.machine.panel .station .placard { --pad: max(22px, calc((100vw - 560px) / 2));
-  position: fixed; z-index: 2; top: var(--panel-top); right: 0; bottom: 0; left: 0; width: auto; margin: 0; overflow: hidden;
-  padding: 22px var(--pad) calc(22px + env(safe-area-inset-bottom)); border-top-color: var(--hair-scene); text-shadow: none; }
-.machine.panel .station .placard::after { left: var(--pad); top: -1px; }
-/* Copy scrolling up the panel fades under its top edge rather than being cut off there. */
-.machine.panel .station .placard::before { content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: 0; height: 20px; background: linear-gradient(var(--room), rgba(6, 7, 10, 0)); pointer-events: none; }
-.machine.panel .station .placard > * { translate: 0 var(--scroll, 0px); }
-.machine.panel .station .placard:not(.is-here) { pointer-events: none; }
-.machine.side .station .placard { --pad: 26px; top: var(--header); left: var(--panel-left); padding: 18px max(20px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) var(--pad); }
-/* The panel's ground: the scene darkens into it, feathered where they meet. */
-.machine.tall .shade { background: linear-gradient(rgba(6, 7, 10, 0) calc(var(--panel-top) - 64px), rgba(6, 7, 10, .94) var(--panel-top), var(--room) calc(var(--panel-top) + 40px)); }
-.machine.side .shade { background: linear-gradient(90deg, rgba(6, 7, 10, 0) calc(var(--panel-left) - 64px), rgba(6, 7, 10, .94) var(--panel-left), var(--room) calc(var(--panel-left) + 40px)); }
-.machine.panel .lens, .machine.panel .scroll-cue, .machine.panel .dmd-name { display: none; }
-.machine.panel main { overflow-x: clip; }
-.machine.panel .placard-title { font-size: clamp(28px, 7.4vw, 40px); }
-.machine.panel .station-hero .hero-title { font-size: clamp(32px, 8.4vw, 48px); }
-.machine.side .placard { --r-label: 14px; --r-lede: 12px; --r-block: 16px; }
-.machine.side .placard-title, .machine.side .station-hero .hero-title { font-size: clamp(22px, 6.4vh, 34px); }
-.machine.side .placard-lede, .machine.side .hero-lede { font-size: 15px; }
-/* The display's controls ride in the hero's panel. */
-.machine.panel .dmd-strip { position: static; margin-top: 20px; width: 100%; justify-content: space-between; opacity: 1; transform: none; pointer-events: auto; }
-.machine.panel .site-footer { z-index: 3; background: linear-gradient(rgba(6, 7, 10, 0), var(--room) 56px); padding-top: 64px; }
-
 /* Cursor label over interactive parts and the featured project, for fine pointers only. It is fixed to the screen, so
    following the pointer never changes the page's size. */
 .cursor { position: fixed; z-index: 60; left: 0; top: 0; pointer-events: none; padding: 11px 15px; border-radius: 999px; background: var(--royal); color: var(--on-royal); font: 600 14px/1 var(--body); white-space: nowrap; transform: translate(-50%, -50%) scale(0); opacity: 0; }
@@ -863,14 +683,14 @@ html.motion:not(.machine) .home .skill-list > li.is-in .skill-icon .fill { opaci
    powers it on as its bezel arrives). Arriving through the pixel transition, it holds until the pixels open. */
 @property --wipe { syntax: '<percentage>'; inherits: false; initial-value: 150%; }
 .motion.px-hold [data-intro], .motion.px-hold [data-intro-lines], .motion.px-hold [data-intro-dmd] { visibility: hidden; }
-.motion:not(.machine):not(.px-hold) [data-intro] { animation: intro-rise .75s var(--ease) backwards; animation-delay: 40ms; }
-.motion:not(.machine):not(.px-hold) [data-intro="2"] { animation-delay: 220ms; }
-.motion:not(.machine):not(.px-hold) [data-intro="3"] { animation-delay: 300ms; }
-.motion:not(.machine):not(.px-hold) [data-intro="6"] { animation-delay: 800ms; }
-.motion:not(.machine):not(.px-hold) [data-intro-dmd] { animation: intro-rise 1s var(--ease) 440ms backwards; }
+.motion:not(.px-hold) [data-intro] { animation: intro-rise .75s var(--ease) backwards; animation-delay: 40ms; }
+.motion:not(.px-hold) [data-intro="2"] { animation-delay: 220ms; }
+.motion:not(.px-hold) [data-intro="3"] { animation-delay: 300ms; }
+.motion:not(.px-hold) [data-intro="6"] { animation-delay: 800ms; }
+.motion:not(.px-hold) [data-intro-dmd] { animation: intro-rise 1s var(--ease) 440ms backwards; }
 /* The headline's box reaches a little below its last line, so the wipe's mask never trims a descender. */
-.motion:not(.machine) [data-intro-lines] { padding-bottom: .14em; margin-bottom: -.14em; }
-.motion:not(.machine):not(.px-hold) [data-intro-lines] { animation: intro-title 1.1s var(--ease) 80ms both;
+.motion [data-intro-lines] { padding-bottom: .14em; margin-bottom: -.14em; }
+.motion:not(.px-hold) [data-intro-lines] { animation: intro-title 1.1s var(--ease) 80ms both;
   -webkit-mask-image: linear-gradient(#000 calc(var(--wipe) - 50%), transparent var(--wipe)); mask-image: linear-gradient(#000 calc(var(--wipe) - 50%), transparent var(--wipe)); }
 @keyframes intro-rise { from { opacity: 0; transform: translate3d(0, 16px, 0); } }
 @keyframes intro-title { from { opacity: 0; transform: translate3d(0, .2em, 0); --wipe: 0%; } 25% { opacity: 1; } to { opacity: 1; transform: none; --wipe: 150%; } }
@@ -908,7 +728,7 @@ html.px-glass-in main { opacity: .25; transform: scale(1.014); }
 @media (max-width: 860px) {
   :root { --header: 60px; }
   .menu-button { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; margin-left: auto; border: 1px solid var(--rule); border-radius: 4px; background: transparent; font-weight: 600; font-size: 14px; }
-  .on-dark .menu-button, .menu-open .menu-button, .machine .menu-button { border-color: var(--rule-dark); }
+  .on-dark .menu-button, .menu-open .menu-button { border-color: var(--rule-dark); }
   .header-row { gap: 16px; }
   .js .nav { position: fixed; z-index: -1; inset: 0; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: var(--header) var(--gutter) 40px; background: var(--cab); color: var(--chalk); visibility: hidden; opacity: 0; transition: opacity .4s var(--ease), visibility 0s .4s; }
   .js .nav a { font-family: var(--display); font-stretch: var(--display-wdth); font-weight: var(--display-wght); font-size: clamp(38px, 10.5vw, 60px); letter-spacing: var(--display-track); line-height: 1.1; padding-block: 6px; }
@@ -959,10 +779,8 @@ html.px-glass-in main { opacity: .25; transform: scale(1.014); }
 }
 
 @media print {
-  .site-header, .dmd, .cursor, .actions, .contact-row .key, .skip, .case-media, .stage, .boot, .dmd-strip, .scroll-cue, .hud, .lens, .shade, .cad { display: none !important; }
-  body, .band-dark, .machine body { background: #fff; color: #000; }
+  .site-header, .dmd, .cursor, .actions, .contact-row .key, .skip, .case-media, .dmd-strip { display: none !important; }
+  body, .band-dark { background: #fff; color: #000; }
   .placard { opacity: 1 !important; transform: none !important; }
-  .machine .station { min-height: 0; display: block; padding: 0 0 24pt; }
-  .machine .station .placard { position: static; width: auto; color: #000; text-shadow: none; }
   .display { font-size: 24pt !important; }
 }

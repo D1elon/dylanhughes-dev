@@ -1,7 +1,6 @@
-# GitHub Pages publishes every committed file unless it is listed here. These are the site's sources and tooling, not
-# pages: the 3D machine's source (kept for later, off the published site), the build scripts and the résumé's source.
+# GitHub Pages publishes every committed file unless it is listed here. These are the site's tooling, not pages:
+# the résumé's source and the script that prints it.
 exclude:
-  - src
   - tools
   - node_modules
   - package.json
