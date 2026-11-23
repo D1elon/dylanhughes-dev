@@ -93,8 +93,7 @@
     update();
   });
 
-  // The dot-matrix display. On the home page's machine the 3D scene runs it; if the machine fails, it runs here.
-  const machine = root.classList.contains('machine');
+  // The dot-matrix display.
   let dmd = null;
   const canvas = $('[data-dmd]');
   const startDisplay = () => {
@@ -135,8 +134,7 @@
       else setTimeout(() => dmd.boot(), Math.max(0, 850 - performance.now()));
     }
   };
-  if (machine) window.addEventListener('machine:failed', startDisplay, { once: true });
-  else startDisplay();
+  startDisplay();
 
   // Looping films in a case study. Each plays only while it's on screen and has a pause button of its own. With
   // reduced motion nothing plays by itself: the poster shows, with the browser's controls to play it.
@@ -164,8 +162,7 @@
     }
   }
 
-  // The machine has its own camera, scroll and anchors; everything below is for ordinary pages.
-  if (!animate || machine) return;
+  if (!animate) return;
   // Line splits are measured, so they wait for the web fonts.
   document.fonts.ready.then(motion);
 

@@ -1,4 +1,4 @@
-/* The page change into a case study, done as the machine's display would do it. Leaving, the page frosts over like
+/* The page change into a case study, done as the dot-matrix display would do it. Leaving, the page frosts over like
    glass and a wave of dot-matrix pixels flashes out from where you clicked, until the screen is a dark field of
    unlit dots. Arriving, the case study's name lights up across that field in the display's lettering, then the dots
    flash and open one by one, outward from the name, and the page is built out of them as the glass clears.
@@ -133,8 +133,7 @@
     const S = surface(pitch);
     document.body.append(S.c);
     requestAnimationFrame(() => glass.classList.add('on'));
-    // The page under the dots stops animating (site.js stops the display; the 3D machine holds its scene), so the
-    // frames go to the transition.
+    // The page under the dots stops animating (site.js stops the display), so the frames go to the transition.
     dispatchEvent(new Event('pixels:leave'));
     const ox = x ?? S.w / 2, oy = y ?? S.h / 2;
     const far = Math.max(Math.hypot(ox, oy), Math.hypot(S.w - ox, oy), Math.hypot(ox, S.h - oy), Math.hypot(S.w - ox, S.h - oy));
@@ -178,12 +177,7 @@
     addEventListener('pageswap', e => { if (e.viewTransition) e.viewTransition.skipTransition(); }, { once: true });
   }
 
-  // Links into a case study take the pixel transition; the machine's ramp and screen clicks call it directly.
-  window.pixelsTo = (href, opts = {}) => {
-    const url = new URL(href, location.href);
-    if (reduced || url.origin !== location.origin || !(url.pathname in TITLES) || url.pathname === location.pathname) { location.href = url.href; return; }
-    leave(url.href, opts.x, opts.y);
-  };
+  // Links into a case study take the pixel transition.
   document.addEventListener('click', e => {
     const a = e.target.closest && e.target.closest('a[href]');
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank' || a.hasAttribute('download')) return;
